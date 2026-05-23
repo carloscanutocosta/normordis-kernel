@@ -110,3 +110,32 @@ pub mod clock {
     //! Abstracção de tempo — permite testes deterministas.
     pub use support_clock::*;
 }
+
+// ── Bootstrap (feature "bootstrap") ──────────────────────────────────────────
+
+/// Arranque e composição do runtime e infra do kernel.
+///
+/// Disponível com `features = ["bootstrap"]`.
+///
+/// ```toml
+/// normordis-kernel = { ..., features = ["bootstrap"] }
+/// ```
+///
+/// ## Módulos
+///
+/// | Módulo | Crate | O que contém |
+/// |--------|-------|-------------|
+/// | [`bootstrap::runtime`] | `runtime-bootstrap` | `KernelRuntime` — audit, logging, crypto |
+/// | [`bootstrap::app`] | `support-app-bootstrap` | `bootstrap_local_app` — stores, layout, config |
+#[cfg(feature = "bootstrap")]
+pub mod bootstrap {
+    pub mod runtime {
+        //! `KernelRuntime` — runtime do kernel: audit append-only, logging JSONL, crypto.
+        pub use runtime_bootstrap::*;
+    }
+
+    pub mod app {
+        //! Bootstrap de aplicação local: stores SQLite, layout de ficheiros, configuração.
+        pub use support_app_bootstrap::*;
+    }
+}
