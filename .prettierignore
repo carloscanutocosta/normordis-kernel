@@ -1,0 +1,8 @@
+**/node_modules
+**/dist
+**/target
+**/coverage
+**/.tauri
+apps/requerimentos/src-tauri/gen/schemas/*
+**/package-lock.json
+**/Cargo.lock
