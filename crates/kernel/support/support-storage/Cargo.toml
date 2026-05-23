@@ -1,0 +1,14 @@
+[package]
+name = "support-storage"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "Contratos de storage lógico protegido do Mini-Kernel RS"
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+support-errors = { path = "../support-errors" }
+support-crypto = { path = "../support-crypto" }

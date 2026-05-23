@@ -1,0 +1,18 @@
+[package]
+name = "core-exports"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "Snapshot exportável e governação de Gate F (core-exports)"
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+chrono.workspace = true
+
+core-audit      = { path = "../core-audit" }
+core-documental = { path = "../core-documental" }
+core-validation = { path = "../core-validation" }
+support-errors  = { path = "../../support/support-errors" }

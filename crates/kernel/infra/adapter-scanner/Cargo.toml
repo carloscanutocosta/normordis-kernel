@@ -1,0 +1,28 @@
+[package]
+name = "adapter-scanner"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "eSCL/AirScan adapter for network document scanning (HP, Lexmark, Epson)"
+
+[dependencies]
+thiserror.workspace = true
+serde.workspace = true
+
+# HTTP bloqueante — usa SChannel (Windows) via native-tls; sem Tokio
+ureq          = { version = "2", features = ["native-tls"] }
+native-tls    = "0.2"
+# XML event-based para parse de respostas eSCL
+quick-xml     = "0.36"
+
+support-errors = { path = "../../support/support-errors" }
+
+[features]
+default = []
+# Descoberta automática via mDNS (_uscan._tcp / _uscans._tcp)
+discovery = ["dep:mdns-sd"]
+
+[dependencies.mdns-sd]
+version = "0.11"
+optional = true

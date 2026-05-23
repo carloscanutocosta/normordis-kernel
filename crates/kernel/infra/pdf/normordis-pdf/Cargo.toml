@@ -1,0 +1,41 @@
+[package]
+name = "normordis-pdf"
+version = "2.5.1"
+edition.workspace = true
+license = "EUPL-1.2"
+authors.workspace = true
+description = "Institutional PDF generation for Portuguese public administration"
+repository = "https://github.com/carloscanutocosta/mini-apps"
+keywords = ["pdf", "institutional", "portugal", "public-administration", "normaxis"]
+categories = ["rendering", "template-engine"]
+exclude = ["examples/templates/*.pdf"]
+
+[dependencies]
+chrono.workspace = true
+pdf-writer = "0.12"
+subsetter = "0.2"
+flate2 = "1"
+image = { version = "0.25", features = ["png", "jpeg"] }
+rustybuzz = "0.20"
+ttf-parser = "0.25"
+regex = "1"
+thiserror.workspace = true
+serde = { workspace = true }
+serde_json = { version = "1", features = ["preserve_order"] }
+uuid.workspace = true
+hex.workspace = true
+toml = "0.8"
+fontdb = { version = "0.23", optional = true }
+hyphenation = { version = "0.8", features = ["embed_all"], optional = true }
+sha2 = "0.10"
+base64 = { workspace = true }
+
+[features]
+default = []
+optimal_wrap = []
+system-fonts = ["dep:fontdb"]
+hyphenation = ["dep:hyphenation"]
+
+[dev-dependencies]
+tempfile.workspace = true
+lopdf = "0.39"

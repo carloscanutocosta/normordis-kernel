@@ -1,0 +1,19 @@
+[package]
+name = "org-sqlite"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "Adapter SQLite para core-org (estrutura orgânica institucional)"
+
+[dependencies]
+rusqlite.workspace = true
+thiserror.workspace = true
+chrono.workspace = true
+
+adapter-sqlite = { path = "../adapter-sqlite" }
+core-org       = { path = "../../core/core-org" }
+support-errors = { path = "../../support/support-errors" }
+
+[dev-dependencies]
+tempfile.workspace = true

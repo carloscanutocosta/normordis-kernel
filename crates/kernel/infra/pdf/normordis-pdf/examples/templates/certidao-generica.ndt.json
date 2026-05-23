@@ -1,0 +1,62 @@
+{
+  "ndt": "1.0.0",
+  "meta": {
+    "title": "Certidão Genérica",
+    "description": "Template de certidão para a administração pública portuguesa"
+  },
+  "placeholders": {
+    "entidade":           { "type": "string", "required": true },
+    "numero":             { "type": "string", "required": true },
+    "ano":                { "type": "string", "required": true },
+    "nome_requerente":    { "type": "string", "required": true },
+    "nif_requerente":     { "type": "string", "required": false },
+    "assunto":            { "type": "string", "required": true },
+    "conteudo":           { "type": "ncrtf",  "required": true },
+    "local":              { "type": "string", "required": true },
+    "data":               { "type": "string", "required": true },
+    "responsavel_cargo":  { "type": "string", "required": true },
+    "responsavel_nome":   { "type": "string", "required": true },
+    "validade":           { "type": "string", "required": false }
+  },
+  "body": [
+    { "type": "heading", "text": "{{entidade}}", "level": 1 },
+    { "type": "spacer", "height_mm": 8.0 },
+    { "type": "heading", "text": "CERTIDÃO N.º {{numero}}/{{ano}}", "level": 2 },
+    { "type": "spacer", "height_mm": 6.0 },
+    { "type": "paragraph", "text": "Para os devidos efeitos legais, certifica-se que:", "alignment": "justify" },
+    { "type": "spacer", "height_mm": 4.0 },
+    { "type": "paragraph", "text": "Requerente: {{nome_requerente}}", "bold": true, "alignment": "left" },
+    {
+      "type": "conditional",
+      "condition": "nif_requerente",
+      "operator": "exists",
+      "then": [
+        { "type": "paragraph", "text": "NIF: {{nif_requerente}}", "alignment": "left" }
+      ],
+      "else": []
+    },
+    { "type": "spacer", "height_mm": 4.0 },
+    { "type": "paragraph", "text": "Assunto: {{assunto}}", "bold": true, "alignment": "left" },
+    { "type": "spacer", "height_mm": 6.0 },
+    {
+      "type": "rich_text",
+      "content": "{{conteudo}}",
+      "source": "placeholder"
+    },
+    { "type": "spacer", "height_mm": 8.0 },
+    {
+      "type": "conditional",
+      "condition": "validade",
+      "operator": "exists",
+      "then": [
+        { "type": "paragraph", "text": "Esta certidão é válida por {{validade}}.", "alignment": "left" },
+        { "type": "spacer", "height_mm": 4.0 }
+      ],
+      "else": []
+    },
+    { "type": "paragraph", "text": "{{local}}, {{data}}", "alignment": "left" },
+    { "type": "spacer", "height_mm": 12.0 },
+    { "type": "paragraph", "text": "{{responsavel_cargo}}", "alignment": "center" },
+    { "type": "paragraph", "text": "{{responsavel_nome}}", "alignment": "center" }
+  ]
+}

@@ -1,0 +1,20 @@
+[package]
+name = "numerador-sqlite"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "Adapter SQLite para persistência do numerador (domain-numerador)"
+
+[dependencies]
+domain-numerador = { path = "../../../domain/domain-numerador" }
+adapter-sqlite   = { path = "../adapter-sqlite" }
+core-rh          = { path = "../../core/core-rh" }
+support-errors   = { path = "../../support/support-errors" }
+rusqlite         = { workspace = true }
+serde_json       = { workspace = true }
+chrono           = { workspace = true }
+thiserror        = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }

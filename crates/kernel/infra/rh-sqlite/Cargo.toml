@@ -1,0 +1,18 @@
+[package]
+name = "rh-sqlite"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "Adapter SQLite para identidade funcional/local do Mini-Kernel RS"
+
+[dependencies]
+rusqlite.workspace = true
+thiserror.workspace = true
+
+adapter-sqlite = { path = "../adapter-sqlite" }
+core-rh = { path = "../../core/core-rh" }
+support-errors = { path = "../../support/support-errors" }
+
+[dev-dependencies]
+tempfile.workspace = true

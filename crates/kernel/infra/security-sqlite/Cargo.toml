@@ -1,0 +1,23 @@
+[package]
+name = "security-sqlite"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "Adapter SQLite para core-security (políticas e delegações de segurança)"
+
+[dependencies]
+rusqlite.workspace = true
+thiserror.workspace = true
+chrono.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+uuid.workspace = true
+
+adapter-sqlite  = { path = "../adapter-sqlite" }
+core-security   = { path = "../../core/core-security" }
+support-errors  = { path = "../../support/support-errors" }
+
+[dev-dependencies]
+tempfile.workspace = true
+tokio = { workspace = true, features = ["rt", "macros"] }

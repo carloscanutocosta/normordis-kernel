@@ -1,0 +1,21 @@
+[package]
+name = "core-audit"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "Core de auditoria institucional/local do Mini-Kernel RS"
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+chrono.workspace = true
+uuid.workspace = true
+thiserror.workspace = true
+sha2.workspace = true
+hex.workspace = true
+base64.workspace = true
+zeroize.workspace = true
+ed25519-dalek.workspace = true
+support-errors = { path = "../../support/support-errors" }
+support-storage = { path = "../../support/support-storage" }

@@ -1,0 +1,20 @@
+[package]
+name = "support-crypto"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "Biblioteca headless para cifragem autenticada e derivação segura de chaves"
+
+[dependencies]
+serde = { workspace = true }
+thiserror = { workspace = true }
+argon2 = { workspace = true }
+base64 = { workspace = true }
+chacha20poly1305 = { workspace = true }
+rand = { workspace = true }
+zeroize = { workspace = true }
+support-errors = { path = "../support-errors" }
+
+[dev-dependencies]
+serde_json = { workspace = true }

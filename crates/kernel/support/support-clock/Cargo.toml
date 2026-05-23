@@ -1,0 +1,9 @@
+[package]
+name = "support-clock"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+chrono.workspace = true
+

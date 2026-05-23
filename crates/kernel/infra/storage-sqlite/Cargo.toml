@@ -1,0 +1,18 @@
+[package]
+name = "storage-sqlite"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "Adapter SQLite para support-storage (Storage trait — plain JSON, sem encriptação)"
+
+[dependencies]
+adapter-sqlite   = { path = "../adapter-sqlite" }
+support-storage  = { path = "../../support/support-storage" }
+rusqlite         = { workspace = true }
+serde_json       = { workspace = true }
+chrono           = { workspace = true }
+thiserror        = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }

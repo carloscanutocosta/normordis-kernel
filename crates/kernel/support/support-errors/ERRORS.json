@@ -1,0 +1,1367 @@
+{
+  "schema_version": 1,
+  "description": "Catalogo de erros canonicos, estaveis e legiveis por maquina do Mini-Kernel RS.",
+  "format": "MINI.<AREA>.<SLUG>",
+  "status_values": [
+    {
+      "status": "reserved",
+      "description": "Codigo previsto para componente ainda nao implementado ou ainda sem uso ativo."
+    },
+    {
+      "status": "active",
+      "description": "Codigo usado por codigo Rust existente."
+    },
+    {
+      "status": "deprecated",
+      "description": "Codigo mantido por compatibilidade, mas que nao deve ser usado em nova implementacao."
+    }
+  ],
+  "rules": [
+    "O codigo nao pode ser vazio.",
+    "O codigo tem de comecar por MINI.",
+    "O codigo nao pode conter whitespace.",
+    "Usar area em uppercase.",
+    "Usar slug em uppercase com underscore.",
+    "Manter codigos estaveis depois de publicados.",
+    "Nao incluir paths, queries, dados pessoais, valores fiscais ou segredos no codigo.",
+    "Registar novos codigos neste ficheiro quando forem introduzidos."
+  ],
+  "errors": [
+    {
+      "code": "MINI.ERRORS.INVALID_CODE",
+      "status": "reserved",
+      "component": "support-errors",
+      "use": "Falha ao validar ou desserializar um ErrorCode.",
+      "public_message_policy": "Pode ser especifica sem incluir o valor invalido se este vier de input externo."
+    },
+    {
+      "code": "MINI.ERRORS.INVALID_COMPONENT",
+      "status": "reserved",
+      "component": "support-errors",
+      "use": "Falha ao validar ou desserializar um Component.",
+      "public_message_policy": "Pode ser especifica sem incluir o valor invalido se este vier de input externo."
+    },
+    {
+      "code": "MINI.RUNTIME.BOOTSTRAP_FAILED",
+      "status": "reserved",
+      "component": "runtime-bootstrap",
+      "use": "Falha geral ao inicializar o runtime tecnico da app.",
+      "public_message_policy": "Generica. Nao expor paths, env vars ou causas internas."
+    },
+    {
+      "code": "MINI.RUNTIME.INVALID_STORAGE_PROFILE",
+      "status": "active",
+      "component": "runtime-bootstrap",
+      "use": "Perfil de storage necessario ao runtime ausente, invalido ou nao resolvivel para o servico pedido.",
+      "public_message_policy": "Generica. Nao expor paths, nomes internos sensiveis ou detalhes locais."
+    },
+    {
+      "code": "MINI.RUNTIME.UNSUPPORTED_STORAGE_BACKEND",
+      "status": "active",
+      "component": "runtime-bootstrap",
+      "use": "Backend de storage configurado mas ainda nao suportado pelo bootstrap runtime.",
+      "public_message_policy": "Generica. Pode indicar backend nao suportado sem expor detalhe local."
+    },
+    {
+      "code": "MINI.RUNTIME.RUNTIME_OPEN_FAILED",
+      "status": "active",
+      "component": "runtime-bootstrap",
+      "use": "Falha geral ao abrir o KernelRuntime a partir de MiniKernelProfile.",
+      "public_message_policy": "Generica. Nao expor paths, env vars, chaves ou causas internas."
+    },
+    {
+      "code": "MINI.RUNTIME.AUDIT_RUNTIME_FAILED",
+      "status": "active",
+      "component": "runtime-bootstrap",
+      "use": "Falha ao materializar storage protegido, store ou servico de auditoria do runtime.",
+      "public_message_policy": "Generica. Nao expor paths, namespaces, chaves de storage ou payload auditavel."
+    },
+    {
+      "code": "MINI.RUNTIME.LOGGING_RUNTIME_FAILED",
+      "status": "active",
+      "component": "runtime-bootstrap",
+      "use": "Falha ao validar ou criar logging tecnico opcional do runtime.",
+      "public_message_policy": "Generica. Nao expor paths completos, detalhe do filesystem ou conteudo de logs."
+    },
+    {
+      "code": "MINI.CRYPTO.EMPTY_PASSPHRASE",
+      "status": "active",
+      "component": "support-crypto",
+      "use": "Passphrase vazia ou invalida para derivacao de chave.",
+      "public_message_policy": "Generica. Nao expor passphrase nem detalhes do input."
+    },
+    {
+      "code": "MINI.CRYPTO.INVALID_PAYLOAD",
+      "status": "active",
+      "component": "support-crypto",
+      "use": "Envelope cifrado invalido, adulterado ou com versao/algoritmo nao suportado.",
+      "public_message_policy": "Generica. Nao expor payload, algoritmo recebido, nonce ou ciphertext."
+    },
+    {
+      "code": "MINI.CRYPTO.INVALID_KEY",
+      "status": "active",
+      "component": "support-crypto",
+      "use": "Chave criptografica invalida.",
+      "public_message_policy": "Generica. Nunca expor material de chave."
+    },
+    {
+      "code": "MINI.CRYPTO.INVALID_KDF",
+      "status": "active",
+      "component": "support-crypto",
+      "use": "Configuracao de KDF invalida ou nao suportada.",
+      "public_message_policy": "Generica. Nao expor salt, parametros sensiveis ou input recebido."
+    },
+    {
+      "code": "MINI.CRYPTO.INVALID_AAD",
+      "status": "active",
+      "component": "support-crypto",
+      "use": "Contexto AAD de storage vazio ou com segmentos invalidos.",
+      "public_message_policy": "Generica. Nao expor namespace, record id, field ou AAD completo."
+    },
+    {
+      "code": "MINI.CRYPTO.POLICY_VIOLATION",
+      "status": "active",
+      "component": "support-crypto",
+      "use": "Payload ou envelope criptografico nao cumpre a politica minima exigida pelo consumidor.",
+      "public_message_policy": "Generica. Nao expor namespace, record id, key id, payload ou politica interna completa."
+    },
+    {
+      "code": "MINI.CRYPTO.ENCRYPT_FAILED",
+      "status": "active",
+      "component": "support-crypto",
+      "use": "Falha de cifragem autenticada.",
+      "public_message_policy": "Generica. Nao expor plaintext, chave, AAD ou detalhes internos."
+    },
+    {
+      "code": "MINI.CRYPTO.DECRYPT_FAILED",
+      "status": "active",
+      "component": "support-crypto",
+      "use": "Falha de decifragem autenticada.",
+      "public_message_policy": "Generica. Nao revelar se a causa foi chave, AAD ou payload adulterado."
+    },
+    {
+      "code": "MINI.STORAGE.READ_FAILED",
+      "status": "reserved",
+      "component": "support-storage",
+      "use": "Falha tecnica ao ler dados atraves de contrato de storage.",
+      "public_message_policy": "Generica. Nao expor backend nem identificadores sensiveis."
+    },
+    {
+      "code": "MINI.STORAGE.INVALID_NAMESPACE",
+      "status": "active",
+      "component": "support-storage",
+      "use": "Namespace logico de storage vazio, demasiado longo ou com caracteres invalidos.",
+      "public_message_policy": "Generica. Nao expor namespace recebido se vier de input externo."
+    },
+    {
+      "code": "MINI.STORAGE.INVALID_KEY",
+      "status": "active",
+      "component": "support-storage",
+      "use": "Chave logica de storage vazia, demasiado longa ou com caracteres/path tokens invalidos.",
+      "public_message_policy": "Generica. Nao expor chave recebida se vier de input externo."
+    },
+    {
+      "code": "MINI.STORAGE.SERIALIZATION_FAILED",
+      "status": "active",
+      "component": "support-storage",
+      "use": "Falha ao serializar StorageValue para bytes antes de proteger.",
+      "public_message_policy": "Generica. Nao expor valor JSON."
+    },
+    {
+      "code": "MINI.STORAGE.DESERIALIZATION_FAILED",
+      "status": "active",
+      "component": "support-storage",
+      "use": "Falha ao desserializar bytes decifrados para StorageValue.",
+      "public_message_policy": "Generica. Nao expor payload decifrado."
+    },
+    {
+      "code": "MINI.STORAGE.PROTECT_FAILED",
+      "status": "active",
+      "component": "support-storage",
+      "use": "Falha ao proteger/cifrar bytes de storage com support-crypto.",
+      "public_message_policy": "Generica. Nao expor plaintext, chave, AAD ou payload."
+    },
+    {
+      "code": "MINI.STORAGE.UNPROTECT_FAILED",
+      "status": "active",
+      "component": "support-storage",
+      "use": "Falha ao desproteger/decifrar envelope de storage com support-crypto.",
+      "public_message_policy": "Generica. Nao expor chave, AAD, ciphertext ou causa interna."
+    },
+    {
+      "code": "MINI.STORAGE.BACKEND_FAILED",
+      "status": "active",
+      "component": "support-storage",
+      "use": "Backend RawStorage falhou uma operacao fisica.",
+      "public_message_policy": "Generica. Nao expor backend concreto, query, path ou identificadores sensiveis."
+    },
+    {
+      "code": "MINI.STORAGE.OPERATION_FAILED",
+      "status": "active",
+      "component": "support-storage",
+      "use": "Falha generica numa operacao logica de storage.",
+      "public_message_policy": "Generica. Nao expor detalhes internos da operacao."
+    },
+    {
+      "code": "MINI.STORAGE.WRITE_FAILED",
+      "status": "reserved",
+      "component": "support-storage",
+      "use": "Falha tecnica ao escrever dados atraves de contrato de storage.",
+      "public_message_policy": "Generica. Nao expor payload."
+    },
+    {
+      "code": "MINI.STORAGE.DELETE_FAILED",
+      "status": "reserved",
+      "component": "support-storage",
+      "use": "Falha tecnica ao remover dados atraves de contrato de storage.",
+      "public_message_policy": "Generica. Nao expor identificadores sensiveis."
+    },
+    {
+      "code": "MINI.STORAGE.NOT_FOUND",
+      "status": "reserved",
+      "component": "support-storage",
+      "use": "Registo ou recurso tecnico nao encontrado.",
+      "public_message_policy": "Pode ser especifica se o identificador for seguro."
+    },
+    {
+      "code": "MINI.SECRETS.PROTECT_FAILED",
+      "status": "active",
+      "component": "infra-secrets",
+      "use": "Falha ao proteger material sensivel atraves do adapter de segredos.",
+      "public_message_policy": "Generica. Nao expor plaintext, chave, backend interno ou bytes protegidos."
+    },
+    {
+      "code": "MINI.SECRETS.UNPROTECT_FAILED",
+      "status": "active",
+      "component": "infra-secrets",
+      "use": "Falha ao desproteger ou resolver material sensivel atraves do adapter de segredos.",
+      "public_message_policy": "Generica. Nao expor plaintext, chave, key id, backend interno ou bytes protegidos."
+    },
+    {
+      "code": "MINI.SECRETS.WEAK_PASSPHRASE",
+      "status": "active",
+      "component": "infra-secrets",
+      "use": "Recovery passphrase nao cumpre a politica minima para protecao portavel de segredos.",
+      "public_message_policy": "Generica. Nao expor a passphrase nem detalhes que facilitem enumeracao."
+    },
+    {
+      "code": "MINI.SECRETS.UNSUPPORTED_PLATFORM",
+      "status": "active",
+      "component": "infra-secrets",
+      "use": "A plataforma atual nao tem adapter concreto de protecao de segredos disponivel.",
+      "public_message_policy": "Generica. Pode indicar que a plataforma nao e suportada sem expor detalhes locais."
+    },
+    {
+      "code": "MINI.LOGGING.CONFIG_INVALID",
+      "status": "active",
+      "component": "support-logging",
+      "use": "Configuracao de logging tecnico invalida.",
+      "public_message_policy": "Generica. Nao expor paths completos se vierem de input externo."
+    },
+    {
+      "code": "MINI.LOGGING.WRITE_FAILED",
+      "status": "active",
+      "component": "support-logging",
+      "use": "Falha ao criar diretorio, abrir ficheiro ou escrever linha JSONL de log tecnico.",
+      "public_message_policy": "Generica. Nao expor paths completos, detalhes do sistema ou conteudo sensivel."
+    },
+    {
+      "code": "MINI.LOGGING.ROTATION_FAILED",
+      "status": "active",
+      "component": "support-logging",
+      "use": "Falha ao rotacionar ficheiros de log tecnico.",
+      "public_message_policy": "Generica. Nao expor paths completos ou detalhes internos do filesystem."
+    },
+    {
+      "code": "MINI.LOGGING.RETENTION_FAILED",
+      "status": "active",
+      "component": "support-logging",
+      "use": "Falha ao aplicar politica de retencao de logs tecnicos.",
+      "public_message_policy": "Generica. Nao expor paths completos ou detalhes internos do filesystem."
+    },
+    {
+      "code": "MINI.AUDIT.INVALID_EVENT_TYPE",
+      "status": "active",
+      "component": "core-audit",
+      "use": "Tipo de evento de auditoria vazio ou invalido.",
+      "public_message_policy": "Generica. Nao expor detalhes funcionais sensiveis."
+    },
+    {
+      "code": "MINI.AUDIT.INVALID_ACTOR",
+      "status": "active",
+      "component": "core-audit",
+      "use": "Ator de auditoria vazio ou invalido.",
+      "public_message_policy": "Generica. Nao expor identificadores pessoais desnecessarios."
+    },
+    {
+      "code": "MINI.AUDIT.INVALID_TARGET",
+      "status": "active",
+      "component": "core-audit",
+      "use": "Alvo de auditoria vazio ou invalido.",
+      "public_message_policy": "Generica. Nao expor identificadores documentais sensiveis."
+    },
+    {
+      "code": "MINI.AUDIT.DETAILS_TOO_LARGE",
+      "status": "active",
+      "component": "core-audit",
+      "use": "Details JSON de auditoria excede o limite operacional permitido.",
+      "public_message_policy": "Generica. Nao expor o conteudo de details_json."
+    },
+    {
+      "code": "MINI.AUDIT.SENSITIVE_DETAILS",
+      "status": "active",
+      "component": "core-audit",
+      "use": "Details JSON de auditoria contem campos com nomes sensiveis como secrets, tokens, passwords ou payloads.",
+      "public_message_policy": "Generica. Nao expor nomes/valores sensiveis recebidos."
+    },
+    {
+      "code": "MINI.AUDIT.DUPLICATE_EVENT",
+      "status": "active",
+      "component": "core-audit",
+      "use": "Tentativa de gravar evento de auditoria com event_id ja existente.",
+      "public_message_policy": "Generica. Pode indicar duplicacao sem expor detalhes do evento."
+    },
+    {
+      "code": "MINI.AUDIT.INTEGRITY_FAILED",
+      "status": "active",
+      "component": "core-audit",
+      "use": "Hash de integridade do evento de auditoria nao corresponde ao conteudo armazenado.",
+      "public_message_policy": "Generica. Nao expor payload armazenado ou esperado."
+    },
+    {
+      "code": "MINI.AUDIT.CHAIN_VERIFICATION_FAILED",
+      "status": "active",
+      "component": "core-audit",
+      "use": "Cadeia hash de auditoria nao verifica por sequencia, hash anterior, cabeca ou indice inconsistente.",
+      "public_message_policy": "Generica. Nao expor hashes internos ou payload auditavel completo."
+    },
+    {
+      "code": "MINI.AUDIT.SIGN_FAILED",
+      "status": "active",
+      "component": "core-audit",
+      "use": "Falha ao serializar ou assinar manifesto de exportacao de auditoria.",
+      "public_message_policy": "Generica. Nao expor chave privada, bytes canonicos ou detalhes internos da assinatura."
+    },
+    {
+      "code": "MINI.AUDIT.SIGNATURE_VERIFICATION_FAILED",
+      "status": "active",
+      "component": "core-audit",
+      "use": "Assinatura digital de manifesto de auditoria invalida, adulterada ou com algoritmo/chave publica invalida.",
+      "public_message_policy": "Generica. Nao expor payload completo ou detalhes criptograficos internos."
+    },
+    {
+      "code": "MINI.AUDIT.SERIALIZATION_FAILED",
+      "status": "active",
+      "component": "core-audit",
+      "use": "Falha ao serializar evento de auditoria para storage protegido.",
+      "public_message_policy": "Generica. Nao expor details_json ou payload auditavel."
+    },
+    {
+      "code": "MINI.AUDIT.DESERIALIZATION_FAILED",
+      "status": "active",
+      "component": "core-audit",
+      "use": "Falha ao desserializar evento de auditoria lido do storage protegido.",
+      "public_message_policy": "Generica. Nao expor payload decifrado ou conteudo auditavel."
+    },
+    {
+      "code": "MINI.AUDIT.STORE_FAILED",
+      "status": "active",
+      "component": "core-audit",
+      "use": "Falha no backend logico de storage usado pela auditoria.",
+      "public_message_policy": "Generica. Nao expor backend concreto, chaves de storage ou payload."
+    },
+    {
+      "code": "MINI.AUDIT.OPERATION_FAILED",
+      "status": "active",
+      "component": "core-audit",
+      "use": "Falha generica numa operacao interna de auditoria.",
+      "public_message_policy": "Generica. Nao expor detalhes internos."
+    },
+    {
+      "code": "MINI.CONFIG.INVALID_APP_PROFILE",
+      "status": "active",
+      "component": "core-config",
+      "use": "Perfil de app local invalido, como app_id ou display_name ausente ou formato nao permitido.",
+      "public_message_policy": "Generica. Nao expor valores recebidos quando vierem de input externo."
+    },
+    {
+      "code": "MINI.CONFIG.INVALID_RUNTIME_PROFILE",
+      "status": "active",
+      "component": "core-config",
+      "use": "Perfil de runtime local invalido, como nome de perfil ausente ou com whitespace.",
+      "public_message_policy": "Generica. Nao expor detalhes locais desnecessarios."
+    },
+    {
+      "code": "MINI.CONFIG.INVALID_STORAGE_PROFILE",
+      "status": "active",
+      "component": "core-config",
+      "use": "Perfil de storage local invalido, incluindo backend incompativel com database_path ou nome invalido.",
+      "public_message_policy": "Generica. Nao expor paths completos."
+    },
+    {
+      "code": "MINI.CONFIG.DUPLICATE_STORAGE_PROFILE",
+      "status": "active",
+      "component": "core-config",
+      "use": "Dois ou mais storage profiles usam o mesmo nome logico.",
+      "public_message_policy": "Pode indicar duplicacao sem expor paths."
+    },
+    {
+      "code": "MINI.CONFIG.MISSING_STORAGE_PROFILE",
+      "status": "active",
+      "component": "core-config",
+      "use": "Um storage profile obrigatorio, default ou referenciado por auditoria, nao existe.",
+      "public_message_policy": "Pode indicar que um perfil de storage esta ausente sem expor paths."
+    },
+    {
+      "code": "MINI.CONFIG.INVALID_CRYPTO_PROFILE",
+      "status": "active",
+      "component": "core-config",
+      "use": "Perfil de crypto invalido, como crypto ativa sem key_id valido.",
+      "public_message_policy": "Generica. Nunca expor key id sensivel ou material de chave."
+    },
+    {
+      "code": "MINI.CONFIG.INVALID_LOGGING_PROFILE",
+      "status": "active",
+      "component": "core-config",
+      "use": "Perfil de logging tecnico invalido, incluindo log_dir ausente quando ativo ou politica de rotacao invalida.",
+      "public_message_policy": "Generica. Nao expor paths completos."
+    },
+    {
+      "code": "MINI.CONFIG.INVALID_AUDIT_PROFILE",
+      "status": "active",
+      "component": "core-config",
+      "use": "Perfil de auditoria invalido, incluindo namespace ou storage_profile invalido.",
+      "public_message_policy": "Generica. Nao expor namespaces sensiveis quando vierem de input externo."
+    },
+    {
+      "code": "MINI.CONFIG.INCONSISTENT_PROFILE",
+      "status": "active",
+      "component": "core-config",
+      "use": "Perfis locais individualmente validos mas inconsistentes entre si, como storage cifrado com crypto desativada.",
+      "public_message_policy": "Generica. Nao expor detalhes internos de configuracao sensivel."
+    },
+    {
+      "code": "MINI.VALIDATION.INVALID_INPUT",
+      "status": "active",
+      "component": "core-validation",
+      "use": "Input recebido para validacao estrutural e invalido ou nao pode ser aceite pelo contrato do validador.",
+      "public_message_policy": "Generica. Nao expor valores recebidos quando vierem de input externo."
+    },
+    {
+      "code": "MINI.VALIDATION.INVALID_RULE",
+      "status": "active",
+      "component": "core-validation",
+      "use": "Regra de validacao estrutural ausente, desconhecida ou invalida para a operacao pedida.",
+      "public_message_policy": "Generica. Pode indicar regra invalida sem expor configuracao interna sensivel."
+    },
+    {
+      "code": "MINI.VALIDATION.NORMALIZATION_FAILED",
+      "status": "active",
+      "component": "core-validation",
+      "use": "Falha ao normalizar explicitamente um valor antes ou durante validacao estrutural.",
+      "public_message_policy": "Generica. Nao expor valor original nem valor normalizado quando vierem de input externo."
+    },
+    {
+      "code": "MINI.VALIDATION.JSON_FAILED",
+      "status": "active",
+      "component": "core-validation",
+      "use": "Falha em operacao estrutural sobre JSON, como validar objeto ou campo minimo esperado.",
+      "public_message_policy": "Generica. Nao expor payload JSON completo."
+    },
+    {
+      "code": "MINI.VALIDATION.OPERATION_FAILED",
+      "status": "active",
+      "component": "core-validation",
+      "use": "Falha generica numa operacao interna de validacao estrutural.",
+      "public_message_policy": "Generica. Nao expor detalhes internos da operacao."
+    },
+    {
+      "code": "MINI.VALIDATION.FILE_NOT_FOUND",
+      "status": "active",
+      "component": "core-validation",
+      "use": "Ficheiro esperado para validacao probatoria de integridade nao existe ou nao pode ser encontrado.",
+      "public_message_policy": "Generica. Nao expor path completo quando vier de input externo."
+    },
+    {
+      "code": "MINI.VALIDATION.NOT_REGULAR_FILE",
+      "status": "active",
+      "component": "core-validation",
+      "use": "Path recebido para hash ou manifest nao aponta para ficheiro regular.",
+      "public_message_policy": "Generica. Pode indicar que o recurso nao e um ficheiro regular sem expor path completo."
+    },
+    {
+      "code": "MINI.VALIDATION.FILE_READ_FAILED",
+      "status": "active",
+      "component": "core-validation",
+      "use": "Falha ao ler ficheiro em streaming para hash ou manifest de integridade.",
+      "public_message_policy": "Generica. Nao expor path completo nem detalhe do sistema de ficheiros."
+    },
+    {
+      "code": "MINI.VALIDATION.MANIFEST_FAILED",
+      "status": "active",
+      "component": "core-validation",
+      "use": "Falha ao construir ManifestEntry deterministica para ficheiro regular.",
+      "public_message_policy": "Generica. Nao expor path completo nem metadata sensivel."
+    },
+    {
+      "code": "MINI.VALIDATION.HASH_FAILED",
+      "status": "active",
+      "component": "core-validation",
+      "use": "Falha em operacao de hash canonico de integridade.",
+      "public_message_policy": "Generica. Nao expor conteudo do ficheiro ou bytes recebidos."
+    },
+    {
+      "code": "MINI.RH.INVALID_USER_ID",
+      "status": "active",
+      "component": "core-rh",
+      "use": "Identificador funcional/local de utilizador vazio, demasiado longo, com espacos ou caracteres nao permitidos.",
+      "public_message_policy": "Generica. Nao expor identificadores recebidos de input externo quando forem sensiveis."
+    },
+    {
+      "code": "MINI.RH.INVALID_ROLE",
+      "status": "active",
+      "component": "core-rh",
+      "use": "Papel funcional local estruturalmente invalido, incluindo role_id vazio ou com espacos, ou display_name vazio.",
+      "public_message_policy": "Generica. Pode indicar papel invalido sem expor regras internas futuras de autorizacao."
+    },
+    {
+      "code": "MINI.RH.INVALID_PROFILE",
+      "status": "active",
+      "component": "core-rh",
+      "use": "Perfil funcional/local invalido para identificar quem executou um ato.",
+      "public_message_policy": "Generica. Nao expor atributos pessoais alem do necessario."
+    },
+    {
+      "code": "MINI.RH.INVALID_ORG_REF",
+      "status": "active",
+      "component": "core-rh",
+      "use": "Referencia leve a unidade organica invalida.",
+      "public_message_policy": "Generica. Nao expor hierarquias ou detalhes organizacionais sensiveis."
+    },
+    {
+      "code": "MINI.RH.INVALID_SESSION",
+      "status": "active",
+      "component": "core-rh",
+      "use": "Sessao local invalida, incluindo UUID nulo ou perfil de utilizador invalido.",
+      "public_message_policy": "Generica. Nao expor identificadores de sessao quando vierem de input externo."
+    },
+    {
+      "code": "MINI.RH.OPERATION_FAILED",
+      "status": "active",
+      "component": "core-rh",
+      "use": "Falha generica numa operacao interna de identidade funcional/local.",
+      "public_message_policy": "Generica. Nao expor detalhes internos da operacao."
+    },
+    {
+      "code": "MINI.SQLITE.INVALID_PATH",
+      "status": "active",
+      "component": "adapter-sqlite",
+      "use": "Path da base SQLite vazio ou tecnicamente invalido.",
+      "public_message_policy": "Generica. Nao expor path fornecido."
+    },
+    {
+      "code": "MINI.SQLITE.OPEN_FAILED",
+      "status": "active",
+      "component": "adapter-sqlite",
+      "use": "Falha ao abrir base SQLite.",
+      "public_message_policy": "Generica. Nunca expor path da base de dados."
+    },
+    {
+      "code": "MINI.SQLITE.CREATE_PARENT_DIR_FAILED",
+      "status": "active",
+      "component": "adapter-sqlite",
+      "use": "Falha ao criar o diretorio pai da base SQLite.",
+      "public_message_policy": "Generica. Nunca expor path do diretorio."
+    },
+    {
+      "code": "MINI.SQLITE.CONFIGURE_FAILED",
+      "status": "active",
+      "component": "adapter-sqlite",
+      "use": "Falha ao aplicar configuracao tecnica da conexao SQLite.",
+      "public_message_policy": "Generica. Nao expor pragmas, path ou detalhe interno."
+    },
+    {
+      "code": "MINI.SQLITE.INIT_FAILED",
+      "status": "active",
+      "component": "adapter-sqlite",
+      "use": "Falha ao inicializar o schema tecnico minimo SQLite.",
+      "public_message_policy": "Generica. Nao expor SQL completo."
+    },
+    {
+      "code": "MINI.SQLITE.EXECUTE_FAILED",
+      "status": "active",
+      "component": "adapter-sqlite",
+      "use": "Falha ao executar batch SQL tecnico.",
+      "public_message_policy": "Generica. Nao expor query, parametros ou schema interno."
+    },
+    {
+      "code": "MINI.SQLITE.TRANSACTION_FAILED",
+      "status": "active",
+      "component": "adapter-sqlite",
+      "use": "Falha ao iniciar, executar ou confirmar uma transacao SQLite controlada.",
+      "public_message_policy": "Generica. Nao expor SQL completo nem estado interno da transacao."
+    },
+    {
+      "code": "MINI.SQLITE.METADATA_READ_FAILED",
+      "status": "active",
+      "component": "adapter-sqlite",
+      "use": "Falha ao ler metadata tecnica do Mini-Kernel na base SQLite.",
+      "public_message_policy": "Generica. Nao expor detalhes internos da base."
+    },
+    {
+      "code": "MINI.SQLITE.METADATA_WRITE_FAILED",
+      "status": "active",
+      "component": "adapter-sqlite",
+      "use": "Falha ao escrever metadata tecnica do Mini-Kernel na base SQLite.",
+      "public_message_policy": "Generica. Nao expor valores ou detalhes internos."
+    },
+    {
+      "code": "MINI.SQLITE.INVALID_METADATA_KEY",
+      "status": "active",
+      "component": "adapter-sqlite",
+      "use": "Chave de metadata tecnica vazia ou com whitespace.",
+      "public_message_policy": "Generica. Nao expor a chave recebida se vier de input externo."
+    },
+    {
+      "code": "MINI.SQLITE.OPTIMIZE_FAILED",
+      "status": "active",
+      "component": "adapter-sqlite",
+      "use": "Falha ao executar operacao controlada PRAGMA optimize.",
+      "public_message_policy": "Generica. Nao expor detalhes internos da base."
+    },
+    {
+      "code": "MINI.SQLITE.CHECKPOINT_FAILED",
+      "status": "active",
+      "component": "adapter-sqlite",
+      "use": "Falha ao executar checkpoint controlado em WAL SQLite.",
+      "public_message_policy": "Generica. Nao expor path, estado WAL ou detalhe interno."
+    },
+    {
+      "code": "MINI.SQLITE.BUSY_TIMEOUT",
+      "status": "active",
+      "component": "adapter-sqlite",
+      "use": "A fila de escrita SQLite esgotou tentativas de retry depois de SQLITE_BUSY ou SQLITE_LOCKED.",
+      "public_message_policy": "Generica. Nao expor lock holder, path, SQL ou detalhe interno."
+    },
+    {
+      "code": "MINI.SQLITE.WRITE_QUEUE_CLOSED",
+      "status": "active",
+      "component": "adapter-sqlite",
+      "use": "Tentativa de enviar comando para uma fila de escrita SQLite encerrada.",
+      "public_message_policy": "Generica. Nao expor detalhes internos da fila."
+    },
+    {
+      "code": "MINI.SQLITE.WRITE_QUEUE_FULL",
+      "status": "active",
+      "component": "adapter-sqlite",
+      "use": "A fila de escrita SQLite bounded atingiu a capacidade configurada.",
+      "public_message_policy": "Generica. Nao expor tamanho interno da fila nem comandos pendentes."
+    },
+    {
+      "code": "MINI.SQLITE.WRITE_QUEUE_FAILED",
+      "status": "active",
+      "component": "adapter-sqlite",
+      "use": "Falha tecnica ao iniciar ou receber resultado da fila de escrita SQLite.",
+      "public_message_policy": "Generica. Nao expor detalhes internos da thread ou canal."
+    },
+    {
+      "code": "MINI.SQLITE.WRITE_QUEUE_SHUTDOWN_FAILED",
+      "status": "active",
+      "component": "adapter-sqlite",
+      "use": "Falha ao encerrar a fila de escrita SQLite de forma controlada.",
+      "public_message_policy": "Generica. Nao expor estado interno da thread."
+    },
+    {
+      "code": "MINI.SQLITE.LOCK_FAILED",
+      "status": "active",
+      "component": "adapter-sqlite",
+      "use": "Falha ao adquirir lock interno da conexao SQLite.",
+      "public_message_policy": "Generica. Nao expor detalhes de concorrencia interna."
+    },
+    {
+      "code": "MINI.SQLITE.MIGRATION_FAILED",
+      "status": "reserved",
+      "component": "adapter-sqlite",
+      "use": "Falha ao aplicar migracoes SQLite.",
+      "public_message_policy": "Generica. Nao expor SQL completo."
+    },
+    {
+      "code": "MINI.SQLITE.QUERY_FAILED",
+      "status": "active",
+      "component": "adapter-sqlite",
+      "use": "Falha ao executar query SQLite.",
+      "public_message_policy": "Generica. Nao expor query, parametros ou schema interno."
+    },
+    {
+      "code": "MINI.FILES.INVALID_PATH",
+      "status": "reserved",
+      "component": "support-files",
+      "use": "Path invalido ou rejeitado por regras tecnicas.",
+      "public_message_policy": "Generica. Nao expor path completo."
+    },
+    {
+      "code": "MINI.FILES.READ_FAILED",
+      "status": "reserved",
+      "component": "support-files",
+      "use": "Falha tecnica ao ler ficheiro.",
+      "public_message_policy": "Generica. Nao expor path completo."
+    },
+    {
+      "code": "MINI.FILES.WRITE_FAILED",
+      "status": "reserved",
+      "component": "support-files",
+      "use": "Falha tecnica ao escrever ficheiro.",
+      "public_message_policy": "Generica. Nao expor path completo."
+    },
+    {
+      "code": "MINI.PDF.RENDER_FAILED",
+      "status": "reserved",
+      "component": "support-pdf-pipeline",
+      "use": "Falha tecnica ao renderizar PDF.",
+      "public_message_policy": "Generica. Nao expor conteudo documental."
+    },
+    {
+      "code": "MINI.EXPORTS.MISSING_FIELD",
+      "status": "active",
+      "component": "core-exports",
+      "use": "Campo obrigatorio em falta ao construir ExportReceipt, incluindo actor, correlation_id ou campos de source.",
+      "public_message_policy": "Pode indicar o nome do campo em falta; nao expor valores recebidos de input externo."
+    },
+    {
+      "code": "MINI.EXPORTS.INVALID_SNAPSHOT",
+      "status": "active",
+      "component": "core-exports",
+      "use": "Snapshot estruturalmente invalido, hash de manifesto adulterado, item_count inconsistente ou algoritmo nao suportado.",
+      "public_message_policy": "Generica. Nao expor hash esperado, hash recebido ou conteudo do documento."
+    },
+    {
+      "code": "MINI.EXPORTS.MARSHAL_FAILED",
+      "status": "active",
+      "component": "core-exports",
+      "use": "Falha ao serializar ou desserializar dados do snapshot para bytes ou JSON canonico.",
+      "public_message_policy": "Generica. Nao expor payload documental."
+    },
+    {
+      "code": "MINI.EXPORTS.INVALID_PACKAGE",
+      "status": "active",
+      "component": "core-exports",
+      "use": "DocumentPackage invalido segundo validate_document_package de core-documental.",
+      "public_message_policy": "Generica. Nao expor conteudo do pacote."
+    },
+    {
+      "code": "MINI.EXPORTS.AUDIT_ERROR",
+      "status": "active",
+      "component": "core-exports",
+      "use": "Falha ao construir AuditEvent associado ao export, incluindo actor ou target invalido.",
+      "public_message_policy": "Generica. Nao expor detalhes do actor nem do alvo de auditoria."
+    },
+    {
+      "code": "MINI.EXPORTS.MATERIALIZE_FAILED",
+      "status": "active",
+      "component": "core-exports",
+      "use": "Falha ao materializar um pedido de exportacao atraves de ExportMaterializerPort.",
+      "public_message_policy": "Generica. Nao expor paths locais, conteudo exportado ou detalhes do adapter."
+    },
+    {
+      "code": "MINI.AUTH.TOKEN_INVALID",
+      "status": "active",
+      "component": "support-auth",
+      "use": "Token JWT invalido, adulterado, com formato incorreto, algoritmo nao suportado ou assinatura nao verificavel.",
+      "public_message_policy": "Generica. Nao expor o token recebido nem detalhes criptograficos internos."
+    },
+    {
+      "code": "MINI.AUTH.TOKEN_EXPIRED",
+      "status": "active",
+      "component": "support-auth",
+      "use": "Token JWT expirado (claim exp ultrapassada, considerando clock skew configurado).",
+      "public_message_policy": "Generica. Pode indicar que a sessao expirou sem expor timestamps internos."
+    },
+    {
+      "code": "MINI.AUTH.CLAIMS_INVALID",
+      "status": "active",
+      "component": "support-auth",
+      "use": "Claims tecnicas do token invalidas, incluindo issuer, audience, nbf ou iat inconsistentes.",
+      "public_message_policy": "Generica. Nao expor valores de claims recebidas."
+    },
+    {
+      "code": "MINI.AUTH.METADATA_UNAVAILABLE",
+      "status": "active",
+      "component": "support-auth",
+      "use": "Metadata OIDC do provider indisponivel, incompleta ou inconsistente com a configuracao.",
+      "public_message_policy": "Generica. Nao expor URL, issuer esperado ou detalhes internos de rede."
+    },
+    {
+      "code": "MINI.AUTH.JWKS_UNAVAILABLE",
+      "status": "active",
+      "component": "support-auth",
+      "use": "JWKS do provider indisponivel, vazio ou sem chave publica adequada para o kid recebido.",
+      "public_message_policy": "Generica. Nao expor kid, URL ou detalhes do conjunto de chaves."
+    },
+    {
+      "code": "MINI.AUTH.PROVIDER_UNSUPPORTED",
+      "status": "active",
+      "component": "support-auth",
+      "use": "Configuracao de provider invalida ou provider nao suportado (algoritmo, protocolo ou parametro).",
+      "public_message_policy": "Generica. Nao expor detalhes de configuracao sensivel."
+    },
+    {
+      "code": "MINI.AUTH.REQUEST_INVALID",
+      "status": "active",
+      "component": "support-auth",
+      "use": "Pedido de autenticacao ou verificacao invalido, incluindo parametros obrigatorios ausentes ou malformados.",
+      "public_message_policy": "Generica. Nao expor valores de input quando vierem de boundary externo."
+    },
+    {
+      "code": "MINI.AUTH.OTC_INVALID",
+      "status": "active",
+      "component": "support-auth",
+      "use": "Codigo OTC invalido ou nao coincide com o hash armazenado.",
+      "public_message_policy": "Generica. Nao expor o codigo recebido nem o hash guardado."
+    },
+    {
+      "code": "MINI.AUTH.OTC_EXPIRED",
+      "status": "active",
+      "component": "support-auth",
+      "use": "Codigo OTC expirado (campo expires_at ultrapassado).",
+      "public_message_policy": "Generica. Pode indicar que o codigo expirou sem expor timestamps internos."
+    },
+    {
+      "code": "MINI.AUTH.OTC_ATTEMPTS_EXCEEDED",
+      "status": "active",
+      "component": "support-auth",
+      "use": "Numero maximo de tentativas de verificacao OTC atingido.",
+      "public_message_policy": "Generica. Nao expor attempt_count nem max_attempts internos."
+    },
+    {
+      "code": "MINI.AUTH.STATE_UNAVAILABLE",
+      "status": "active",
+      "component": "support-auth",
+      "use": "Estado tecnico efemero de OTC nao encontrado ou falha ao aceder ao store.",
+      "public_message_policy": "Generica. Nao expor reference, namespace ou detalhes do store."
+    },
+    {
+      "code": "MINI.ORG.INVALID_LEVEL",
+      "status": "active",
+      "component": "core-org",
+      "use": "Nivel hierarquico de unidade organica invalido ou nao reconhecido.",
+      "public_message_policy": "Generica. Nao expor o valor recebido quando vier de input externo."
+    },
+    {
+      "code": "MINI.ORG.INVALID_TEMPORAL_RANGE",
+      "status": "active",
+      "component": "core-org",
+      "use": "Intervalo temporal invalido: valid_from deve preceder valid_until.",
+      "public_message_policy": "Generica. Nao expor timestamps internos."
+    },
+    {
+      "code": "MINI.ORG.CIRCULAR_HIERARCHY",
+      "status": "active",
+      "component": "core-org",
+      "use": "Hierarquia circular detectada na estrutura de unidades organicas.",
+      "public_message_policy": "Generica. Nao expor identificadores de unidades."
+    },
+    {
+      "code": "MINI.ORG.INCONSISTENT_LEVEL",
+      "status": "active",
+      "component": "core-org",
+      "use": "Nivel hierarquico da unidade inconsistente com o nivel do seu pai.",
+      "public_message_policy": "Generica. Nao expor identificadores de unidades ou niveis internos."
+    },
+    {
+      "code": "MINI.ORG.EXTINCT_UNIT",
+      "status": "active",
+      "component": "core-org",
+      "use": "Tentativa de operar sobre unidade organica extinta (nao pode receber novas posicoes).",
+      "public_message_policy": "Generica. Nao expor identificadores internos de unidade."
+    },
+    {
+      "code": "MINI.ORG.UNIT_NOT_FOUND",
+      "status": "active",
+      "component": "core-org",
+      "use": "Unidade organica nao encontrada pelo identificador fornecido.",
+      "public_message_policy": "Pode indicar que a unidade nao existe sem expor detalhes internos."
+    },
+    {
+      "code": "MINI.ORG.POSITION_NOT_FOUND",
+      "status": "active",
+      "component": "core-org",
+      "use": "Posicao organica nao encontrada pelo identificador fornecido.",
+      "public_message_policy": "Pode indicar que a posicao nao existe sem expor detalhes internos."
+    },
+    {
+      "code": "MINI.ORG.INSTRUMENT_NOT_FOUND",
+      "status": "active",
+      "component": "core-org",
+      "use": "Instrumento juridico nao encontrado pelo identificador fornecido.",
+      "public_message_policy": "Pode indicar que o instrumento nao existe sem expor identificadores internos."
+    },
+    {
+      "code": "MINI.ORG.COMPETENCY_NOT_FOUND",
+      "status": "active",
+      "component": "core-org",
+      "use": "Competencia nao encontrada pelo identificador fornecido.",
+      "public_message_policy": "Pode indicar que a competencia nao existe sem expor identificadores internos."
+    },
+    {
+      "code": "MINI.ORG.DELEGATION_NOT_FOUND",
+      "status": "active",
+      "component": "core-org",
+      "use": "Delegacao de competencia nao encontrada pelo identificador fornecido.",
+      "public_message_policy": "Pode indicar que a delegacao nao existe sem expor identificadores internos."
+    },
+    {
+      "code": "MINI.ORG.ALREADY_EXISTS",
+      "status": "active",
+      "component": "core-org",
+      "use": "Tentativa de criar entidade organica com identificador ja existente.",
+      "public_message_policy": "Generica. Nao expor identificadores internos de forma desnecessaria."
+    },
+    {
+      "code": "MINI.ORG.CANNOT_DEACTIVATE_WITH_CHILDREN",
+      "status": "active",
+      "component": "core-org",
+      "use": "Nao e possivel desactivar unidade organica que tem unidades filhas activas.",
+      "public_message_policy": "Generica. Nao expor identificadores das unidades filhas."
+    },
+    {
+      "code": "MINI.ORG.CANNOT_DEACTIVATE_WITH_POSITIONS",
+      "status": "active",
+      "component": "core-org",
+      "use": "Nao e possivel desactivar unidade organica que tem posicoes activas.",
+      "public_message_policy": "Generica. Nao expor identificadores das posicoes."
+    },
+    {
+      "code": "MINI.ORG.EMPTY_FIELD",
+      "status": "active",
+      "component": "core-org",
+      "use": "Campo obrigatorio de entidade organica vazio.",
+      "public_message_policy": "Pode indicar o nome do campo em falta; nao expor o valor recebido."
+    },
+    {
+      "code": "MINI.ORG.OPERATION_FAILED",
+      "status": "active",
+      "component": "core-org",
+      "use": "Falha generica numa operacao interna do dominio de organizacao.",
+      "public_message_policy": "Generica. Nao expor detalhes internos da operacao."
+    },
+    {
+      "code": "MINI.SECURITY.MISSING_FIELD",
+      "status": "active",
+      "component": "core-security",
+      "use": "Campo obrigatorio em falta numa operacao de seguranca (politica, delegacao ou principal).",
+      "public_message_policy": "Generica. Nao expor valores recebidos quando vierem de input externo."
+    },
+    {
+      "code": "MINI.SECURITY.INVALID_POLICY",
+      "status": "active",
+      "component": "core-security",
+      "use": "Politica de seguranca invalida estruturalmente ou com regras incoerentes.",
+      "public_message_policy": "Generica. Nao expor conteudo da politica nem identificadores sensiveis."
+    },
+    {
+      "code": "MINI.SECURITY.INVARIANT_VIOLATED",
+      "status": "active",
+      "component": "core-security",
+      "use": "Invariante zero-trust violada numa operacao de escrita ou autorizacao.",
+      "public_message_policy": "Generica. Nao expor detalhes da invariante nem dados do contexto de seguranca."
+    },
+    {
+      "code": "MINI.SECURITY.POLICY_NOT_FOUND",
+      "status": "active",
+      "component": "core-security",
+      "use": "Politica de seguranca nao encontrada para o principal indicado.",
+      "public_message_policy": "Generica. Nao expor identificadores internos de principal."
+    },
+    {
+      "code": "MINI.SECURITY.DELEGATION_NOT_FOUND",
+      "status": "active",
+      "component": "core-security",
+      "use": "Delegacao de autorizacao nao encontrada pelo identificador fornecido.",
+      "public_message_policy": "Generica. Nao expor identificadores de delegacao ou principal."
+    },
+    {
+      "code": "MINI.SECURITY.ALREADY_EXISTS",
+      "status": "active",
+      "component": "core-security",
+      "use": "Tentativa de criar entidade de seguranca com identificador ja existente.",
+      "public_message_policy": "Generica. Nao expor identificadores internos."
+    },
+    {
+      "code": "MINI.SECURITY.REPO_UNAVAILABLE",
+      "status": "active",
+      "component": "core-security",
+      "use": "Repositorio de politicas ou delegacoes de seguranca indisponivel.",
+      "public_message_policy": "Generica. Nao expor backend concreto nem detalhes de conectividade."
+    },
+    {
+      "code": "MINI.SECURITY.INVALID_DELEGATION",
+      "status": "active",
+      "component": "core-security",
+      "use": "Delegacao de autorizacao invalida: principal sem autoridade, expirada ou com chain circular.",
+      "public_message_policy": "Generica. Nao expor chain de delegacao nem identificadores sensiveis."
+    },
+    {
+      "code": "MINI.SECURITY.OPERATION_FAILED",
+      "status": "active",
+      "component": "core-security",
+      "use": "Falha generica numa operacao interna do dominio de seguranca.",
+      "public_message_policy": "Generica. Nao expor detalhes internos da operacao."
+    },
+    {
+      "code": "MINI.METRICS.MISSING_FIELD",
+      "status": "active",
+      "component": "core-metrics",
+      "use": "Campo obrigatorio em falta ao construir um evento ou entidade de metrica.",
+      "public_message_policy": "Generica. Nao expor o valor recebido quando vier de input externo."
+    },
+    {
+      "code": "MINI.METRICS.INVALID_NAME",
+      "status": "active",
+      "component": "core-metrics",
+      "use": "Nome ou codigo de metrica invalido (nao corresponde ao padrao [a-z][a-z0-9_.-]*).",
+      "public_message_policy": "Generica. Nao expor o valor recebido se vier de input externo."
+    },
+    {
+      "code": "MINI.METRICS.INVALID_VALUE",
+      "status": "active",
+      "component": "core-metrics",
+      "use": "Valor de metrica nao e finito (NaN, +inf, -inf).",
+      "public_message_policy": "Generica. Nao expor o valor recebido."
+    },
+    {
+      "code": "MINI.METRICS.MARSHAL_FAILED",
+      "status": "active",
+      "component": "core-metrics",
+      "use": "Falha ao serializar ou desserializar payload de metrica.",
+      "public_message_policy": "Generica. Nao expor payload nem conteudo da metrica."
+    },
+    {
+      "code": "MINI.METRICS.NOT_FOUND",
+      "status": "active",
+      "component": "core-metrics",
+      "use": "Evento ou entidade de metrica nao encontrado.",
+      "public_message_policy": "Generica. Nao expor identificadores internos desnecessariamente."
+    },
+    {
+      "code": "MINI.METRICS.CONFLICT",
+      "status": "active",
+      "component": "core-metrics",
+      "use": "Tentativa de criar evento ou entidade de metrica com identificador ja existente.",
+      "public_message_policy": "Generica. Nao expor identificadores internos."
+    },
+    {
+      "code": "MINI.METRICS.REPO_UNAVAILABLE",
+      "status": "active",
+      "component": "core-metrics",
+      "use": "Repositorio de metricas indisponivel.",
+      "public_message_policy": "Generica. Nao expor backend concreto nem detalhes de conectividade."
+    },
+    {
+      "code": "MINI.METRICS.DATA_CORRUPTION",
+      "status": "active",
+      "component": "core-metrics",
+      "use": "Dados de metrica corrompidos ou inconsistentes no repositorio.",
+      "public_message_policy": "Generica. Nao expor payload nem hash esperado."
+    },
+    {
+      "code": "MINI.METRICS.INVALID_CRITERIA",
+      "status": "active",
+      "component": "core-metrics",
+      "use": "Criterios de listagem ou filtragem de metricas invalidos.",
+      "public_message_policy": "Generica. Nao expor valores de criterio recebidos de input externo."
+    },
+    {
+      "code": "MINI.INGEST.MISSING_FIELD",
+      "status": "active",
+      "component": "core-ingest",
+      "use": "Campo obrigatorio em falta no pedido de ingest de bundle.",
+      "public_message_policy": "Pode indicar o nome do campo em falta; nao expor valores recebidos."
+    },
+    {
+      "code": "MINI.INGEST.INVALID_REQUEST",
+      "status": "active",
+      "component": "core-ingest",
+      "use": "Pedido de ingest invalido estruturalmente ou com parametros incoerentes.",
+      "public_message_policy": "Generica. Nao expor conteudo do bundle nem identificadores sensiveis."
+    },
+    {
+      "code": "MINI.INGEST.HASH_MISMATCH",
+      "status": "active",
+      "component": "core-ingest",
+      "use": "Hash do bundle nao corresponde ao valor esperado — possivel adulteracao ou transmissao corrompida.",
+      "public_message_policy": "Generica. Nao expor hash esperado nem recebido."
+    },
+    {
+      "code": "MINI.INGEST.SCAN_FAILED",
+      "status": "active",
+      "component": "core-ingest",
+      "use": "Scan do bundle falhou por erro tecnico do adapter de scan (retryable).",
+      "public_message_policy": "Generica. Nao expor adapter concreto nem detalhes da falha."
+    },
+    {
+      "code": "MINI.INGEST.SCAN_REJECTED",
+      "status": "active",
+      "component": "core-ingest",
+      "use": "Bundle rejeitado pelo scan — veredicto de conteudo inaceitavel.",
+      "public_message_policy": "Generica. Nao expor adapter, veredicto detalhado ou conteudo do bundle."
+    },
+    {
+      "code": "MINI.INGEST.ROUTE_UNAVAILABLE",
+      "status": "active",
+      "component": "core-ingest",
+      "use": "Route ou storage de destino indisponivel para o bundle (retryable).",
+      "public_message_policy": "Generica. Nao expor identificador de route nem backend concreto."
+    },
+    {
+      "code": "MINI.INGEST.OVERSIZED",
+      "status": "active",
+      "component": "core-ingest",
+      "use": "Bundle excede o limite de tamanho configurado.",
+      "public_message_policy": "Generica. Pode indicar que o limite foi excedido sem expor o limite interno."
+    },
+    {
+      "code": "MINI.INGEST.MARSHAL_FAILED",
+      "status": "active",
+      "component": "core-ingest",
+      "use": "Falha ao serializar ou desserializar dados do bundle de ingest.",
+      "public_message_policy": "Generica. Nao expor payload do bundle."
+    },
+    {
+      "code": "MINI.INGEST.AUDIT_ERROR",
+      "status": "active",
+      "component": "core-ingest",
+      "use": "Falha ao registar evento de auditoria associado ao ingest.",
+      "public_message_policy": "Generica. Nao expor detalhes do actor nem do payload auditavel."
+    },
+    {
+      "code": "MINI.SCAN.DEVICE_NOT_FOUND",
+      "status": "active",
+      "component": "adapter-scanner",
+      "use": "Dispositivo de digitalizacao nao encontrado no endereco configurado.",
+      "public_message_policy": "Generica. Nao expor host nem porta configurados."
+    },
+    {
+      "code": "MINI.SCAN.DEVICE_BUSY",
+      "status": "active",
+      "component": "adapter-scanner",
+      "use": "Dispositivo de digitalizacao ocupado ou em estado de erro.",
+      "public_message_policy": "Generica. Nao expor estado interno do dispositivo."
+    },
+    {
+      "code": "MINI.SCAN.FORMAT_NOT_SUPPORTED",
+      "status": "active",
+      "component": "adapter-scanner",
+      "use": "Formato de saida pedido nao suportado pelo dispositivo de digitalizacao.",
+      "public_message_policy": "Generica. Nao expor o formato recebido se vier de input externo."
+    },
+    {
+      "code": "MINI.SCAN.SOURCE_NOT_SUPPORTED",
+      "status": "active",
+      "component": "adapter-scanner",
+      "use": "Fonte de digitalizacao pedida (ADF, flatbed, etc.) nao suportada pelo dispositivo.",
+      "public_message_policy": "Generica. Nao expor o tipo de fonte recebido se vier de input externo."
+    },
+    {
+      "code": "MINI.SCAN.HTTP_ERROR",
+      "status": "active",
+      "component": "adapter-scanner",
+      "use": "Erro HTTP ao comunicar com o dispositivo de digitalizacao via protocolo eSCL/WSD.",
+      "public_message_policy": "Generica. Nao expor URL, status code HTTP nem corpo da resposta."
+    },
+    {
+      "code": "MINI.SCAN.XML_PARSE_ERROR",
+      "status": "active",
+      "component": "adapter-scanner",
+      "use": "Erro ao analisar resposta XML do dispositivo de digitalizacao.",
+      "public_message_policy": "Generica. Nao expor o conteudo XML recebido."
+    },
+    {
+      "code": "MINI.SCAN.JOB_FAILED",
+      "status": "active",
+      "component": "adapter-scanner",
+      "use": "Job de digitalizacao falhou por razao reportada pelo dispositivo.",
+      "public_message_policy": "Generica. Nao expor razao interna do dispositivo."
+    },
+    {
+      "code": "MINI.SCAN.TIMEOUT",
+      "status": "active",
+      "component": "adapter-scanner",
+      "use": "Timeout de digitalizacao — o dispositivo nao completou o job no tempo configurado.",
+      "public_message_policy": "Generica. Nao expor timeout interno configurado."
+    },
+    {
+      "code": "MINI.SCAN.NETWORK_ERROR",
+      "status": "active",
+      "component": "adapter-scanner",
+      "use": "Erro de rede ao comunicar com o dispositivo de digitalizacao.",
+      "public_message_policy": "Generica. Nao expor detalhes de rede nem endereco do dispositivo."
+    },
+    {
+      "code": "MINI.SCAN.INVALID_CONFIG",
+      "status": "active",
+      "component": "adapter-scanner",
+      "use": "Configuracao do adapter de digitalizacao invalida ou incompleta.",
+      "public_message_policy": "Generica. Nao expor valores de configuracao quando vierem de input externo."
+    },
+    {
+      "code": "MINI.VERSIONING.EMPTY_VERSION",
+      "status": "active",
+      "component": "support-versioning",
+      "use": "Versao da release notes vazia ou composta apenas de whitespace.",
+      "public_message_policy": "Generica. Nao expor o valor recebido."
+    },
+    {
+      "code": "MINI.VERSIONING.EMPTY_NOVELTY",
+      "status": "active",
+      "component": "support-versioning",
+      "use": "Entrada de novidade nas release notes vazia ou composta apenas de whitespace.",
+      "public_message_policy": "Generica. Nao expor o valor recebido."
+    },
+    {
+      "code": "MINI.VERSIONING.EMPTY_KNOWN_ISSUE",
+      "status": "active",
+      "component": "support-versioning",
+      "use": "Entrada de problema conhecido nas release notes vazia ou composta apenas de whitespace.",
+      "public_message_policy": "Generica. Nao expor o valor recebido."
+    },
+    {
+      "code": "MINI.VERSIONING.IO_ERROR",
+      "status": "active",
+      "component": "support-versioning",
+      "use": "Erro de I/O ao ler ou escrever ficheiro de release notes.",
+      "public_message_policy": "Generica. Nao expor path completo nem detalhes do sistema de ficheiros."
+    },
+    {
+      "code": "MINI.VERSIONING.JSON_ERROR",
+      "status": "active",
+      "component": "support-versioning",
+      "use": "Falha ao serializar ou desserializar dados de release notes para JSON.",
+      "public_message_policy": "Generica. Nao expor conteudo do ficheiro nem payload JSON."
+    },
+    {
+      "code": "MINI.VERSIONING.SQLITE_ERROR",
+      "status": "active",
+      "component": "versioning-sqlite",
+      "use": "Falha de operacao SQLite no repositorio de versoes de modulos.",
+      "public_message_policy": "Generica. Nao expor query, parametros ou schema interno."
+    },
+    {
+      "code": "MINI.VERSIONING.APP_NOT_FOUND",
+      "status": "active",
+      "component": "versioning-sqlite",
+      "use": "Modulo de aplicacao nao encontrado no registo de versoes — ensure_app nao foi chamado antes.",
+      "public_message_policy": "Pode indicar que o modulo nao esta registado sem expor detalhes internos."
+    },
+    {
+      "code": "MINI.VERSIONING.EMPTY_SUMMARY",
+      "status": "active",
+      "component": "versioning-sqlite",
+      "use": "Sumario de bump de versao vazio ou composto apenas de whitespace.",
+      "public_message_policy": "Generica. Nao expor o valor recebido."
+    },
+    {
+      "code": "MINI.VERSIONING.EMPTY_WHATS_NEW",
+      "status": "active",
+      "component": "versioning-sqlite",
+      "use": "Entrada de novidade de versao vazia ou composta apenas de whitespace.",
+      "public_message_policy": "Generica. Nao expor o valor recebido."
+    },
+    {
+      "code": "MINI.VERSIONING.INVALID_BUMP_TYPE",
+      "status": "active",
+      "component": "versioning-sqlite",
+      "use": "Tipo de bump de versao invalido ou desconhecido (esperado: Major, Minor, Patch).",
+      "public_message_policy": "Generica. Nao expor o valor recebido se vier de input externo."
+    },
+    {
+      "code": "MINI.BACKUP.POLICY_INVALID",
+      "status": "active",
+      "component": "infra-backup",
+      "use": "Configuracao de politica de backup invalida ou incompleta.",
+      "public_message_policy": "Generica. Nao expor valores de configuracao quando vierem de input externo."
+    },
+    {
+      "code": "MINI.BACKUP.IO_FAILED",
+      "status": "active",
+      "component": "infra-backup",
+      "use": "Falha de I/O numa operacao de backup (copia, leitura ou escrita de ficheiro).",
+      "public_message_policy": "Generica. Nao expor paths completos nem detalhes do sistema de ficheiros."
+    },
+    {
+      "code": "MINI.BACKUP.HEALTH_FAILED",
+      "status": "active",
+      "component": "infra-backup",
+      "use": "Verificacao de saude de base de dados antes do backup falhou.",
+      "public_message_policy": "Generica. Nao expor path da base de dados nem detalhes internos."
+    },
+    {
+      "code": "MINI.BACKUP.ARCHIVE_FAILED",
+      "status": "active",
+      "component": "infra-backup",
+      "use": "Falha ao criar ou escrever o arquivo de backup.",
+      "public_message_policy": "Generica. Nao expor path do arquivo nem conteudo."
+    },
+    {
+      "code": "MINI.BACKUP.RETENTION_FAILED",
+      "status": "active",
+      "component": "infra-backup",
+      "use": "Falha ao aplicar politica de retencao de backups (purge de ficheiros antigos).",
+      "public_message_policy": "Generica. Nao expor paths completos nem ficheiros eliminados."
+    },
+    {
+      "code": "MINI.BACKUP.LOCK_HELD",
+      "status": "active",
+      "component": "infra-backup",
+      "use": "Lock de manutencao ja detido por outro processo — backup ja executado hoje.",
+      "public_message_policy": "Generica. Nao expor detalhes do processo que detém o lock."
+    },
+    {
+      "code": "MINI.BACKUP.CONTROL_DB_FAILED",
+      "status": "active",
+      "component": "infra-backup",
+      "use": "Falha na base de dados de controlo de manutencao (control.db).",
+      "public_message_policy": "Generica. Nao expor path nem schema interno do control.db."
+    },
+    {
+      "code": "MINI.BACKUP.COMPRESS_FAILED",
+      "status": "active",
+      "component": "support-backup",
+      "use": "Falha ao comprimir dados de backup.",
+      "public_message_policy": "Generica. Nao expor conteudo do backup nem detalhes internos de compressao."
+    },
+    {
+      "code": "MINI.BACKUP.DECOMPRESS_FAILED",
+      "status": "active",
+      "component": "support-backup",
+      "use": "Falha ao descomprimir arquivo de backup.",
+      "public_message_policy": "Generica. Nao expor conteudo do arquivo nem detalhes internos."
+    },
+    {
+      "code": "MINI.BACKUP.ENCRYPT_FAILED",
+      "status": "active",
+      "component": "support-backup",
+      "use": "Falha ao cifrar arquivo de backup.",
+      "public_message_policy": "Generica. Nao expor plaintext, chave nem detalhes da cifragem."
+    },
+    {
+      "code": "MINI.BACKUP.DECRYPT_FAILED",
+      "status": "active",
+      "component": "support-backup",
+      "use": "Falha ao decifrar arquivo de backup.",
+      "public_message_policy": "Generica. Nao revelar se a causa foi chave errada, arquivo adulterado ou formato invalido."
+    }
+  ],
+  "update_policy": [
+    "Adicionar ou atualizar a entrada correspondente quando um componente introduzir um novo ErrorCode canonico.",
+    "Marcar o estado como active quando houver codigo Rust a usar o codigo.",
+    "Confirmar que a mensagem publica nao exige detalhes sensiveis.",
+    "Atualizar o MAN.md do componente consumidor quando o erro fizer parte do seu contrato publico.",
+    "Adicionar ou ajustar testes quando o codigo fizer parte de comportamento observavel."
+  ],
+  "removal_policy": [
+    "Codigos publicados nao devem ser removidos de imediato.",
+    "Quando um codigo deixar de ser adequado, marcar como deprecated.",
+    "Indicar o codigo substituto em replacement_code quando existir.",
+    "Manter compatibilidade ate haver uma migracao deliberada."
+  ]
+}

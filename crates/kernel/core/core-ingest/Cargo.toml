@@ -1,0 +1,25 @@
+[package]
+name = "core-ingest"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "Ingestão auditável de bundles exportados (core-ingest)"
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+chrono.workspace = true
+
+core-audit      = { path = "../core-audit" }
+core-exports    = { path = "../core-exports" }
+core-validation = { path = "../core-validation" }
+support-errors  = { path = "../../support/support-errors" }
+
+[features]
+test-helpers = []
+
+[dev-dependencies]
+core-documental = { path = "../core-documental" }
+core-ingest     = { path = ".", features = ["test-helpers"] }

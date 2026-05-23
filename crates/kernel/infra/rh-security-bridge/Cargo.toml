@@ -1,0 +1,22 @@
+[package]
+name = "rh-security-bridge"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "Bridge entre core-rh e core-security: pertença a roles com validade temporal"
+
+[dependencies]
+rusqlite.workspace = true
+chrono.workspace = true
+uuid.workspace = true
+thiserror.workspace = true
+
+adapter-sqlite  = { path = "../adapter-sqlite" }
+core-security   = { path = "../../core/core-security" }
+support-errors  = { path = "../../support/support-errors" }
+
+[dev-dependencies]
+tempfile.workspace = true
+tokio = { workspace = true, features = ["rt", "macros"] }
+security-sqlite = { path = "../security-sqlite" }

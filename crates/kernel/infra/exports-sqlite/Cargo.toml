@@ -1,0 +1,23 @@
+[package]
+name = "exports-sqlite"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "Adapter SQLite write-once / read-only para core-exports"
+
+[dependencies]
+rusqlite.workspace = true
+thiserror.workspace = true
+chrono.workspace = true
+serde_json.workspace = true
+
+adapter-sqlite  = { path = "../adapter-sqlite" }
+core-exports    = { path = "../../core/core-exports" }
+support-errors  = { path = "../../support/support-errors" }
+
+[dev-dependencies]
+tempfile.workspace = true
+core-documental    = { path = "../../core/core-documental" }
+core-rh            = { path = "../../core/core-rh" }
+serde_json.workspace = true

@@ -1,0 +1,68 @@
+{
+  "ndt": "1.0.0",
+  "meta": {
+    "title": "Relatório Simples",
+    "description": "Template base para relatórios institucionais"
+  },
+  "placeholders": {
+    "entity_name": { "type": "string", "required": true },
+    "document_title": { "type": "string", "required": true },
+    "document_date": { "type": "string", "required": true },
+    "reference": { "type": "string", "required": false },
+    "author": { "type": "string", "required": false },
+    "body_content": { "type": "ncrtf", "required": false }
+  },
+  "body": [
+    {
+      "type": "heading",
+      "text": "{{entity_name}}",
+      "level": 1
+    },
+    {
+      "type": "heading",
+      "text": "{{document_title}}",
+      "level": 2
+    },
+    {
+      "type": "paragraph",
+      "text": "Data: {{document_date}}",
+      "alignment": "left"
+    },
+    {
+      "type": "conditional",
+      "condition": "reference",
+      "operator": "exists",
+      "then": [
+        {
+          "type": "paragraph",
+          "text": "Referência: {{reference}}",
+          "alignment": "left"
+        }
+      ],
+      "else": []
+    },
+    {
+      "type": "spacer",
+      "height_mm": 6.0
+    },
+    {
+      "type": "conditional",
+      "condition": "body_content",
+      "operator": "exists",
+      "then": [
+        {
+          "type": "rich_text",
+          "content": "{{body_content}}",
+          "source": "placeholder"
+        }
+      ],
+      "else": [
+        {
+          "type": "paragraph",
+          "text": "Sem conteúdo.",
+          "alignment": "left"
+        }
+      ]
+    }
+  ]
+}

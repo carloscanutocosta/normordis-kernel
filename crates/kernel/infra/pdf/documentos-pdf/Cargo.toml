@@ -1,0 +1,18 @@
+[package]
+name = "documentos-pdf"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "Rendering PDF de documentos institucionais (backends: Typst e normordis-pdf)"
+
+[features]
+default = []
+typst = ["dep:render-typst", "dep:serde_json"]
+normordis = ["dep:normordis-pdf"]
+
+[dependencies]
+support-pdf    = { path = "../../../support/support-pdf" }
+render-typst   = { path = "../render-typst", features = ["pdf"], optional = true }
+normordis-pdf  = { version = "2.5.1", optional = true }
+serde_json     = { workspace = true, optional = true }

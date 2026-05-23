@@ -1,0 +1,17 @@
+pub const CURRENT_CRYPTO_VERSION: u8 = 1;
+pub const CURRENT_ALGORITHM: &str = "XChaCha20-Poly1305";
+pub const CURRENT_KDF: &str = "Argon2id";
+pub const EXTERNAL_KEY: &str = "ExternalKey";
+pub const KEY_LENGTH_BYTES: usize = 32;
+pub(crate) const SALT_LENGTH_BYTES: usize = 16;
+pub(crate) const NONCE_LENGTH_BYTES: usize = 24;
+pub const COMPONENT: &str = "support-crypto";
+pub const EMPTY_PASSPHRASE: &str = "MINI.CRYPTO.EMPTY_PASSPHRASE";
+pub const INVALID_PAYLOAD: &str = "MINI.CRYPTO.INVALID_PAYLOAD";
+pub const INVALID_KEY: &str = "MINI.CRYPTO.INVALID_KEY";
+pub const INVALID_KDF: &str = "MINI.CRYPTO.INVALID_KDF";
+pub const INVALID_AAD: &str = "MINI.CRYPTO.INVALID_AAD";
+pub const POLICY_VIOLATION: &str = "MINI.CRYPTO.POLICY_VIOLATION";
+pub const ENCRYPT_FAILED: &str = "MINI.CRYPTO.ENCRYPT_FAILED";
+pub const DECRYPT_FAILED: &str = "MINI.CRYPTO.DECRYPT_FAILED";
+pub const STORAGE_AAD_PREFIX: &str = "mini-kernel:v1:storage";

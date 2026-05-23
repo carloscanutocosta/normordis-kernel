@@ -1,0 +1,26 @@
+[package]
+name = "support-auth"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "Mecanismos técnicos de autenticação protocolar (OIDC, OTC)"
+
+[dependencies]
+support-errors = { path = "../support-errors" }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+chrono = { workspace = true }
+uuid = { workspace = true }
+base64 = { workspace = true }
+rsa = { workspace = true }
+p256 = { workspace = true }
+p384 = { workspace = true }
+sha2 = { workspace = true }
+rand = { workspace = true }
+hex = { workspace = true }
+subtle = { workspace = true }
+ed25519-dalek = { workspace = true }
+
+[dev-dependencies]

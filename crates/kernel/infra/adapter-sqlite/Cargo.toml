@@ -1,0 +1,30 @@
+[package]
+name = "adapter-sqlite"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "Adapter SQLite de infraestrutura do Mini-Kernel RS"
+
+[features]
+default = ["plain"]
+plain = ["rusqlite/bundled"]
+encrypted = ["rusqlite/bundled-sqlcipher-vendored-openssl", "dep:r2d2", "dep:r2d2_sqlite"]
+
+[dependencies]
+rusqlite = { version = "0.31" }
+r2d2 = { version = "0.8", optional = true }
+r2d2_sqlite = { version = "0.24", optional = true }
+serde_json.workspace = true
+thiserror.workspace = true
+support-errors = { path = "../../support/support-errors" }
+support-crypto = { path = "../../support/support-crypto" }
+support-storage = { path = "../../support/support-storage" }
+
+[dev-dependencies]
+tempfile.workspace = true
+
+[[bin]]
+name = "migrate_to_mixed"
+path = "src/bin/migrate_to_mixed.rs"
+required-features = ["encrypted"]

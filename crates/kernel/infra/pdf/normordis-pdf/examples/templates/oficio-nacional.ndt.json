@@ -1,0 +1,44 @@
+{
+  "ndt": "1.0.0",
+  "meta": {
+    "title": "Ofício Nacional",
+    "description": "Template de ofício para a administração pública portuguesa"
+  },
+  "placeholders": {
+    "direccao":          { "type": "string", "required": true },
+    "sf":                { "type": "string", "required": true },
+    "numero":            { "type": "string", "required": true },
+    "data":              { "type": "string", "required": true },
+    "nome_destinatario": { "type": "string", "required": true },
+    "endereco_1":        { "type": "string", "required": true },
+    "cpostal":           { "type": "string", "required": true },
+    "assunto":           { "type": "string", "required": true },
+    "mensagem":          { "type": "ncrtf",  "required": true },
+    "responsavel_cargo": { "type": "string", "required": true },
+    "responsavel_nome":  { "type": "string", "required": true },
+    "sf_morada":         { "type": "string", "required": false }
+  },
+  "body": [
+    { "type": "fixed_text", "x_mm": 20.0, "y_mm": 267.0, "width_mm": 100.0, "height_mm": 7.0, "text": "{{direccao}}", "alignment": "left" },
+    { "type": "fixed_text", "x_mm": 20.0, "y_mm": 260.0, "width_mm": 100.0, "height_mm": 6.0, "text": "{{sf}}", "alignment": "left" },
+    { "type": "fixed_text", "x_mm": 130.0, "y_mm": 260.0, "width_mm": 60.0, "height_mm": 6.0, "text": "{{numero}}", "alignment": "left" },
+    { "type": "fixed_text", "x_mm": 130.0, "y_mm": 254.0, "width_mm": 60.0, "height_mm": 6.0, "text": "{{data}}", "alignment": "left" },
+    { "type": "fixed_line", "x1_mm": 20.0, "y1_mm": 252.0, "x2_mm": 190.0, "y2_mm": 252.0, "color": "#003399" },
+    { "type": "fixed_text", "x_mm": 110.0, "y_mm": 200.0, "width_mm": 80.0, "height_mm": 7.0, "text": "{{nome_destinatario}}", "alignment": "left" },
+    { "type": "fixed_text", "x_mm": 110.0, "y_mm": 193.0, "width_mm": 80.0, "height_mm": 6.0, "text": "{{endereco_1}}", "alignment": "left" },
+    { "type": "fixed_text", "x_mm": 110.0, "y_mm": 186.0, "width_mm": 80.0, "height_mm": 6.0, "text": "{{cpostal}}", "alignment": "left" },
+    { "type": "spacer", "height_mm": 60.0 },
+    { "type": "paragraph", "text": "Assunto: {{assunto}}", "bold": true, "alignment": "left" },
+    { "type": "spacer", "height_mm": 6.0 },
+    { "type": "paragraph", "text": "Exmo.(a) Senhor(a),", "alignment": "left" },
+    { "type": "spacer", "height_mm": 4.0 },
+    {
+      "type": "rich_text",
+      "content": "{{mensagem}}",
+      "source": "placeholder"
+    },
+    { "type": "spacer", "height_mm": 8.0 },
+    { "type": "paragraph", "text": "{{responsavel_cargo}}", "alignment": "center" },
+    { "type": "paragraph", "text": "{{responsavel_nome}}", "alignment": "center" }
+  ]
+}

@@ -1,0 +1,15 @@
+[package]
+name = "support-normalization"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "Funcoes utilitarias transversais para normalizacao e validacao de inputs"
+
+[dependencies]
+chrono.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
+

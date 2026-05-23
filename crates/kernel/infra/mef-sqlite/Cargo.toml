@@ -1,0 +1,18 @@
+[package]
+name = "mef-sqlite"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "Adapter SQLite para a classificação MEF (domain-mef) — suporte temporal com auditoria e diploma"
+
+[dependencies]
+domain-mef     = { path = "../../../domain/domain-mef" }
+adapter-sqlite = { path = "../adapter-sqlite" }
+support-errors = { path = "../../support/support-errors" }
+rusqlite       = { workspace = true }
+chrono        = { workspace = true }
+thiserror     = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }

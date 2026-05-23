@@ -1,0 +1,26 @@
+[package]
+name = "documental-sqlite"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "Adapter SQLite para core-documental (custódia documental institucional)"
+
+[dependencies]
+rusqlite.workspace = true
+thiserror.workspace = true
+chrono.workspace = true
+serde_json.workspace = true
+sha2.workspace = true
+hex.workspace = true
+
+adapter-sqlite    = { path = "../adapter-sqlite" }
+core-documental   = { path = "../../core/core-documental" }
+support-errors    = { path = "../../support/support-errors" }
+
+[dev-dependencies]
+tempfile.workspace = true
+chrono = { workspace = true }
+serde_json.workspace = true
+core-org = { path = "../../core/core-org" }
+core-rh  = { path = "../../core/core-rh" }

@@ -1,0 +1,104 @@
+[workspace]
+resolver = "2"
+members = [
+  # ── Core ────────────────────────────────────────────────────────────────────
+  "crates/kernel/core/core-audit",
+  "crates/kernel/core/core-config",
+  "crates/kernel/core/core-validation",
+  "crates/kernel/core/core-rh",
+  "crates/kernel/core/core-org",
+  "crates/kernel/core/core-security",
+  "crates/kernel/core/core-documental",
+  "crates/kernel/core/core-exports",
+  "crates/kernel/core/core-ingest",
+  "crates/kernel/core/core-metrics",
+
+  # ── Support ─────────────────────────────────────────────────────────────────
+  "crates/kernel/support/support-auth",
+  "crates/kernel/support/support-errors",
+  "crates/kernel/support/support-backup",
+  "crates/kernel/support/support-crypto",
+  "crates/kernel/support/support-storage",
+  "crates/kernel/support/support-logging",
+  "crates/kernel/support/support-normalization",
+  "crates/kernel/support/support-typst-template",
+  "crates/kernel/support/support-pdf",
+  "crates/kernel/support/support-clock",
+  "crates/kernel/support/support-ids",
+  "crates/kernel/support/support-address",
+  "crates/kernel/support/support-versioning",
+  "crates/kernel/support/support-docx-to-typst",
+
+  # ── Infra ───────────────────────────────────────────────────────────────────
+  "crates/kernel/infra/adapter-sqlite",
+  "crates/kernel/infra/secrets",
+  "crates/kernel/infra/runtime-bootstrap",
+  "crates/kernel/infra/rh-sqlite",
+  "crates/kernel/infra/org-sqlite",
+  "crates/kernel/infra/security-sqlite",
+  "crates/kernel/infra/rh-security-bridge",
+  "crates/kernel/infra/documental-sqlite",
+  "crates/kernel/infra/files",
+  "crates/kernel/infra/metrics-sqlite",
+  "crates/kernel/infra/exports-sqlite",
+  "crates/kernel/infra/adapter-scanner",
+  "crates/kernel/infra/app-bootstrap",
+  "crates/kernel/infra/address-sqlite",
+  "crates/kernel/infra/versioning-sqlite",
+  "crates/kernel/infra/storage-sqlite",
+  "crates/kernel/infra/numerador-sqlite",
+  "crates/kernel/infra/mef-sqlite",
+  "crates/kernel/infra/services/signing",
+  "crates/kernel/infra/services/export",
+  "crates/kernel/infra/services/backup",
+  "crates/kernel/infra/services/ingest-scanner",
+  "crates/kernel/infra/pdf/render-typst",
+  "crates/kernel/infra/pdf/normordis-pdf",
+  "crates/kernel/infra/pdf/documentos-pdf",
+  "crates/kernel/infra/pdf/pdf-pipeline",
+
+  # ── Domain transversal ───────────────────────────────────────────────────────
+  "crates/domain/domain-numerador",
+  "crates/domain/domain-mef",
+
+  # ── Runtime ─────────────────────────────────────────────────────────────────
+  "crates/runtime/miniapp-runtime",
+  "crates/runtime/interoperability",
+]
+
+[workspace.package]
+edition = "2021"
+license = "MIT"
+version = "0.3.0"
+authors = ["Carlos Canuto Costa"]
+
+[workspace.dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "2"
+uuid = { version = "1", features = ["v4", "fast-rng", "serde"] }
+chrono = { version = "0.4", features = ["clock", "serde"] }
+rusqlite = { version = "0.31", features = ["bundled"] }
+tokio = { version = "1", features = ["rt", "rt-multi-thread", "macros", "time"] }
+tempfile = "3"
+sha2 = "0.10"
+hex = "0.4"
+argon2 = "0.5"
+base64 = "0.22"
+chacha20poly1305 = "0.10"
+rand = "0.8"
+flate2 = "1"
+tar = "0.4"
+zeroize = { version = "1", features = ["derive"] }
+windows-sys = "0.59"
+ed25519-dalek = "2"
+rsa = { version = "0.9", features = ["sha2"] }
+p256 = { version = "0.13", features = ["ecdsa"] }
+p384 = { version = "0.13", features = ["ecdsa"] }
+subtle = "2"
+
+[patch.crates-io]
+normordis-pdf = { path = "crates/kernel/infra/pdf/normordis-pdf" }
+
+[profile.dev]
+debug = 0

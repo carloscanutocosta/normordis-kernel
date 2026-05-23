@@ -1,0 +1,15 @@
+[package]
+name = "core-metrics"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "Core de métricas operacionais e governadas (BSC/SIADAP)"
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+chrono.workspace = true
+support-errors = { path = "../../support/support-errors" }
+support-storage = { path = "../../support/support-storage" }

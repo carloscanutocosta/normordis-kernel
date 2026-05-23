@@ -1,0 +1,23 @@
+[package]
+name = "infra-backup"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "Manutenção diária: health check, backup cifrado e rotação de arquivos SQLite"
+
+[dependencies]
+thiserror.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+chrono.workspace = true
+rusqlite.workspace = true
+tokio.workspace = true
+uuid.workspace = true
+sha2.workspace = true
+hex.workspace = true
+flate2.workspace = true
+tar.workspace = true
+tempfile.workspace = true
+support-errors = { path = "../../../support/support-errors" }
+support-backup = { path = "../../../support/support-backup" }

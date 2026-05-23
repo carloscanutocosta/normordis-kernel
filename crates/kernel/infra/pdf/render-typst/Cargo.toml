@@ -1,0 +1,27 @@
+[package]
+name = "render-typst"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "Adapter Typst para rendering PDF no Mini-Kernel RS"
+
+[features]
+pdf = [
+    "dep:typst-as-lib",
+    "dep:typst-pdf",
+    "dep:typst-assets",
+    "dep:typst",
+    "dep:comemo",
+    "dep:chrono",
+]
+
+[dependencies]
+thiserror.workspace = true
+support-pdf = { path = "../../../support/support-pdf" }
+typst-as-lib  = { version = "0.15.4", optional = true }
+typst-pdf     = { version = "0.14.2", optional = true }
+typst-assets  = { version = "0.14.2", optional = true, features = ["fonts"] }
+typst         = { version = "0.14.2", optional = true }
+comemo        = { version = "0.5.1",  optional = true }
+chrono        = { version = "0.4",    optional = true, features = ["clock"] }

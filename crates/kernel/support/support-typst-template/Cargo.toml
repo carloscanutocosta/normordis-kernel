@@ -1,0 +1,10 @@
+[package]
+name = "support-typst-template"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "Helpers headless para templates Typst"
+
+[dependencies]
+thiserror.workspace = true

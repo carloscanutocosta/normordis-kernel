@@ -1,0 +1,21 @@
+[package]
+name = "core-security"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "Controlos soberanos de segurança institucional (políticas, invariantes zero-trust, delegações)"
+
+[dependencies]
+serde.workspace = true
+chrono.workspace = true
+thiserror.workspace = true
+uuid.workspace = true
+
+support-errors = { path = "../../support/support-errors" }
+
+[features]
+test-helpers = []
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["rt", "macros"] }

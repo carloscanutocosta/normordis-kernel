@@ -1,0 +1,17 @@
+[package]
+name = "support-logging"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "Logging técnico local do Mini-Kernel RS"
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+chrono.workspace = true
+thiserror.workspace = true
+support-errors = { path = "../support-errors" }
+
+[dev-dependencies]
+tempfile.workspace = true

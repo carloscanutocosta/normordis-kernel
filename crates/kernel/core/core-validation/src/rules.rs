@@ -1,0 +1,9 @@
+pub const STRING_REQUIRED: &str = "validation.string.required";
+pub const STRING_MAX_LENGTH: &str = "validation.string.max_length";
+pub const EMAIL_FORMAT: &str = "validation.email.format";
+pub const UUID_FORMAT: &str = "validation.uuid.format";
+pub const NIF_FORMAT: &str = "validation.nif.format";
+pub const NIF_CHECKSUM: &str = "validation.nif.checksum";
+pub const IBAN_FORMAT: &str = "validation.iban.format";
+pub const JSON_OBJECT: &str = "validation.json.object";
+pub const JSON_REQUIRED_FIELD: &str = "validation.json.required_field";

@@ -1,0 +1,14 @@
+[package]
+name = "interoperability"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "Orquestracao headless substituivel para interoperabilidade e exportacao institucional"
+
+[dependencies]
+serde      = { workspace = true }
+serde_json = { workspace = true }
+thiserror  = { workspace = true }
+
+core-exports = { path = "../../kernel/core/core-exports" }

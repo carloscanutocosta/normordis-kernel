@@ -1,0 +1,92 @@
+{
+  "ndt": "1.0.0",
+  "meta": {
+    "title": "Formulário Genérico",
+    "description": "Template de formulário para recolha de dados na administração pública portuguesa"
+  },
+  "placeholders": {
+    "entidade":        { "type": "string", "required": true },
+    "titulo":          { "type": "string", "required": true },
+    "referencia":      { "type": "string", "required": false },
+    "instrucoes":      { "type": "string", "required": false },
+    "secao_1_titulo":  { "type": "string", "required": true },
+    "secao_1_campos":  { "type": "ncrtf",  "required": true },
+    "secao_2_titulo":  { "type": "string", "required": false },
+    "secao_2_campos":  { "type": "ncrtf",  "required": false },
+    "nota_rodape":     { "type": "string", "required": false },
+    "data_limite":     { "type": "string", "required": false }
+  },
+  "body": [
+    { "type": "heading", "text": "{{entidade}}", "level": 1 },
+    { "type": "heading", "text": "{{titulo}}", "level": 2 },
+    {
+      "type": "conditional",
+      "condition": "referencia",
+      "operator": "exists",
+      "then": [
+        { "type": "paragraph", "text": "Referência: {{referencia}}", "alignment": "left" }
+      ],
+      "else": []
+    },
+    { "type": "spacer", "height_mm": 4.0 },
+    {
+      "type": "conditional",
+      "condition": "instrucoes",
+      "operator": "exists",
+      "then": [
+        { "type": "paragraph", "text": "Instruções de preenchimento: {{instrucoes}}", "alignment": "justify" },
+        { "type": "spacer", "height_mm": 4.0 }
+      ],
+      "else": []
+    },
+    {
+      "type": "conditional",
+      "condition": "data_limite",
+      "operator": "exists",
+      "then": [
+        { "type": "paragraph", "text": "Data limite de entrega: {{data_limite}}", "bold": true, "alignment": "left" },
+        { "type": "spacer", "height_mm": 4.0 }
+      ],
+      "else": []
+    },
+    { "type": "horizontal_rule" },
+    { "type": "spacer", "height_mm": 4.0 },
+    { "type": "heading", "text": "{{secao_1_titulo}}", "level": 3 },
+    { "type": "spacer", "height_mm": 4.0 },
+    {
+      "type": "rich_text",
+      "content": "{{secao_1_campos}}",
+      "source": "placeholder"
+    },
+    {
+      "type": "conditional",
+      "condition": "secao_2_titulo",
+      "operator": "exists",
+      "then": [
+        { "type": "spacer", "height_mm": 6.0 },
+        { "type": "horizontal_rule" },
+        { "type": "spacer", "height_mm": 4.0 },
+        { "type": "heading", "text": "{{secao_2_titulo}}", "level": 3 },
+        { "type": "spacer", "height_mm": 4.0 },
+        {
+          "type": "rich_text",
+          "content": "{{secao_2_campos}}",
+          "source": "placeholder"
+        }
+      ],
+      "else": []
+    },
+    { "type": "spacer", "height_mm": 8.0 },
+    { "type": "horizontal_rule" },
+    {
+      "type": "conditional",
+      "condition": "nota_rodape",
+      "operator": "exists",
+      "then": [
+        { "type": "spacer", "height_mm": 4.0 },
+        { "type": "paragraph", "text": "Nota: {{nota_rodape}}", "alignment": "left" }
+      ],
+      "else": []
+    }
+  ]
+}

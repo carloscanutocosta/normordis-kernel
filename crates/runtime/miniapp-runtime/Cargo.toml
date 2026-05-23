@@ -1,0 +1,21 @@
+[package]
+name = "miniapp-runtime"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+chrono.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+core-rh = { path = "../../kernel/core/core-rh" }
+core-org = { path = "../../kernel/core/core-org" }
+core-audit = { path = "../../kernel/core/core-audit" }
+core-documental = { path = "../../kernel/core/core-documental" }
+domain-numerador = { path = "../../domain/domain-numerador" }
+
+[dev-dependencies]
+serde_json.workspace = true
+domain-numerador = { path = "../../domain/domain-numerador" }
