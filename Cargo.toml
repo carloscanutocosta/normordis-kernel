@@ -71,7 +71,7 @@ members = [
 
 [workspace.package]
 edition = "2021"
-license = "MIT"
+license = "EUPL-1.2"
 version = "0.3.0"
 authors = ["Carlos Canuto Costa"]
 
