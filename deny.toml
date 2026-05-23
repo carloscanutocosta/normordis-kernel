@@ -1,0 +1,85 @@
+# cargo-deny configuration — normordis-kernel
+# https://embarkstudios.github.io/cargo-deny/
+#
+# Executar: cargo deny check
+# Ou via script: .\scripts\security\check-licenses.ps1
+
+[advisories]
+# RustSec advisory database
+db-path = "~/.cargo/advisory-db"
+db-urls = ["https://github.com/rustsec/advisory-db"]
+# Falha em qualquer vulnerabilidade
+vulnerability = "deny"
+# Unmaintained: avisar (não bloquear — pode ser intencional)
+unmaintained = "warn"
+# Yanked crates: bloquear
+yanked = "deny"
+# Avisos de segurança genéricos
+notice = "warn"
+ignore = []
+
+[licenses]
+# Licenças permitidas para dependências do normordis-kernel.
+# Critério: compatíveis com EUPL-1.2 (copyleft fraco ou permissivas).
+allow = [
+  "MIT",
+  "Apache-2.0",
+  "Apache-2.0 WITH LLVM-exception",
+  "BSD-2-Clause",
+  "BSD-3-Clause",
+  "ISC",
+  "Zlib",
+  "CC0-1.0",
+  "Unicode-DFS-2016",
+  "Unicode-3.0",
+  "OpenSSL",
+  "BSL-1.0",
+  "MPL-2.0",
+  "EUPL-1.2",
+]
+# LGPL é compatível com EUPL sob condições mas evitar por precaução
+# GPL/AGPL são incompatíveis com distribuição proprietária
+deny = [
+  "GPL-2.0",
+  "GPL-3.0",
+  "AGPL-3.0",
+  "LGPL-2.0",
+  "LGPL-2.1",
+  "LGPL-3.0",
+]
+# Tolerar crates sem licença SPDX clara (alguns crates do ecossistema Rust)
+unlicensed = "deny"
+# Avisa sobre licenças que requerem aviso de copyright
+copyleft = "warn"
+# Permite crates com múltiplas licenças (qualquer uma das listadas)
+allow-osi-fsf-free = "neither"
+default = "deny"
+confidence-threshold = 0.8
+
+[[licenses.exceptions]]
+# ring — crate de criptografia com licença própria (OpenSSL + ISC + MIT)
+name = "ring"
+version = "*"
+allow = ["MIT", "ISC", "OpenSSL"]
+
+[[licenses.exceptions]]
+# webpki — licença ISC
+name = "webpki"
+version = "*"
+allow = ["ISC"]
+
+[bans]
+# Versões múltiplas da mesma crate: avisar (dependências transitivas podem divergir)
+multiple-versions = "warn"
+# Crates explicitamente proibidas no normordis-kernel
+deny = []
+# Grafos de dependências a ignorar em "multiple-versions"
+skip = []
+skip-tree = []
+
+[sources]
+# Apenas crates.io e paths locais são permitidos
+unknown-registry = "deny"
+unknown-git = "deny"
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]
+allow-git = []
