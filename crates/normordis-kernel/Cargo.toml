@@ -1,0 +1,34 @@
+[package]
+name = "normordis-kernel"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "API pública unificada da plataforma normordis"
+keywords = ["normordis", "kernel", "platform", "at"]
+categories = ["api-bindings"]
+
+# ── Core ──────────────────────────────────────────────────────────────────────
+[dependencies]
+core-rh          = { path = "../kernel/core/core-rh" }
+core-org         = { path = "../kernel/core/core-org" }
+core-audit       = { path = "../kernel/core/core-audit" }
+core-documental  = { path = "../kernel/core/core-documental" }
+core-validation  = { path = "../kernel/core/core-validation" }
+core-config      = { path = "../kernel/core/core-config" }
+core-security    = { path = "../kernel/core/core-security" }
+core-metrics     = { path = "../kernel/core/core-metrics" }
+core-exports     = { path = "../kernel/core/core-exports" }
+core-ingest      = { path = "../kernel/core/core-ingest" }
+
+# ── Domain transversal ────────────────────────────────────────────────────────
+domain-numerador = { path = "../domain/domain-numerador" }
+domain-mef       = { path = "../domain/domain-mef" }
+
+# ── Runtime ───────────────────────────────────────────────────────────────────
+miniapp-runtime  = { path = "../runtime/miniapp-runtime" }
+
+# ── Support (apenas contratos públicos) ───────────────────────────────────────
+support-errors   = { path = "../kernel/support/support-errors" }
+support-ids      = { path = "../kernel/support/support-ids" }
+support-clock    = { path = "../kernel/support/support-clock" }
