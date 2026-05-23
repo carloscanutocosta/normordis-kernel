@@ -1,0 +1,114 @@
+{
+  "schema_version": "0.1.0",
+  "status": "Draft",
+  "project": "normordis-kernel",
+  "nodes": [
+    {
+      "id": "source.git",
+      "type": "source",
+      "description": "Fonte Git versionada do repositório normordis-kernel."
+    },
+    {
+      "id": "github.actions",
+      "type": "ci",
+      "description": "Pipeline de CI executado por GitHub Actions (fmt, check, clippy, test em Windows e Linux)."
+    },
+    {
+      "id": "cargo.lock.ci",
+      "type": "dependency-input",
+      "description": "Cargo.lock regenerado deterministicamente em CI a partir do Cargo.toml; não versionado (biblioteca)."
+    },
+    {
+      "id": "deny.toml",
+      "type": "policy",
+      "description": "Política de licenças e dependências (cargo deny); versionada no repositório."
+    },
+    {
+      "id": "cargo.audit.report",
+      "type": "evidence",
+      "description": "Relatório JSON do cargo audit contra a RustSec Advisory Database."
+    },
+    {
+      "id": "cargo.deny.report",
+      "type": "evidence",
+      "description": "Relatório de conformidade de licenças produzido pelo cargo deny check licenses."
+    },
+    {
+      "id": "manifest.sha256",
+      "type": "evidence",
+      "description": "Manifesto SHA-256 de todos os ficheiros fonte; gerado por generate-manifest e verificável independentemente."
+    },
+    {
+      "id": "build.artifact",
+      "type": "artifact",
+      "description": "Artefactos compilados em modo release (cargo build --release --workspace)."
+    },
+    {
+      "id": "release.report",
+      "type": "evidence",
+      "description": "Relatório final JSON do release-gate.ps1 com git SHA, timestamps e resultado de cada passo."
+    },
+    {
+      "id": "release.artifact",
+      "type": "artifact",
+      "description": "Release promovida a main após aprovação do portão de segurança."
+    }
+  ],
+  "edges": [
+    {
+      "from": "source.git",
+      "to": "github.actions",
+      "relation": "triggers"
+    },
+    {
+      "from": "cargo.lock.ci",
+      "to": "github.actions",
+      "relation": "constrains"
+    },
+    {
+      "from": "deny.toml",
+      "to": "github.actions",
+      "relation": "governs"
+    },
+    {
+      "from": "github.actions",
+      "to": "build.artifact",
+      "relation": "produces"
+    },
+    {
+      "from": "build.artifact",
+      "to": "cargo.audit.report",
+      "relation": "is-audited-by"
+    },
+    {
+      "from": "build.artifact",
+      "to": "cargo.deny.report",
+      "relation": "is-checked-by"
+    },
+    {
+      "from": "build.artifact",
+      "to": "manifest.sha256",
+      "relation": "is-hashed-by"
+    },
+    {
+      "from": "cargo.audit.report",
+      "to": "release.report",
+      "relation": "contributes-to"
+    },
+    {
+      "from": "cargo.deny.report",
+      "to": "release.report",
+      "relation": "contributes-to"
+    },
+    {
+      "from": "manifest.sha256",
+      "to": "release.report",
+      "relation": "contributes-to"
+    },
+    {
+      "from": "release.report",
+      "to": "release.artifact",
+      "relation": "gates-promotion"
+    }
+  ]
+}
