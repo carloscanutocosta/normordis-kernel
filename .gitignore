@@ -1,2 +1,61 @@
-/target
+# Rust / Cargo
+# =================================================================
+# Artefactos de compilação — reconstruídos por `cargo build`
+/target/
+
+# Cargo.lock não é versionado em crates de biblioteca
+# (convenção: binários versionar, bibliotecas não)
 Cargo.lock
+
+# Backups criados pelo rustfmt
+*.rs.bk
+
+# Símbolos de debug do MSVC (Windows)
+*.pdb
+
+# Artefactos de segurança gerados localmente / CI
+# =================================================================
+/artifacts/trust/*
+!/artifacts/trust/.gitkeep
+
+# Logs
+# =================================================================
+/.logs/*
+!/.logs/.gitkeep
+*.log
+
+# Ficheiros temporários
+# =================================================================
+/tmp/*
+!/tmp/.gitkeep
+/_backups/
+
+# Configuração de Editor / IDE
+# =================================================================
+.vscode/
+.idea/
+.vs/
+*.sublime-project
+*.sublime-workspace
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# Sistema operativo
+# =================================================================
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Windows
+Thumbs.db
+Desktop.ini
+ehthumbs.db
+
+# Variáveis de ambiente locais
+# =================================================================
+.env
+.env.local
+.env.*.local
