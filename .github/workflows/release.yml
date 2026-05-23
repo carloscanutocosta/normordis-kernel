@@ -1,0 +1,177 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v[0-9]+.[0-9]+.[0-9]+"
+
+env:
+  CARGO_TERM_COLOR: always
+  RUSTFLAGS: "-D warnings"
+
+permissions:
+  contents: write
+  id-token: write   # necessário para provenance attestation
+
+jobs:
+  # ── 1. Portão de segurança ────────────────────────────────────────────────
+  security-audit:
+    name: Security Audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: rustsec/audit-check@v2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+  license-check:
+    name: License Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: EmbarkStudios/cargo-deny-action@v2
+        with:
+          command: check
+          arguments: --all-features
+
+  # ── 2. Build release em ambas as plataformas ─────────────────────────────
+  build-windows:
+    name: Build Release (Windows)
+    runs-on: windows-latest
+    needs: [security-audit, license-check]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Build release
+        run: cargo build --release --workspace
+      - name: Upload Windows artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-windows
+          path: target/release/*.dll
+          if-no-files-found: warn
+
+  build-linux:
+    name: Build Release (Linux)
+    runs-on: ubuntu-latest
+    needs: [security-audit, license-check]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Build release
+        run: cargo build --release --workspace
+      - name: Upload Linux artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-linux
+          path: target/release/*.so
+          if-no-files-found: warn
+
+  # ── 3. SBOM CycloneDX ────────────────────────────────────────────────────
+  sbom:
+    name: Generate SBOM
+    runs-on: ubuntu-latest
+    needs: [security-audit, license-check]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Install cargo-cyclonedx
+        run: cargo install cargo-cyclonedx --locked
+      - name: Generate SBOM
+        run: cargo cyclonedx --format json --all
+      - name: Collect SBOM files
+        run: |
+          mkdir -p artifacts/trust
+          find . -name "*.cdx.json" -not -path "./target/*" | head -1 | xargs -I{} cp {} artifacts/trust/sbom.cyclonedx.json || true
+      - name: Upload SBOM
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom
+          path: artifacts/trust/sbom.cyclonedx.json
+          if-no-files-found: warn
+
+  # ── 4. Manifesto de integridade ──────────────────────────────────────────
+  manifest:
+    name: Integrity Manifest
+    runs-on: ubuntu-latest
+    needs: [security-audit, license-check]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Generate SHA-256 manifest
+        run: |
+          mkdir -p artifacts/trust
+          find . \
+            \( -path './.git' -o -path './.git/*' \
+              -o -path './target' -o -path './target/*' \
+              -o -path './.logs' -o -path './.logs/*' \
+              -o -path './artifacts' -o -path './artifacts/*' \) -prune \
+            -o -type f -print | LC_ALL=C sort | while IFS= read -r f; do
+              path="${f#./}"
+              hash=$(sha256sum "$f" | awk '{print $1}')
+              echo "$hash  $path"
+            done > artifacts/trust/MANIFEST.sha256
+          echo "Ficheiros no manifesto: $(wc -l < artifacts/trust/MANIFEST.sha256)"
+      - name: Upload manifest
+        uses: actions/upload-artifact@v4
+        with:
+          name: manifest
+          path: artifacts/trust/MANIFEST.sha256
+
+  # ── 5. Publicar release com provenance attestation ───────────────────────
+  publish:
+    name: Publish Release
+    runs-on: ubuntu-latest
+    needs: [build-windows, build-linux, sbom, manifest]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release-artifacts/
+
+      - name: Prepare release notes
+        id: notes
+        run: |
+          TAG="${{ github.ref_name }}"
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+          # Extrair notas do CHANGELOG.md para esta versão
+          VERSION="${TAG#v}"
+          NOTES=$(awk "/^## \[$VERSION\]/{found=1; next} found && /^## \[/{exit} found{print}" CHANGELOG.md || echo "Ver CHANGELOG.md para detalhes.")
+          echo "notes<<EOF" >> $GITHUB_OUTPUT
+          echo "$NOTES" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: "normordis-kernel ${{ github.ref_name }}"
+          body: |
+            ${{ steps.notes.outputs.notes }}
+
+            ---
+
+            **Verificação de integridade:**
+            ```sh
+            sha256sum -c MANIFEST.sha256
+            ```
+
+            **Auditoria de segurança:** ✔ `cargo audit` sem vulnerabilidades
+            **Licenças:** ✔ `cargo deny check` conforme EUPL-1.2
+            **SBOM:** incluído (`sbom.cyclonedx.json`)
+          files: |
+            release-artifacts/manifest/MANIFEST.sha256
+            release-artifacts/sbom/sbom.cyclonedx.json
+          draft: false
+          prerelease: ${{ contains(github.ref_name, '-') }}
+
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: |
+            release-artifacts/manifest/MANIFEST.sha256
+            release-artifacts/sbom/sbom.cyclonedx.json
