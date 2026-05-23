@@ -32,3 +32,10 @@ miniapp-runtime  = { path = "../runtime/miniapp-runtime" }
 support-errors   = { path = "../kernel/support/support-errors" }
 support-ids      = { path = "../kernel/support/support-ids" }
 support-clock    = { path = "../kernel/support/support-clock" }
+
+# ── Bootstrap (feature "bootstrap") ───────────────────────────────────────────
+runtime-bootstrap     = { path = "../kernel/infra/runtime-bootstrap",  optional = true }
+support-app-bootstrap = { path = "../kernel/infra/app-bootstrap",       optional = true }
+
+[features]
+bootstrap = ["dep:runtime-bootstrap", "dep:support-app-bootstrap"]
