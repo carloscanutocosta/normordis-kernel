@@ -1,3 +1,5 @@
+#![allow(clippy::should_implement_trait)]
+
 //! Domínio de custódia documental institucional do Mini-Kernel RS.
 //!
 //! Cobre o ciclo de vida completo de documentos institucionais: criação, edição,

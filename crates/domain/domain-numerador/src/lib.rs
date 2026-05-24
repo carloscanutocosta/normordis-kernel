@@ -93,12 +93,16 @@ impl NumberingKind {
             Self::Procedure => "procedure",
         }
     }
+}
 
-    pub fn from_str(s: &str) -> Option<Self> {
+impl std::str::FromStr for NumberingKind {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "document" => Some(Self::Document),
-            "procedure" => Some(Self::Procedure),
-            _ => None,
+            "document" => Ok(Self::Document),
+            "procedure" => Ok(Self::Procedure),
+            _ => Err(()),
         }
     }
 }
@@ -120,17 +124,21 @@ impl AssignedStatus {
         }
     }
 
-    pub fn from_str(s: &str) -> Option<Self> {
-        match s {
-            "assigned" => Some(Self::Assigned),
-            "void" => Some(Self::Void),
-            "cancelled" => Some(Self::Cancelled),
-            _ => None,
-        }
-    }
-
     pub fn is_terminal(&self) -> bool {
         matches!(self, Self::Void | Self::Cancelled)
+    }
+}
+
+impl std::str::FromStr for AssignedStatus {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "assigned" => Ok(Self::Assigned),
+            "void" => Ok(Self::Void),
+            "cancelled" => Ok(Self::Cancelled),
+            _ => Err(()),
+        }
     }
 }
 

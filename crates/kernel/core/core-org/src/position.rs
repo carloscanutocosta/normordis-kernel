@@ -53,6 +53,6 @@ impl OrgPosition {
     }
 
     pub fn is_active_at(&self, date: NaiveDate) -> bool {
-        date >= self.valid_from && self.valid_until.map_or(true, |u| date < u)
+        date >= self.valid_from && self.valid_until.is_none_or(|u| date < u)
     }
 }

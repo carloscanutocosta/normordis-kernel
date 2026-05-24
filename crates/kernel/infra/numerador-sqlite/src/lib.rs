@@ -1,6 +1,9 @@
+#![allow(clippy::result_large_err)]
+
 use adapter_sqlite::{
     open_relational_connection, run_relational_migrations, SqliteRelationalConfig,
 };
+
 use chrono::{DateTime, NaiveDate, Utc};
 use domain_numerador::{
     format_nns_number, period_key, ActorRef, AssignNumberRequest, AssignedNumber, AssignedStatus,
@@ -9,7 +12,6 @@ use domain_numerador::{
     ResetPolicy,
 };
 use rusqlite::{params, Connection, OptionalExtension};
-use serde_json;
 use thiserror::Error;
 
 pub const NUMERADOR_MIGRATIONS: &[&str] = &[r#"
@@ -678,7 +680,7 @@ fn decode_sequence(row: &rusqlite::Row<'_>) -> Result<NumberingSequence, rusqlit
     let valid_to_raw: Option<String> = row.get(10)?;
     let kind_raw: String = row.get(1)?;
 
-    let kind = NumberingKind::from_str(&kind_raw).ok_or_else(|| {
+    let kind = kind_raw.parse::<NumberingKind>().map_err(|_| {
         rusqlite::Error::FromSqlConversionFailure(
             1,
             rusqlite::types::Type::Text,
@@ -743,7 +745,7 @@ fn decode_assignment(row: &rusqlite::Row<'_>) -> Result<AssignedNumber, rusqlite
     let assigned_at_raw: String = row.get(8)?;
     let status_raw: String = row.get(11)?;
 
-    let kind = NumberingKind::from_str(&kind_raw).ok_or_else(|| {
+    let kind = kind_raw.parse::<NumberingKind>().map_err(|_| {
         rusqlite::Error::FromSqlConversionFailure(
             2,
             rusqlite::types::Type::Text,
@@ -762,7 +764,7 @@ fn decode_assignment(row: &rusqlite::Row<'_>) -> Result<AssignedNumber, rusqlite
         )
     })?;
 
-    let status = AssignedStatus::from_str(&status_raw).ok_or_else(|| {
+    let status = status_raw.parse::<AssignedStatus>().map_err(|_| {
         rusqlite::Error::FromSqlConversionFailure(
             11,
             rusqlite::types::Type::Text,

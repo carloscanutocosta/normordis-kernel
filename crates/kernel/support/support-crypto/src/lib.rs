@@ -19,6 +19,6 @@ pub use crypto::{
     validate_encrypted_payload,
 };
 pub use error::CryptoError;
-pub use key::{KeyId, KeyProvider, KeyResolver, SecretKey, StaticKeyProvider};
+pub use key::{KeyId, KeyProvider, KeyResolver, KeyResult, SecretKey, StaticKeyProvider};
 pub use payload::{EncryptedPayload, KdfConfig};
 pub use policy::CryptoPolicy;

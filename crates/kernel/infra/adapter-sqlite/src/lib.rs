@@ -1,3 +1,5 @@
+#![allow(clippy::result_large_err)]
+
 mod compat;
 mod config;
 mod connection;

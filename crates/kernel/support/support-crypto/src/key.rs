@@ -4,6 +4,8 @@ use zeroize::{Zeroize, ZeroizeOnDrop};
 use crate::constants::KEY_LENGTH_BYTES;
 use crate::error::CryptoError;
 
+pub type KeyResult = Result<SecretKey, Box<MiniError>>;
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct KeyId(String);
 
@@ -42,11 +44,11 @@ impl std::fmt::Debug for SecretKey {
 }
 
 pub trait KeyProvider {
-    fn current_key(&self) -> Result<SecretKey, MiniError>;
+    fn current_key(&self) -> KeyResult;
 }
 
 pub trait KeyResolver {
-    fn key_for_id(&self, key_id: Option<&str>) -> Result<SecretKey, MiniError>;
+    fn key_for_id(&self, key_id: Option<&str>) -> KeyResult;
 }
 
 pub struct StaticKeyProvider {
@@ -80,16 +82,16 @@ impl Drop for StaticKeyProvider {
 }
 
 impl KeyProvider for StaticKeyProvider {
-    fn current_key(&self) -> Result<SecretKey, MiniError> {
+    fn current_key(&self) -> KeyResult {
         Ok(SecretKey::new(self.key))
     }
 }
 
 impl KeyResolver for StaticKeyProvider {
-    fn key_for_id(&self, key_id: Option<&str>) -> Result<SecretKey, MiniError> {
+    fn key_for_id(&self, key_id: Option<&str>) -> KeyResult {
         if let (Some(expected), Some(requested)) = (self.key_id.as_ref(), key_id) {
             if expected.as_str() != requested {
-                return Err(CryptoError::InvalidKey.to_mini_error());
+                return Err(Box::new(CryptoError::InvalidKey.to_mini_error()));
             }
         }
 

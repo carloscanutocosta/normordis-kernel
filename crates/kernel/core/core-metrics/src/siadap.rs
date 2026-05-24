@@ -494,7 +494,7 @@ impl IntermediaryEvaluationWindow {
 
 /// Valida que um score ponderado está no intervalo válido [1.0, 5.0].
 pub fn validate_score(score: f64) -> Result<(), MetricError> {
-    if score.is_nan() || score.is_infinite() || score < 1.0 || score > 5.0 {
+    if score.is_nan() || score.is_infinite() || !(1.0..=5.0).contains(&score) {
         return Err(MetricError::InvalidValue);
     }
     Ok(())

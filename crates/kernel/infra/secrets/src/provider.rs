@@ -1,5 +1,5 @@
 use rand::RngCore;
-use support_crypto::{KeyId, KeyProvider, KeyResolver, SecretKey, KEY_LENGTH_BYTES};
+use support_crypto::{KeyId, KeyProvider, KeyResolver, KeyResult, SecretKey, KEY_LENGTH_BYTES};
 use support_errors::MiniError;
 
 use crate::error::{secret_error, UNPROTECT_FAILED};
@@ -76,8 +76,8 @@ impl<P> KeyProvider for ProtectedKeyProvider<P>
 where
     P: SecretProtector,
 {
-    fn current_key(&self) -> Result<SecretKey, MiniError> {
-        self.unprotect_key()
+    fn current_key(&self) -> KeyResult {
+        self.unprotect_key().map_err(Box::new)
     }
 }
 
@@ -85,17 +85,17 @@ impl<P> KeyResolver for ProtectedKeyProvider<P>
 where
     P: SecretProtector,
 {
-    fn key_for_id(&self, key_id: Option<&str>) -> Result<SecretKey, MiniError> {
+    fn key_for_id(&self, key_id: Option<&str>) -> KeyResult {
         if let Some(requested) = key_id {
             if requested != self.key_id.as_str() {
-                return Err(secret_error(
+                return Err(Box::new(secret_error(
                     UNPROTECT_FAILED,
                     "failed to resolve requested secret key",
-                ));
+                )));
             }
         }
 
-        self.unprotect_key()
+        self.unprotect_key().map_err(Box::new)
     }
 }
 

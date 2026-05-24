@@ -15,4 +15,4 @@ pub use error::{
 pub use event::LogEvent;
 pub use file_logger::FileLogger;
 pub use level::LogLevel;
-pub use logger::{log_mini_error, TechnicalLogger};
+pub use logger::{log_mini_error, LogResult, TechnicalLogger};

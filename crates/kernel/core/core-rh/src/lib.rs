@@ -1,3 +1,5 @@
+#![allow(clippy::should_implement_trait)]
+
 //! Domínio de identidade e gestão de utilizadores do Mini-Kernel RS.
 //!
 //! Cobre identificação de utilizadores (`UserId`, `UserProfile`), papéis funcionais

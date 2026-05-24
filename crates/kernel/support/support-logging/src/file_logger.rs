@@ -7,7 +7,7 @@ use support_errors::MiniError;
 use crate::config::LoggingConfig;
 use crate::error::LogError;
 use crate::event::LogEvent;
-use crate::logger::TechnicalLogger;
+use crate::logger::{LogResult, TechnicalLogger};
 use crate::retention::apply_retention;
 use crate::rotate::rotate_if_needed;
 use crate::sanitize::sanitize_event;
@@ -19,10 +19,16 @@ pub struct FileLogger {
 }
 
 impl FileLogger {
-    pub fn new(config: LoggingConfig) -> Result<Self, MiniError> {
-        config.validate().map_err(MiniError::from)?;
-        fs::create_dir_all(&config.log_dir).map_err(|_| LogError::WriteFailed.to_mini_error())?;
-        apply_retention(&config).map_err(MiniError::from)?;
+    pub fn new(config: LoggingConfig) -> Result<Self, Box<MiniError>> {
+        config
+            .validate()
+            .map_err(MiniError::from)
+            .map_err(Box::new)?;
+        fs::create_dir_all(&config.log_dir)
+            .map_err(|_| Box::new(LogError::WriteFailed.to_mini_error()))?;
+        apply_retention(&config)
+            .map_err(MiniError::from)
+            .map_err(Box::new)?;
 
         Ok(Self {
             config,
@@ -36,7 +42,7 @@ impl FileLogger {
 }
 
 impl TechnicalLogger for FileLogger {
-    fn log(&self, event: LogEvent) -> Result<(), MiniError> {
+    fn log(&self, event: LogEvent) -> LogResult {
         if event.level.severity() < self.config.min_level.severity() {
             return Ok(());
         }
@@ -44,22 +50,26 @@ impl TechnicalLogger for FileLogger {
         let _guard = self
             .lock
             .lock()
-            .map_err(|_| LogError::WriteFailed.to_mini_error())?;
-        apply_retention(&self.config).map_err(MiniError::from)?;
-        rotate_if_needed(&self.config).map_err(MiniError::from)?;
+            .map_err(|_| Box::new(LogError::WriteFailed.to_mini_error()))?;
+        apply_retention(&self.config)
+            .map_err(MiniError::from)
+            .map_err(Box::new)?;
+        rotate_if_needed(&self.config)
+            .map_err(MiniError::from)
+            .map_err(Box::new)?;
 
         let event = sanitize_event(event, &self.config);
-        let line =
-            serde_json::to_string(&event).map_err(|_| LogError::WriteFailed.to_mini_error())?;
+        let line = serde_json::to_string(&event)
+            .map_err(|_| Box::new(LogError::WriteFailed.to_mini_error()))?;
         let mut file = OpenOptions::new()
             .create(true)
             .append(true)
             .open(self.config.active_path())
-            .map_err(|_| LogError::WriteFailed.to_mini_error())?;
-        writeln!(file, "{line}").map_err(|_| LogError::WriteFailed.to_mini_error())?;
+            .map_err(|_| Box::new(LogError::WriteFailed.to_mini_error()))?;
+        writeln!(file, "{line}").map_err(|_| Box::new(LogError::WriteFailed.to_mini_error()))?;
         if self.config.flush_each_event {
             file.flush()
-                .map_err(|_| LogError::WriteFailed.to_mini_error())?;
+                .map_err(|_| Box::new(LogError::WriteFailed.to_mini_error()))?;
         }
         Ok(())
     }
@@ -269,7 +279,7 @@ mod tests {
         for index in 0..16 {
             let logger = std::sync::Arc::clone(&logger);
             handles.push(thread::spawn(move || {
-                logger.info("runtime", &format!("message-{index}"));
+                logger.info("runtime", format!("message-{index}"));
             }));
         }
 

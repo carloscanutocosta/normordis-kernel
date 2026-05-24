@@ -1,3 +1,5 @@
+#![allow(clippy::redundant_closure, clippy::result_large_err)]
+
 /*!
  * Adapter SQLite para a classificação MEF (Matriz de Estrutura Funcional).
  *

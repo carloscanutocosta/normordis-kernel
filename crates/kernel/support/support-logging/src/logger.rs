@@ -3,8 +3,10 @@ use support_errors::{MiniError, PublicError};
 use crate::event::LogEvent;
 use crate::level::LogLevel;
 
+pub type LogResult = Result<(), Box<MiniError>>;
+
 pub trait TechnicalLogger: Send + Sync {
-    fn log(&self, event: LogEvent) -> Result<(), MiniError>;
+    fn log(&self, event: LogEvent) -> LogResult;
 
     fn trace(&self, component: &str, message: impl Into<String>)
     where

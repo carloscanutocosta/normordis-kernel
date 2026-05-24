@@ -128,7 +128,7 @@ Os segmentos nao podem ser vazios, conter whitespace ou conter `:`.
 
 ```rust
 pub trait KeyProvider {
-    fn current_key(&self) -> Result<SecretKey, MiniError>;
+    fn current_key(&self) -> KeyResult;
 }
 ```
 
@@ -136,9 +136,12 @@ pub trait KeyProvider {
 
 ```rust
 pub trait KeyResolver {
-    fn key_for_id(&self, key_id: Option<&str>) -> Result<SecretKey, MiniError>;
+    fn key_for_id(&self, key_id: Option<&str>) -> KeyResult;
 }
 ```
+
+`KeyResult` é `Result<SecretKey, Box<MiniError>>`, mantendo o erro público
+seguro sem transportar `MiniError` grande diretamente no enum `Result`.
 
 Implementacoes concretas devem viver no runtime/bootstrap ou em adapters de
 segredos futuros. `StaticKeyProvider` existe para testes, bootstrap controlado e

@@ -3,12 +3,10 @@ use support_crypto::{
     decrypt_text_with_passphrase, derive_key_from_passphrase, encrypt_bytes_with_key,
     encrypt_bytes_with_passphrase, encrypt_text_with_key, encrypt_text_with_passphrase,
     CryptoError, CryptoPolicy, EncryptedPayload, KdfConfig, KeyId, KeyProvider, KeyResolver,
-    SecretKey, StaticKeyProvider, StorageAad, StorageEnvelope, CURRENT_ALGORITHM,
+    KeyResult, SecretKey, StaticKeyProvider, StorageAad, StorageEnvelope, CURRENT_ALGORITHM,
     CURRENT_CRYPTO_VERSION, CURRENT_KDF, DECRYPT_FAILED, EXTERNAL_KEY, INVALID_AAD,
     INVALID_PAYLOAD, POLICY_VIOLATION, STORAGE_AAD_PREFIX,
 };
-use support_errors::MiniError;
-
 #[test]
 fn roundtrips_text_with_passphrase() {
     let payload = encrypt_text_with_passphrase(
@@ -218,11 +216,11 @@ struct FixedKeyProvider {
 }
 
 impl KeyProvider for FixedKeyProvider {
-    fn current_key(&self) -> Result<SecretKey, MiniError> {
+    fn current_key(&self) -> KeyResult {
         self.key
             .as_ref()
             .map(|key| SecretKey(key.0))
-            .ok_or_else(|| CryptoError::InvalidKey.to_mini_error())
+            .ok_or_else(|| Box::new(CryptoError::InvalidKey.to_mini_error()))
     }
 }
 

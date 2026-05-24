@@ -20,8 +20,13 @@ headless e reutilizavel.
 - `LogEvent`
 - `TechnicalLogger`
 - `FileLogger`
+- `LogResult`
 - `log_mini_error()`
 - `LogError`
+
+`TechnicalLogger::log()` devolve `LogResult`, definido como
+`Result<(), Box<MiniError>>`, para manter `MiniError` fora do caminho quente do
+`Result` sem alterar a semântica pública do erro.
 
 ## Formato
 

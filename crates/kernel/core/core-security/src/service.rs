@@ -48,13 +48,13 @@ use crate::{
 
 /// Prova selada de que `SecurityService::authorize()` foi chamado com sucesso.
 #[derive(Debug, Clone)]
+#[non_exhaustive]
 pub struct AuthorizationToken {
     pub principal: String,
     pub operation: String,
     pub resource: Option<String>,
     pub granted_by: GrantedBy,
     pub at: DateTime<Utc>,
-    _sealed: (),
 }
 
 /// Razão pela qual a autorização foi concedida.
@@ -364,7 +364,6 @@ impl<R: SecurityPolicyRepository, A: SecurityAuditLog, M: RoleMembershipReposito
             resource: resource.map(String::from),
             granted_by,
             at,
-            _sealed: (),
         }
     }
 }

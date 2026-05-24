@@ -502,7 +502,7 @@ fn fmt_35_footnote_ref_inline_deserializes() {
 
 #[test]
 fn fmt_36_soft_hyphen_preserved_in_text_node() {
-    let json = r#"{"ncrtf":"1.3.0","blocks":[{"type":"paragraph","children":[{"type":"text","text":"im­ple­men­ta­ção"}]}]}"#;
+    let json = r#"{"ncrtf":"1.3.0","blocks":[{"type":"paragraph","children":[{"type":"text","text":"im\u00ADple\u00ADmen\u00ADta\u00ADção"}]}]}"#;
     let doc = parse_ncrtf(json).unwrap();
     use normordis_pdf::richtext::model::{Block, Inline};
     if let Block::Paragraph(p) = &doc.blocks[0] {

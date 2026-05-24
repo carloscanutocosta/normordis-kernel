@@ -121,14 +121,14 @@ fn org_level_parent_level() {
 #[test]
 fn status_from_str_round_trip() {
     for s in ["active", "suspended", "extinct"] {
-        let st = OrgUnitStatus::from_str(s).unwrap();
+        let st = s.parse::<OrgUnitStatus>().unwrap();
         assert_eq!(st.as_str(), s);
     }
 }
 
 #[test]
-fn status_from_str_desconhecido_devolve_none() {
-    assert!(OrgUnitStatus::from_str("unknown").is_none());
+fn status_from_str_desconhecido_devolve_err() {
+    assert!("unknown".parse::<OrgUnitStatus>().is_err());
 }
 
 #[test]
@@ -167,7 +167,7 @@ fn instrument_kind_round_trip_variantes_fixas() {
     ];
     for (kind, s) in pairs {
         assert_eq!(kind.as_str(), s);
-        assert_eq!(InstrumentKind::from_str(s).unwrap(), kind);
+        assert_eq!(s.parse::<InstrumentKind>().unwrap(), kind);
     }
 }
 
@@ -176,12 +176,12 @@ fn instrument_kind_outro_round_trip() {
     let kind = InstrumentKind::Outro("resolucao".into());
     let s = kind.as_str();
     assert_eq!(s, "outro:resolucao");
-    assert_eq!(InstrumentKind::from_str(&s).unwrap(), kind);
+    assert_eq!(s.parse::<InstrumentKind>().unwrap(), kind);
 }
 
 #[test]
-fn instrument_kind_from_str_desconhecido_devolve_none() {
-    assert!(InstrumentKind::from_str("desconhecido").is_none());
+fn instrument_kind_from_str_desconhecido_devolve_err() {
+    assert!("desconhecido".parse::<InstrumentKind>().is_err());
 }
 
 #[test]

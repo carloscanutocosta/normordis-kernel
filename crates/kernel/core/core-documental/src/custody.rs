@@ -272,6 +272,7 @@ impl DocumentCustody {
     ///   1. Lê o template NDT para extrair as fases obrigatórias/facultativas
     ///   2. Verifica o event log (eventos `Signed` com `data_json.fase`) contra essas fases
     ///   3. Só depois chama `doc.finalize()` se todas as fases obrigatórias estiverem satisfeitas
+    ///
     /// Decisão pendente: formato no NDT para declarar fases de assinatura.
     pub fn finalize(&self) -> Result<DocumentStatus, DocumentalError> {
         self.check_ready_to_finalize()?;

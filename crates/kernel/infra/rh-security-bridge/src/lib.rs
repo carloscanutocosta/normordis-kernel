@@ -1,3 +1,5 @@
+#![allow(clippy::result_large_err)]
+
 //! Bridge entre `core-rh` e `core-security`: pertença a roles com validade temporal.
 //!
 //! ## Responsabilidade

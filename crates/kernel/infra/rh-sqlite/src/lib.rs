@@ -1,3 +1,5 @@
+#![allow(clippy::result_large_err)]
+
 use adapter_sqlite::{
     open_relational_connection, run_relational_migrations, SqliteRelationalConfig,
 };

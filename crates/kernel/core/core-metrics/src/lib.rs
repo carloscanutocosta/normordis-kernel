@@ -1,3 +1,5 @@
+#![allow(clippy::should_implement_trait)]
+
 pub mod changelog;
 pub mod cycle;
 pub mod definition;

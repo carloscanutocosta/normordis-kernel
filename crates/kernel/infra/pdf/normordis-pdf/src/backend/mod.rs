@@ -6,6 +6,7 @@ use crate::{fonts::ShapedGlyph, styles::RgbColor};
 ///
 /// Elements call methods on PdfBackend and never interact with pdf-writer
 /// directly. This allows future backend changes without touching element code.
+#[allow(clippy::too_many_arguments)]
 pub trait PdfBackend {
     /// Draw text at an absolute position (bottom-left origin, mm).
     fn draw_text(

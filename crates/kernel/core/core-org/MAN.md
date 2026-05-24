@@ -96,7 +96,7 @@ O formato canónico de texto, usado tanto no domínio como nos adapters SQLite:
 | `RegulamentoOrganico` | `"regulamento_organico"`  |
 | `Outro(s)`            | `"outro:{s}"`             |
 
-Os adapters SQLite devem usar `InstrumentKind::as_str()` / `InstrumentKind::from_str()`
+Os adapters SQLite devem usar `InstrumentKind::as_str()` / `str::parse::<InstrumentKind>()`
 em vez de implementar funções locais de conversão, garantindo consistência.
 
 ## Delegações

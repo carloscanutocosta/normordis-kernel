@@ -1,3 +1,9 @@
+#![allow(
+    clippy::redundant_closure,
+    clippy::result_large_err,
+    clippy::too_many_arguments
+)]
+
 use adapter_sqlite::{
     open_relational_connection, run_relational_migrations, SqliteRelationalConfig,
 };

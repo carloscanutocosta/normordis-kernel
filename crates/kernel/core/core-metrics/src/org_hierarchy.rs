@@ -26,14 +26,9 @@ pub trait OrgHierarchyProvider: Send + Sync {
     fn ancestors_of(&self, org_unit_id: &str) -> Result<Vec<String>, MetricError> {
         let mut ancestors = vec![];
         let mut current = org_unit_id.to_string();
-        loop {
-            match self.parent_of(&current)? {
-                Some(parent) => {
-                    ancestors.push(parent.clone());
-                    current = parent;
-                }
-                None => break,
-            }
+        while let Some(parent) = self.parent_of(&current)? {
+            ancestors.push(parent.clone());
+            current = parent;
         }
         Ok(ancestors)
     }

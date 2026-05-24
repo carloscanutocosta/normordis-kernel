@@ -1,3 +1,5 @@
+#![allow(clippy::redundant_closure, clippy::result_large_err)]
+
 mod error;
 mod schema;
 mod store_changelog;

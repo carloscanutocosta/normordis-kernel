@@ -127,8 +127,12 @@ impl BumpType {
             BumpType::Patch => "patch",
         }
     }
+}
 
-    pub fn from_str(s: &str) -> Result<Self, VersioningError> {
+impl std::str::FromStr for BumpType {
+    type Err = VersioningError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.to_lowercase().as_str() {
             "major" => Ok(BumpType::Major),
             "minor" => Ok(BumpType::Minor),

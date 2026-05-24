@@ -291,8 +291,10 @@ mod tests {
     #[test]
     fn validate_settings_rejects_zero_resolution() {
         let client = ScannerClient::new(sample_device(), ScannerClientConfig::default());
-        let mut s = ScanSettings::default();
-        s.resolution = 0;
+        let s = ScanSettings {
+            resolution: 0,
+            ..ScanSettings::default()
+        };
         let err = client.validate_settings(&s).unwrap_err();
         assert!(matches!(err, ScannerError::InvalidConfig(_)));
     }
@@ -300,8 +302,13 @@ mod tests {
     #[test]
     fn validate_settings_rejects_zero_region() {
         let client = ScannerClient::new(sample_device(), ScannerClientConfig::default());
-        let mut s = ScanSettings::default();
-        s.region.width = 0;
+        let s = ScanSettings {
+            region: crate::types::ScanRegion {
+                width: 0,
+                ..crate::types::ScanRegion::A4_PORTRAIT
+            },
+            ..ScanSettings::default()
+        };
         let err = client.validate_settings(&s).unwrap_err();
         assert!(matches!(err, ScannerError::InvalidConfig(_)));
     }

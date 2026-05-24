@@ -1,3 +1,5 @@
+#![allow(clippy::result_large_err)]
+
 use adapter_sqlite::{open_connection, SqliteOptions};
 use rusqlite::{params, Connection};
 use support_address::{parse_postal_code, validate_postal_parts, AddressCandidate, AddressError};

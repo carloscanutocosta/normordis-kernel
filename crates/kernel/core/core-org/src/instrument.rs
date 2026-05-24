@@ -47,27 +47,35 @@ impl InstrumentKind {
     }
 
     /// Desserializa da representação canónica. Para `"outro:{valor}"` devolve
-    /// `Some(Outro(valor))`; valores desconhecidos devolvem `None`.
-    pub fn from_str(s: &str) -> Option<Self> {
+    /// `Ok(Outro(valor))`; valores desconhecidos devolvem erro.
+    pub fn parse_canonical(s: &str) -> Result<Self, OrgError> {
         match s {
-            "portaria" => Some(Self::Portaria),
-            "despacho" => Some(Self::Despacho),
-            "deliberacao" => Some(Self::Deliberacao),
-            "regulamento_organico" => Some(Self::RegulamentoOrganico),
+            "portaria" => Ok(Self::Portaria),
+            "despacho" => Ok(Self::Despacho),
+            "deliberacao" => Ok(Self::Deliberacao),
+            "regulamento_organico" => Ok(Self::RegulamentoOrganico),
             other if other.starts_with("outro:") => {
-                Some(Self::Outro(other["outro:".len()..].to_string()))
+                Ok(Self::Outro(other["outro:".len()..].to_string()))
             }
-            _ => None,
+            _ => Err(OrgError::OperationFailed(format!(
+                "tipo de instrumento desconhecido: {s}"
+            ))),
         }
+    }
+}
+
+impl std::str::FromStr for InstrumentKind {
+    type Err = OrgError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Self::parse_canonical(s)
     }
 }
 
 impl TryFrom<&str> for InstrumentKind {
     type Error = OrgError;
     fn try_from(s: &str) -> Result<Self, Self::Error> {
-        Self::from_str(s).ok_or_else(|| {
-            OrgError::OperationFailed(format!("tipo de instrumento desconhecido: {s}"))
-        })
+        Self::parse_canonical(s)
     }
 }
 
@@ -103,6 +111,6 @@ impl LegalInstrument {
     }
 
     pub fn is_effective_at(&self, date: NaiveDate) -> bool {
-        date >= self.effective_from && self.effective_until.map_or(true, |u| date < u)
+        date >= self.effective_from && self.effective_until.is_none_or(|u| date < u)
     }
 }

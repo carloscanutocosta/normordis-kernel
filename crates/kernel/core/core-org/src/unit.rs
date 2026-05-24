@@ -16,7 +16,7 @@ impl OrgLevel {
     pub const MAX: u8 = 5;
 
     pub fn new(n: u8) -> Result<Self, OrgError> {
-        if n >= Self::MIN && n <= Self::MAX {
+        if (Self::MIN..=Self::MAX).contains(&n) {
             Ok(Self(n))
         } else {
             Err(OrgError::InvalidLevel(n.to_string()))
@@ -71,12 +71,14 @@ impl OrgUnitStatus {
         }
     }
 
-    pub fn from_str(s: &str) -> Option<Self> {
+    pub fn parse_canonical(s: &str) -> Result<Self, OrgError> {
         match s {
-            "active" => Some(Self::Active),
-            "suspended" => Some(Self::Suspended),
-            "extinct" => Some(Self::Extinct),
-            _ => None,
+            "active" => Ok(Self::Active),
+            "suspended" => Ok(Self::Suspended),
+            "extinct" => Ok(Self::Extinct),
+            _ => Err(OrgError::OperationFailed(format!(
+                "status desconhecido: {s}"
+            ))),
         }
     }
 
@@ -96,8 +98,15 @@ impl OrgUnitStatus {
 impl TryFrom<&str> for OrgUnitStatus {
     type Error = OrgError;
     fn try_from(s: &str) -> Result<Self, Self::Error> {
-        Self::from_str(s)
-            .ok_or_else(|| OrgError::OperationFailed(format!("status desconhecido: {s}")))
+        Self::parse_canonical(s)
+    }
+}
+
+impl std::str::FromStr for OrgUnitStatus {
+    type Err = OrgError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Self::parse_canonical(s)
     }
 }
 
@@ -183,7 +192,7 @@ impl OrgUnit {
     pub fn is_active_at(&self, date: NaiveDate) -> bool {
         matches!(self.status, OrgUnitStatus::Active)
             && date >= self.valid_from
-            && self.valid_until.map_or(true, |u| date < u)
+            && self.valid_until.is_none_or(|u| date < u)
     }
 
     pub fn is_extinct(&self) -> bool {
@@ -207,7 +216,7 @@ impl OrgUnit {
     /// (prevenção de hierarquia circular). A cadeia deve ser obtida pelo chamador
     /// antes de persistir a unidade.
     pub fn validate_parent_chain(&self, ancestors: &[&OrgUnitId]) -> Result<(), OrgError> {
-        if ancestors.iter().any(|a| *a == &self.id) {
+        if ancestors.contains(&&self.id) {
             return Err(OrgError::CircularHierarchy);
         }
         Ok(())
