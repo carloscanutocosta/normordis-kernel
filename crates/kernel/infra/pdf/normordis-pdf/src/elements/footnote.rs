@@ -52,7 +52,10 @@ pub struct FootnoteRef {
 
 impl FootnoteRef {
     pub fn new(number: u32) -> Self {
-        Self { number, mark_style: FootnoteMarkStyle::Numeric }
+        Self {
+            number,
+            mark_style: FootnoteMarkStyle::Numeric,
+        }
     }
 
     pub fn with_style(mut self, style: FootnoteMarkStyle) -> Self {
@@ -96,11 +99,16 @@ impl FootnoteAccumulator {
 
     /// Reserve space for a footnote. Returns the height reserved.
     pub fn reserve(&mut self, number: u32, texts: Vec<String>, line_height_mm: f64) -> f64 {
-        let n_lines = texts.iter().map(|t| {
-            ((t.len() as f64 / 60.0).ceil() as usize).max(1)
-        }).sum::<usize>();
+        let n_lines = texts
+            .iter()
+            .map(|t| ((t.len() as f64 / 60.0).ceil() as usize).max(1))
+            .sum::<usize>();
         let text_h = n_lines as f64 * line_height_mm;
-        let extra = if self.pending.is_empty() { FOOTNOTE_SEPARATOR_HEIGHT_MM } else { 0.0 };
+        let extra = if self.pending.is_empty() {
+            FOOTNOTE_SEPARATOR_HEIGHT_MM
+        } else {
+            0.0
+        };
         let height = extra + text_h;
         self.reserved_height_mm += height;
         self.pending.push((number, texts));
@@ -128,8 +136,7 @@ impl FootnoteAccumulator {
                 } else {
                     format!("    {text}")
                 };
-                let p = crate::elements::paragraph::Paragraph::new(line)
-                    .style("footnote");
+                let p = crate::elements::paragraph::Paragraph::new(line).style("footnote");
                 p.render(ctx)?;
             }
         }
@@ -154,8 +161,16 @@ fn render_separator(ctx: &mut RenderContext) {
     let x1 = x0 + ctx.layout.content_width_mm / 3.0;
     let y = ctx.flow.cursor_y_mm - FOOTNOTE_SEPARATOR_HEIGHT_MM * 0.5;
     let width_pt = (FOOTNOTE_SEPARATOR_THICKNESS_MM / 25.4 * 72.0) as f32;
-    let color = RgbColor { r: 0.4, g: 0.4, b: 0.4 };
-    if ctx.ua_config.enabled { ctx.backend.begin_artifact_content(); }
+    let color = RgbColor {
+        r: 0.4,
+        g: 0.4,
+        b: 0.4,
+    };
+    if ctx.ua_config.enabled {
+        ctx.backend.begin_artifact_content();
+    }
     let _ = ctx.backend.draw_line(x0, y, x1, y, width_pt, &color);
-    if ctx.ua_config.enabled { ctx.backend.end_tagged_content(); }
+    if ctx.ua_config.enabled {
+        ctx.backend.end_tagged_content();
+    }
 }

@@ -1,8 +1,8 @@
+use normordis_pdf::template::resolver::{resolve_runtime_fields, RuntimeContext};
 use normordis_pdf::{
     DocumentBuilder, InstitutionalHeader, PageFooter, RowHeight, SectionedFooter, SectionedHeader,
     TableRow, Watermark,
 };
-use normordis_pdf::template::resolver::{resolve_runtime_fields, RuntimeContext};
 
 // ── SectionedHeader resolution ────────────────────────────────────────────────
 
@@ -11,14 +11,19 @@ fn sectioned_header_resolve_first_page_when_set() {
     let h = SectionedHeader::new()
         .first_page(InstitutionalHeader::new("Entidade", "Primeira"))
         .odd_pages(InstitutionalHeader::new("Entidade", "Ímpar"));
-    assert_eq!(h.resolve(1).map(|h| h.document_title.as_str()), Some("Primeira"));
+    assert_eq!(
+        h.resolve(1).map(|h| h.document_title.as_str()),
+        Some("Primeira")
+    );
 }
 
 #[test]
 fn sectioned_header_resolve_first_page_falls_back_to_odd() {
-    let h = SectionedHeader::new()
-        .odd_pages(InstitutionalHeader::new("Entidade", "Ímpar"));
-    assert_eq!(h.resolve(1).map(|h| h.document_title.as_str()), Some("Ímpar"));
+    let h = SectionedHeader::new().odd_pages(InstitutionalHeader::new("Entidade", "Ímpar"));
+    assert_eq!(
+        h.resolve(1).map(|h| h.document_title.as_str()),
+        Some("Ímpar")
+    );
 }
 
 #[test]
@@ -31,9 +36,11 @@ fn sectioned_header_resolve_even_page_with_even_set() {
 
 #[test]
 fn sectioned_header_resolve_even_page_falls_back_to_odd() {
-    let h = SectionedHeader::new()
-        .odd_pages(InstitutionalHeader::new("E", "Ímpar"));
-    assert_eq!(h.resolve(2).map(|h| h.document_title.as_str()), Some("Ímpar"));
+    let h = SectionedHeader::new().odd_pages(InstitutionalHeader::new("E", "Ímpar"));
+    assert_eq!(
+        h.resolve(2).map(|h| h.document_title.as_str()),
+        Some("Ímpar")
+    );
 }
 
 #[test]
@@ -41,7 +48,10 @@ fn sectioned_header_resolve_odd_page() {
     let h = SectionedHeader::new()
         .odd_pages(InstitutionalHeader::new("E", "Ímpar"))
         .even_pages(InstitutionalHeader::new("E", "Par"));
-    assert_eq!(h.resolve(3).map(|h| h.document_title.as_str()), Some("Ímpar"));
+    assert_eq!(
+        h.resolve(3).map(|h| h.document_title.as_str()),
+        Some("Ímpar")
+    );
 }
 
 // ── RowHeight ─────────────────────────────────────────────────────────────────
@@ -57,7 +67,10 @@ fn row_height_exact_preserved() {
 #[test]
 fn resolve_page_and_total() {
     let ctx = RuntimeContext::new(2, 5);
-    assert_eq!(resolve_runtime_fields("{{page}} / {{total_pages}}", &ctx), "2 / 5");
+    assert_eq!(
+        resolve_runtime_fields("{{page}} / {{total_pages}}", &ctx),
+        "2 / 5"
+    );
 }
 
 #[test]
@@ -99,10 +112,7 @@ fn document_with_watermark_renders_without_panic() {
 #[test]
 fn document_with_total_pages_in_footer_renders_without_panic() {
     let pdf = DocumentBuilder::new("Paginado")
-        .footer(
-            PageFooter::new()
-                .right("{{page}} / {{total_pages}}"),
-        )
+        .footer(PageFooter::new().right("{{page}} / {{total_pages}}"))
         .render_to_bytes()
         .expect("should render");
     assert!(pdf.starts_with(b"%PDF"));

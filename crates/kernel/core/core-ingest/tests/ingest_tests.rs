@@ -4,10 +4,10 @@ use core_exports::{build_export_receipt, canonical_bytes, BuildSnapshotConfig, S
 use core_ingest::{
     build_ingest_audit_event, process_export_snapshot, validate_ingest_evidence,
     validate_ingest_request, AuditEvidence, DeterministicScanner, HashEvidence, IngestConfig,
-    IngestError, IngestEvidence, IngestRequest, IngestSource, MemoryRouter,
-    RouteEvidence, RouteInput, RouteResult, Router, ScanEvidence, ValidationEvidence,
-    DECISION_ACCEPTED, DECISION_REJECTED, HASH_MISMATCH, INVALID_REQUEST, MISSING_FIELD,
-    ROUTE_UNAVAILABLE, SCAN_FAILED, SCAN_REJECTED,
+    IngestError, IngestEvidence, IngestRequest, IngestSource, MemoryRouter, RouteEvidence,
+    RouteInput, RouteResult, Router, ScanEvidence, ValidationEvidence, DECISION_ACCEPTED,
+    DECISION_REJECTED, HASH_MISMATCH, INVALID_REQUEST, MISSING_FIELD, ROUTE_UNAVAILABLE,
+    SCAN_FAILED, SCAN_REJECTED,
 };
 use core_validation::sha256_bytes;
 use serde_json::json;
@@ -117,7 +117,11 @@ fn minimal_valid_evidence() -> IngestEvidence {
             actual_hash: "sha256:abc".into(),
             verified: true,
         },
-        scan: ScanEvidence { adapter: "not_run".into(), verdict: "not_run".into(), reason: None },
+        scan: ScanEvidence {
+            adapter: "not_run".into(),
+            verdict: "not_run".into(),
+            reason: None,
+        },
         validation: ValidationEvidence {
             contract: "core-exports/export_snapshot".into(),
             valid: false,
@@ -144,7 +148,10 @@ fn aceita_bundle_config_valido() {
     assert_eq!(outcome.evidence.decision, DECISION_ACCEPTED);
     assert!(outcome.evidence.route.routed);
     assert_eq!(outcome.audit_event.event_type, "ingest.accepted");
-    assert!(outcome.evidence.audit.emitted, "emitted deve ser true no caminho canónico");
+    assert!(
+        outcome.evidence.audit.emitted,
+        "emitted deve ser true no caminho canónico"
+    );
     assert!(outcome.evidence.audit.event_id.is_some());
 }
 
@@ -154,8 +161,8 @@ fn rejeita_hash_mismatch() {
     req.expected_hash =
         "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa".into();
 
-    let (outcome, err) =
-        process_export_snapshot(&req, "corr-ingest-hash", &default_cfg()).expect_rejected("hash errado");
+    let (outcome, err) = process_export_snapshot(&req, "corr-ingest-hash", &default_cfg())
+        .expect_rejected("hash errado");
 
     assert_eq!(outcome.evidence.decision, DECISION_REJECTED);
     assert_eq!(outcome.audit_event.event_type, "ingest.rejected");
@@ -183,13 +190,16 @@ fn rejeita_scan_rejeitado() {
         allowed_source_kinds: None,
     };
 
-    let (outcome, err) =
-        process_export_snapshot(&req, "corr-ingest-scan", &cfg).expect_rejected("scan deve rejeitar");
+    let (outcome, err) = process_export_snapshot(&req, "corr-ingest-scan", &cfg)
+        .expect_rejected("scan deve rejeitar");
 
     assert_eq!(err.code(), SCAN_REJECTED);
     assert_eq!(outcome.evidence.scan.adapter, "deterministic");
     assert_eq!(outcome.evidence.scan.verdict, "rejected");
-    assert_eq!(outcome.evidence.scan.reason.as_deref(), Some("malware-simulated"));
+    assert_eq!(
+        outcome.evidence.scan.reason.as_deref(),
+        Some("malware-simulated")
+    );
 }
 
 #[test]
@@ -214,8 +224,8 @@ fn rejeita_falha_tecnica_do_scanner() {
         allowed_source_kinds: None,
     };
 
-    let (outcome, err) =
-        process_export_snapshot(&req, "corr-ingest-scan-error", &cfg).expect_rejected("scan técnico falhou");
+    let (outcome, err) = process_export_snapshot(&req, "corr-ingest-scan-error", &cfg)
+        .expect_rejected("scan técnico falhou");
 
     assert_eq!(err.code(), SCAN_FAILED);
     assert!(err.is_retryable());
@@ -235,8 +245,8 @@ fn rejeita_scanner_nao_configurado() {
         allowed_source_kinds: None,
     };
 
-    let (outcome, err) =
-        process_export_snapshot(&req, "corr-ingest-no-scanner", &cfg).expect_rejected("scanner ausente");
+    let (outcome, err) = process_export_snapshot(&req, "corr-ingest-no-scanner", &cfg)
+        .expect_rejected("scanner ausente");
 
     assert_eq!(err.code(), SCAN_FAILED);
     assert!(err.is_retryable());
@@ -266,10 +276,10 @@ fn bundle_repetido_preserva_route_ref() {
     };
 
     let req = sample_request();
-    let first =
-        process_export_snapshot(&req, "corr-ingest-r1", &make_cfg()).expect_accepted("primeira ingestão");
-    let second =
-        process_export_snapshot(&req, "corr-ingest-r2", &make_cfg()).expect_accepted("segunda ingestão");
+    let first = process_export_snapshot(&req, "corr-ingest-r1", &make_cfg())
+        .expect_accepted("primeira ingestão");
+    let second = process_export_snapshot(&req, "corr-ingest-r2", &make_cfg())
+        .expect_accepted("segunda ingestão");
 
     assert_eq!(
         first.evidence.route.route_ref, second.evidence.route.route_ref,
@@ -315,8 +325,8 @@ fn rejeita_bundle_oversized() {
         allowed_source_kinds: None,
     };
 
-    let (_, err) =
-        process_export_snapshot(&req, "corr-ingest-oversized", &cfg).expect_rejected("bundle grande");
+    let (_, err) = process_export_snapshot(&req, "corr-ingest-oversized", &cfg)
+        .expect_rejected("bundle grande");
 
     assert!(matches!(err, IngestError::Oversized { .. }));
 }
@@ -368,10 +378,13 @@ fn rejected_outcome_tem_emitted_true_quando_evidence_valida() {
     req.expected_hash =
         "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa".into();
 
-    let (outcome, _) =
-        process_export_snapshot(&req, "corr-ingest-emitted", &default_cfg()).expect_rejected("hash errado");
+    let (outcome, _) = process_export_snapshot(&req, "corr-ingest-emitted", &default_cfg())
+        .expect_rejected("hash errado");
 
-    assert!(outcome.evidence.audit.emitted, "evidence válida → emitted=true mesmo em rejected");
+    assert!(
+        outcome.evidence.audit.emitted,
+        "evidence válida → emitted=true mesmo em rejected"
+    );
 }
 
 // ── Testes de validate_ingest_request ─────────────────────────────────────────
@@ -388,7 +401,10 @@ fn valida_request_rejeita_request_id_vazio() {
 fn valida_request_aceita_qualquer_source_kind() {
     let mut req = sample_request();
     req.source.kind = "qualquer_kind".into();
-    assert!(validate_ingest_request(&req).is_ok(), "validate_ingest_request is kind-agnostic");
+    assert!(
+        validate_ingest_request(&req).is_ok(),
+        "validate_ingest_request is kind-agnostic"
+    );
 }
 
 #[test]
@@ -511,8 +527,8 @@ fn build_audit_event_requer_actor() {
 #[test]
 fn build_audit_event_accepted_tem_action_correcta() {
     let req = sample_request();
-    let outcome =
-        process_export_snapshot(&req, "corr-audit-ok", &default_cfg()).expect_accepted("deve aceitar");
+    let outcome = process_export_snapshot(&req, "corr-audit-ok", &default_cfg())
+        .expect_accepted("deve aceitar");
 
     let event = build_ingest_audit_event(&outcome.evidence, "apid").unwrap();
     assert_eq!(event.event_type, "ingest.accepted");

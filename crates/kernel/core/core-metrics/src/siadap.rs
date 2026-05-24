@@ -101,7 +101,10 @@ pub struct Siadap1QuotaConfig {
 
 impl Default for Siadap1QuotaConfig {
     fn default() -> Self {
-        Self { max_excelente: 0.25, max_muito_bom: 0.25 }
+        Self {
+            max_excelente: 0.25,
+            max_muito_bom: 0.25,
+        }
     }
 }
 
@@ -269,7 +272,10 @@ pub struct Siadap3QuotaConfig {
 
 impl Default for Siadap3QuotaConfig {
     fn default() -> Self {
-        Self { max_excelente: 0.25, max_muito_bom: 0.25 }
+        Self {
+            max_excelente: 0.25,
+            max_muito_bom: 0.25,
+        }
     }
 }
 
@@ -319,7 +325,11 @@ pub struct QuotaViolation {
 
 impl QuotaValidationReport {
     fn new(total: usize) -> Self {
-        Self { total, violations: vec![], valid: true }
+        Self {
+            total,
+            violations: vec![],
+            valid: true,
+        }
     }
 
     fn check(&mut self, label: &str, count: usize, max_pct: f64) {
@@ -376,8 +386,14 @@ pub fn validate_siadap3_quotas(
     let total = results.len();
     let mut report = QuotaValidationReport::new(total);
 
-    let excelente = results.iter().filter(|r| r.rating == Siadap3Rating::Excelente).count();
-    let muito_bom = results.iter().filter(|r| r.rating == Siadap3Rating::MuitoBom).count();
+    let excelente = results
+        .iter()
+        .filter(|r| r.rating == Siadap3Rating::Excelente)
+        .count();
+    let muito_bom = results
+        .iter()
+        .filter(|r| r.rating == Siadap3Rating::MuitoBom)
+        .count();
 
     report.check("excelente", excelente, config.max_excelente);
     report.check("muito_bom", muito_bom, config.max_muito_bom);
@@ -392,11 +408,21 @@ pub fn validate_siadap2_quotas(
     let total = results.len();
     let mut report = QuotaValidationReport::new(total);
 
-    let excelente = results.iter().filter(|r| r.rating == Siadap2Rating::Excelente).count();
-    let muito_bom = results.iter().filter(|r| r.rating == Siadap2Rating::MuitoBom).count();
+    let excelente = results
+        .iter()
+        .filter(|r| r.rating == Siadap2Rating::Excelente)
+        .count();
+    let muito_bom = results
+        .iter()
+        .filter(|r| r.rating == Siadap2Rating::MuitoBom)
+        .count();
     let combined = excelente + muito_bom;
 
-    report.check("muito_bom+excelente", combined, config.max_muito_bom_excelente_combined);
+    report.check(
+        "muito_bom+excelente",
+        combined,
+        config.max_muito_bom_excelente_combined,
+    );
     report.check("excelente", excelente, config.max_excelente);
     report
 }
@@ -409,8 +435,14 @@ pub fn validate_siadap1_quotas(
     let total = results.len();
     let mut report = QuotaValidationReport::new(total);
 
-    let excelente = results.iter().filter(|r| r.rating == Siadap1Rating::Excelente).count();
-    let muito_bom = results.iter().filter(|r| r.rating == Siadap1Rating::MuitoBom).count();
+    let excelente = results
+        .iter()
+        .filter(|r| r.rating == Siadap1Rating::Excelente)
+        .count();
+    let muito_bom = results
+        .iter()
+        .filter(|r| r.rating == Siadap1Rating::MuitoBom)
+        .count();
 
     report.check("excelente", excelente, config.max_excelente);
     report.check("muito_bom", muito_bom, config.max_muito_bom);
@@ -445,11 +477,12 @@ impl IntermediaryEvaluationWindow {
 
     pub fn contains(&self, date: chrono::NaiveDate) -> bool {
         let start = chrono::NaiveDate::from_ymd_opt(
-            self.cycle_year as i32, self.start_month, self.start_day,
+            self.cycle_year as i32,
+            self.start_month,
+            self.start_day,
         );
-        let end = chrono::NaiveDate::from_ymd_opt(
-            self.cycle_year as i32, self.end_month, self.end_day,
-        );
+        let end =
+            chrono::NaiveDate::from_ymd_opt(self.cycle_year as i32, self.end_month, self.end_day);
         match (start, end) {
             (Some(s), Some(e)) => date >= s && date <= e,
             _ => false,
@@ -535,7 +568,10 @@ mod tests {
         // 75% objectivos (4.0) + 25% competências (2.0) = 3.5
         let score = siadap3_weighted_score(4.0, 2.0, 0.75);
         assert!((score - 3.5).abs() < 0.001);
-        assert_eq!(Siadap3Rating::from_score(score), Siadap3Rating::BomDesempenho);
+        assert_eq!(
+            Siadap3Rating::from_score(score),
+            Siadap3Rating::BomDesempenho
+        );
     }
 
     #[test]
@@ -550,9 +586,21 @@ mod tests {
     #[test]
     fn siadap2_combined_quota_exceeded() {
         let results = vec![
-            Siadap2EvaluationResult { entity_id: "1".into(), rating: Siadap2Rating::Excelente, final_score: 4.0 },
-            Siadap2EvaluationResult { entity_id: "2".into(), rating: Siadap2Rating::MuitoBom, final_score: 3.0 },
-            Siadap2EvaluationResult { entity_id: "3".into(), rating: Siadap2Rating::Adequado, final_score: 2.0 },
+            Siadap2EvaluationResult {
+                entity_id: "1".into(),
+                rating: Siadap2Rating::Excelente,
+                final_score: 4.0,
+            },
+            Siadap2EvaluationResult {
+                entity_id: "2".into(),
+                rating: Siadap2Rating::MuitoBom,
+                final_score: 3.0,
+            },
+            Siadap2EvaluationResult {
+                entity_id: "3".into(),
+                rating: Siadap2Rating::Adequado,
+                final_score: 2.0,
+            },
             // 2/3 = 66% combined > 25%
         ];
         let report = validate_siadap2_quotas(&results, &Siadap2QuotaConfig::default());

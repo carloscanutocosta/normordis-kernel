@@ -13,7 +13,9 @@ mod util;
 pub use error::MetricsSqliteError;
 pub use schema::METRICS_SQLITE_MIGRATIONS;
 
-use adapter_sqlite::{open_relational_connection, run_relational_migrations, SqliteRelationalConfig};
+use adapter_sqlite::{
+    open_relational_connection, run_relational_migrations, SqliteRelationalConfig,
+};
 use rusqlite::Connection;
 use std::sync::{Mutex, MutexGuard};
 
@@ -36,13 +38,17 @@ pub struct MetricsSqliteStore {
 impl MetricsSqliteStore {
     pub fn open(config: &SqliteRelationalConfig) -> Result<Self, MetricsSqliteError> {
         let conn = open_relational_connection(config)?;
-        let store = Self { conn: Mutex::new(conn) };
+        let store = Self {
+            conn: Mutex::new(conn),
+        };
         store.migrate()?;
         Ok(store)
     }
 
     pub fn from_connection(conn: Connection) -> Result<Self, MetricsSqliteError> {
-        let store = Self { conn: Mutex::new(conn) };
+        let store = Self {
+            conn: Mutex::new(conn),
+        };
         store.migrate()?;
         Ok(store)
     }

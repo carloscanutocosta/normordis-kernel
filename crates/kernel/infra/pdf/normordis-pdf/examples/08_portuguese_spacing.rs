@@ -3,14 +3,21 @@
 /// Reproduces typical content from miniapp-declaracao-consentimento-pf.
 /// Open the output PDF and verify: words must be separated by visible spaces;
 /// Portuguese characters (ã, ç, é, ó, ú, â) must render correctly.
-
 use normordis_pdf::{
-    AppliedStyle, BulletList, DocumentBuilder, ListItemElement, OrderedList, Paragraph,
-    Section, Spacer, TextAlign, TextRun,
+    AppliedStyle, BulletList, DocumentBuilder, ListItemElement, OrderedList, Paragraph, Section,
+    Spacer, TextAlign, TextRun,
 };
 
 fn bold_run(text: &str) -> TextRun {
-    TextRun { text: text.into(), style: AppliedStyle { bold: true, ..Default::default() }, letter_spacing_mm: 0.0, ..Default::default() }
+    TextRun {
+        text: text.into(),
+        style: AppliedStyle {
+            bold: true,
+            ..Default::default()
+        },
+        letter_spacing_mm: 0.0,
+        ..Default::default()
+    }
 }
 fn plain_run(text: &str) -> TextRun {
     TextRun::plain(text)
@@ -21,7 +28,6 @@ fn main() {
         // Validate space in plain left-aligned text
         .push(Paragraph::new("Classificação documental: 350.10.100").font_size(9.0))
         .push(Spacer::new(4.0))
-
         // Centred bold title with Portuguese characters
         .push(Paragraph::from_runs(
             vec![bold_run(
@@ -32,7 +38,6 @@ fn main() {
             Some(12.0),
         ))
         .push(Spacer::new(6.0))
-
         // Justified mixed bold/plain body — key stress test for word spacing
         .push(Paragraph::from_runs(
             vec![
@@ -53,7 +58,6 @@ fn main() {
             None,
         ))
         .push(Spacer::new(4.0))
-
         // Ordered list with Portuguese text
         .push(OrderedList::new(vec![ListItemElement {
             indent: 0,
@@ -67,10 +71,8 @@ fn main() {
             ],
         }]))
         .push(Spacer::new(6.0))
-
         // Section heading
         .push(Section::new("Cláusulas de Limitação e Responsabilidade", 2))
-
         // Bullet list — tests spacing across lines
         .push(BulletList::new(vec![
             ListItemElement::plain(
@@ -88,7 +90,6 @@ fn main() {
             ),
         ]))
         .push(Spacer::new(6.0))
-
         // Final paragraph — right margin validation
         .push(
             Paragraph::new(
@@ -100,7 +101,6 @@ fn main() {
             .align(TextAlign::Justify),
         )
         .push(Spacer::new(12.0))
-
         // Alphabet check row for all Portuguese characters
         .push(Section::new("Verificação de Caracteres Portugueses", 2))
         .push(Paragraph::new(

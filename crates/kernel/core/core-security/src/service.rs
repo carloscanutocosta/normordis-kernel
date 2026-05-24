@@ -40,7 +40,7 @@
 use chrono::{DateTime, Utc};
 
 use crate::{
-    audit_log::{AuditDecision, NoopSecurityAuditLog, SecurityAuthDecision, SecurityAuditLog},
+    audit_log::{AuditDecision, NoopSecurityAuditLog, SecurityAuditLog, SecurityAuthDecision},
     role::{NoopRoleMembership, RoleId, RoleMembershipRepository},
     validate_write_invariant, Delegation, DelegationId, DelegationRequest, Policy, PolicyMode,
     Rule, SecurityError, SecurityPolicyRepository, WriteInvariantContext,
@@ -83,15 +83,21 @@ pub struct SecurityService<R, A = NoopSecurityAuditLog, M = NoopRoleMembership> 
 
 impl<R: SecurityPolicyRepository> SecurityService<R, NoopSecurityAuditLog, NoopRoleMembership> {
     pub fn new(repo: R) -> Self {
-        Self { repo, audit: NoopSecurityAuditLog, roles: NoopRoleMembership }
+        Self {
+            repo,
+            audit: NoopSecurityAuditLog,
+            roles: NoopRoleMembership,
+        }
     }
 }
 
-impl<R: SecurityPolicyRepository, A: SecurityAuditLog>
-    SecurityService<R, A, NoopRoleMembership>
-{
+impl<R: SecurityPolicyRepository, A: SecurityAuditLog> SecurityService<R, A, NoopRoleMembership> {
     pub fn with_audit(repo: R, audit: A) -> Self {
-        Self { repo, audit, roles: NoopRoleMembership }
+        Self {
+            repo,
+            audit,
+            roles: NoopRoleMembership,
+        }
     }
 }
 
@@ -165,7 +171,10 @@ impl<R: SecurityPolicyRepository, A: SecurityAuditLog, M: RoleMembershipReposito
     ) -> Result<AuthorizationToken, SecurityError> {
         // Gate 2a: delegação directa do principal
         let direct = self.repo.list_delegations(principal_id, now, None).await?;
-        if let Some(d) = direct.iter().find(|d| matches_delegation(d, &ctx.operation, resource)) {
+        if let Some(d) = direct
+            .iter()
+            .find(|d| matches_delegation(d, &ctx.operation, resource))
+        {
             return Ok(self.token(
                 principal_id,
                 &ctx.operation,
@@ -176,12 +185,15 @@ impl<R: SecurityPolicyRepository, A: SecurityAuditLog, M: RoleMembershipReposito
         }
 
         // Gate 2b: delegação via role
-        let user_roles = self.roles.get_roles_for_principal(principal_id, now).await?;
+        let user_roles = self
+            .roles
+            .get_roles_for_principal(principal_id, now)
+            .await?;
         for role in &user_roles {
-            let role_delegations =
-                self.repo.list_delegations(role.as_str(), now, None).await?;
-            if let Some(d) =
-                role_delegations.iter().find(|d| matches_delegation(d, &ctx.operation, resource))
+            let role_delegations = self.repo.list_delegations(role.as_str(), now, None).await?;
+            if let Some(d) = role_delegations
+                .iter()
+                .find(|d| matches_delegation(d, &ctx.operation, resource))
             {
                 return Ok(self.token(
                     principal_id,
@@ -234,7 +246,13 @@ impl<R: SecurityPolicyRepository, A: SecurityAuditLog, M: RoleMembershipReposito
             )));
         }
 
-        Ok(self.token(principal_id, &ctx.operation, resource, GrantedBy::BaselinePolicy, now))
+        Ok(self.token(
+            principal_id,
+            &ctx.operation,
+            resource,
+            GrantedBy::BaselinePolicy,
+            now,
+        ))
     }
 
     // ── Delegação ─────────────────────────────────────────────────────────────
@@ -309,15 +327,22 @@ impl<R: SecurityPolicyRepository, A: SecurityAuditLog, M: RoleMembershipReposito
         now: DateTime<Utc>,
     ) -> Result<Option<DelegationId>, SecurityError> {
         let direct = self.repo.list_delegations(principal_id, now, None).await?;
-        if let Some(d) = direct.iter().find(|d| matches_delegation(d, operation, resource)) {
+        if let Some(d) = direct
+            .iter()
+            .find(|d| matches_delegation(d, operation, resource))
+        {
             return Ok(Some(d.delegation_id.clone()));
         }
 
-        let user_roles = self.roles.get_roles_for_principal(principal_id, now).await?;
+        let user_roles = self
+            .roles
+            .get_roles_for_principal(principal_id, now)
+            .await?;
         for role in &user_roles {
             let role_delegations = self.repo.list_delegations(role.as_str(), now, None).await?;
-            if let Some(d) =
-                role_delegations.iter().find(|d| matches_delegation(d, operation, resource))
+            if let Some(d) = role_delegations
+                .iter()
+                .find(|d| matches_delegation(d, operation, resource))
             {
                 return Ok(Some(d.delegation_id.clone()));
             }
@@ -426,9 +451,11 @@ mod tests {
         SecurityService::new(InMemorySecurityPolicyRepository::new())
     }
 
-    fn service_with_roles(
-    ) -> SecurityService<InMemorySecurityPolicyRepository, NoopSecurityAuditLog, InMemoryRoleMembership>
-    {
+    fn service_with_roles() -> SecurityService<
+        InMemorySecurityPolicyRepository,
+        NoopSecurityAuditLog,
+        InMemoryRoleMembership,
+    > {
         SecurityService::with_all(
             InMemorySecurityPolicyRepository::new(),
             NoopSecurityAuditLog,
@@ -441,7 +468,11 @@ mod tests {
             policy_id: id.into(),
             version: "1.0.0".into(),
             mode: PolicyMode::Strict,
-            rules: vec![Rule { code: "AUTH".into(), enabled: true, description: None }],
+            rules: vec![Rule {
+                code: "AUTH".into(),
+                enabled: true,
+                description: None,
+            }],
         }
     }
 
@@ -450,7 +481,11 @@ mod tests {
             policy_id: id.into(),
             version: "1.0.0".into(),
             mode: PolicyMode::Baseline,
-            rules: vec![Rule { code: "AUTH".into(), enabled: true, description: None }],
+            rules: vec![Rule {
+                code: "AUTH".into(),
+                enabled: true,
+                description: None,
+            }],
         }
     }
 
@@ -471,7 +506,10 @@ mod tests {
 
     #[tokio::test]
     async fn human_principal_aceite() {
-        assert!(service().authorize(&human_ctx("user:alice", "doc.sign"), None, now()).await.is_ok());
+        assert!(service()
+            .authorize(&human_ctx("user:alice", "doc.sign"), None, now())
+            .await
+            .is_ok());
     }
 
     #[tokio::test]
@@ -499,12 +537,21 @@ mod tests {
     #[tokio::test]
     async fn revoke_delegation_remove_acesso() {
         let svc = service();
-        svc.repo().save_policy(&strict_policy("pol-s"), now()).await.unwrap();
+        svc.repo()
+            .save_policy(&strict_policy("pol-s"), now())
+            .await
+            .unwrap();
 
-        let deleg =
-            svc.repo().delegate_permission(&grant_req("user:alice", "doc.sign"), now()).await.unwrap();
+        let deleg = svc
+            .repo()
+            .delegate_permission(&grant_req("user:alice", "doc.sign"), now())
+            .await
+            .unwrap();
 
-        assert!(svc.authorize(&human_ctx("user:alice", "doc.sign"), None, now()).await.is_ok());
+        assert!(svc
+            .authorize(&human_ctx("user:alice", "doc.sign"), None, now())
+            .await
+            .is_ok());
 
         svc.revoke_delegation(
             &deleg.delegation_id,
@@ -514,7 +561,10 @@ mod tests {
         .await
         .unwrap();
 
-        assert!(svc.authorize(&human_ctx("user:alice", "doc.sign"), None, now()).await.is_err());
+        assert!(svc
+            .authorize(&human_ctx("user:alice", "doc.sign"), None, now())
+            .await
+            .is_err());
     }
 
     #[tokio::test]
@@ -535,10 +585,16 @@ mod tests {
     #[tokio::test]
     async fn revoke_delegation_cascata_filhos() {
         let svc = service();
-        svc.repo().save_policy(&strict_policy("pol-s"), now()).await.unwrap();
+        svc.repo()
+            .save_policy(&strict_policy("pol-s"), now())
+            .await
+            .unwrap();
 
-        let root =
-            svc.repo().delegate_permission(&grant_req("user:alice", "doc.sign"), now()).await.unwrap();
+        let root = svc
+            .repo()
+            .delegate_permission(&grant_req("user:alice", "doc.sign"), now())
+            .await
+            .unwrap();
 
         let child_req = DelegationRequest {
             principal: "user:bob".into(),
@@ -550,10 +606,19 @@ mod tests {
             conditions: None,
             granted_via: Some(root.delegation_id.clone()),
         };
-        svc.repo().delegate_permission(&child_req, now()).await.unwrap();
+        svc.repo()
+            .delegate_permission(&child_req, now())
+            .await
+            .unwrap();
 
-        assert!(svc.authorize(&human_ctx("user:alice", "doc.sign"), None, now()).await.is_ok());
-        assert!(svc.authorize(&human_ctx("user:bob", "doc.sign"), None, now()).await.is_ok());
+        assert!(svc
+            .authorize(&human_ctx("user:alice", "doc.sign"), None, now())
+            .await
+            .is_ok());
+        assert!(svc
+            .authorize(&human_ctx("user:bob", "doc.sign"), None, now())
+            .await
+            .is_ok());
 
         svc.revoke_delegation(
             &root.delegation_id,
@@ -563,8 +628,14 @@ mod tests {
         .await
         .unwrap();
 
-        assert!(svc.authorize(&human_ctx("user:alice", "doc.sign"), None, now()).await.is_err());
-        assert!(svc.authorize(&human_ctx("user:bob", "doc.sign"), None, now()).await.is_err());
+        assert!(svc
+            .authorize(&human_ctx("user:alice", "doc.sign"), None, now())
+            .await
+            .is_err());
+        assert!(svc
+            .authorize(&human_ctx("user:bob", "doc.sign"), None, now())
+            .await
+            .is_err());
     }
 
     // ── Roles ─────────────────────────────────────────────────────────────────
@@ -572,7 +643,10 @@ mod tests {
     #[tokio::test]
     async fn role_delegation_concede_acesso_a_membro() {
         let svc = service_with_roles();
-        svc.repo().save_policy(&strict_policy("pol-s"), now()).await.unwrap();
+        svc.repo()
+            .save_policy(&strict_policy("pol-s"), now())
+            .await
+            .unwrap();
 
         // Delegar a operação ao role "role:editor"
         svc.repo()
@@ -581,14 +655,20 @@ mod tests {
             .unwrap();
 
         // Alice ainda não tem acesso (não é membro do role)
-        assert!(svc.authorize(&human_ctx("user:alice", "doc.sign"), None, now()).await.is_err());
+        assert!(svc
+            .authorize(&human_ctx("user:alice", "doc.sign"), None, now())
+            .await
+            .is_err());
 
         // Atribuir alice ao role "role:editor"
-        svc.role_membership().assign("user:alice", RoleId("role:editor".into()));
+        svc.role_membership()
+            .assign("user:alice", RoleId("role:editor".into()));
 
         // Alice tem acesso via role
-        let token =
-            svc.authorize(&human_ctx("user:alice", "doc.sign"), None, now()).await.unwrap();
+        let token = svc
+            .authorize(&human_ctx("user:alice", "doc.sign"), None, now())
+            .await
+            .unwrap();
         assert!(matches!(token.granted_by, GrantedBy::RoleDelegation(_, _)));
         if let GrantedBy::RoleDelegation(role, _) = &token.granted_by {
             assert_eq!(role.as_str(), "role:editor");
@@ -598,15 +678,27 @@ mod tests {
     #[tokio::test]
     async fn delegacao_directa_prevalece_sobre_role() {
         let svc = service_with_roles();
-        svc.repo().save_policy(&strict_policy("pol-s"), now()).await.unwrap();
+        svc.repo()
+            .save_policy(&strict_policy("pol-s"), now())
+            .await
+            .unwrap();
 
         // Alice tem delegação directa E é membro de role com delegação
-        svc.repo().delegate_permission(&grant_req("user:alice", "doc.sign"), now()).await.unwrap();
-        svc.repo().delegate_permission(&grant_req("role:editor", "doc.sign"), now()).await.unwrap();
-        svc.role_membership().assign("user:alice", RoleId("role:editor".into()));
+        svc.repo()
+            .delegate_permission(&grant_req("user:alice", "doc.sign"), now())
+            .await
+            .unwrap();
+        svc.repo()
+            .delegate_permission(&grant_req("role:editor", "doc.sign"), now())
+            .await
+            .unwrap();
+        svc.role_membership()
+            .assign("user:alice", RoleId("role:editor".into()));
 
-        let token =
-            svc.authorize(&human_ctx("user:alice", "doc.sign"), None, now()).await.unwrap();
+        let token = svc
+            .authorize(&human_ctx("user:alice", "doc.sign"), None, now())
+            .await
+            .unwrap();
         // Delegação directa tem prioridade
         assert!(matches!(token.granted_by, GrantedBy::Delegation(_)));
     }
@@ -614,37 +706,60 @@ mod tests {
     #[tokio::test]
     async fn revogar_role_remove_acesso_via_role() {
         let svc = service_with_roles();
-        svc.repo().save_policy(&strict_policy("pol-s"), now()).await.unwrap();
-        svc.repo().delegate_permission(&grant_req("role:editor", "doc.sign"), now()).await.unwrap();
+        svc.repo()
+            .save_policy(&strict_policy("pol-s"), now())
+            .await
+            .unwrap();
+        svc.repo()
+            .delegate_permission(&grant_req("role:editor", "doc.sign"), now())
+            .await
+            .unwrap();
 
         let editor = RoleId("role:editor".into());
         svc.role_membership().assign("user:alice", editor.clone());
 
-        assert!(svc.authorize(&human_ctx("user:alice", "doc.sign"), None, now()).await.is_ok());
+        assert!(svc
+            .authorize(&human_ctx("user:alice", "doc.sign"), None, now())
+            .await
+            .is_ok());
 
         svc.role_membership().revoke("user:alice", &editor);
 
-        assert!(svc.authorize(&human_ctx("user:alice", "doc.sign"), None, now()).await.is_err());
+        assert!(svc
+            .authorize(&human_ctx("user:alice", "doc.sign"), None, now())
+            .await
+            .is_err());
     }
 
     #[tokio::test]
     async fn grant_delegation_com_autoridade_via_role() {
         let svc = service_with_roles();
-        svc.repo().save_policy(&strict_policy("pol-s"), now()).await.unwrap();
+        svc.repo()
+            .save_policy(&strict_policy("pol-s"), now())
+            .await
+            .unwrap();
 
         // Delegar ao role
-        svc.repo().delegate_permission(&grant_req("role:editor", "doc.sign"), now()).await.unwrap();
+        svc.repo()
+            .delegate_permission(&grant_req("role:editor", "doc.sign"), now())
+            .await
+            .unwrap();
 
         // Alice é membro do role → tem autoridade para sub-delegar
-        svc.role_membership().assign("user:alice", RoleId("role:editor".into()));
+        svc.role_membership()
+            .assign("user:alice", RoleId("role:editor".into()));
 
         let granter = human_ctx("user:alice", "delegation.grant");
-        let result =
-            svc.grant_delegation(&grant_req("user:bob", "doc.sign"), &granter, now()).await;
+        let result = svc
+            .grant_delegation(&grant_req("user:bob", "doc.sign"), &granter, now())
+            .await;
         assert!(result.is_ok());
 
         // Bob tem acesso via delegação directa
-        assert!(svc.authorize(&human_ctx("user:bob", "doc.sign"), None, now()).await.is_ok());
+        assert!(svc
+            .authorize(&human_ctx("user:bob", "doc.sign"), None, now())
+            .await
+            .is_ok());
     }
 
     // ── Rules ─────────────────────────────────────────────────────────────────
@@ -658,17 +773,30 @@ mod tests {
                     policy_id: "pol-b".into(),
                     version: "1.0.0".into(),
                     mode: PolicyMode::Baseline,
-                    rules: vec![Rule { code: "doc.sign".into(), enabled: true, description: None }],
+                    rules: vec![Rule {
+                        code: "doc.sign".into(),
+                        enabled: true,
+                        description: None,
+                    }],
                 },
                 now(),
             )
             .await
             .unwrap();
 
-        assert!(svc.authorize(&human_ctx("user:alice", "doc.sign"), None, now()).await.is_err());
+        assert!(svc
+            .authorize(&human_ctx("user:alice", "doc.sign"), None, now())
+            .await
+            .is_err());
 
-        svc.repo().delegate_permission(&grant_req("user:alice", "doc.sign"), now()).await.unwrap();
-        assert!(svc.authorize(&human_ctx("user:alice", "doc.sign"), None, now()).await.is_ok());
+        svc.repo()
+            .delegate_permission(&grant_req("user:alice", "doc.sign"), now())
+            .await
+            .unwrap();
+        assert!(svc
+            .authorize(&human_ctx("user:alice", "doc.sign"), None, now())
+            .await
+            .is_ok());
     }
 
     #[tokio::test]
@@ -681,8 +809,16 @@ mod tests {
                     version: "1.0.0".into(),
                     mode: PolicyMode::Strict,
                     rules: vec![
-                        Rule { code: "AUTH".into(), enabled: true, description: None },
-                        Rule { code: "audit.read".into(), enabled: false, description: None },
+                        Rule {
+                            code: "AUTH".into(),
+                            enabled: true,
+                            description: None,
+                        },
+                        Rule {
+                            code: "audit.read".into(),
+                            enabled: false,
+                            description: None,
+                        },
                     ],
                 },
                 now(),
@@ -690,9 +826,14 @@ mod tests {
             .await
             .unwrap();
 
-        assert!(svc.authorize(&human_ctx("user:alice", "doc.sign"), None, now()).await.is_err());
-        let token =
-            svc.authorize(&human_ctx("user:alice", "audit.read"), None, now()).await.unwrap();
+        assert!(svc
+            .authorize(&human_ctx("user:alice", "doc.sign"), None, now())
+            .await
+            .is_err());
+        let token = svc
+            .authorize(&human_ctx("user:alice", "audit.read"), None, now())
+            .await
+            .unwrap();
         assert!(matches!(token.granted_by, GrantedBy::ExemptedByRule));
     }
 
@@ -706,14 +847,21 @@ mod tests {
                         policy_id: id.into(),
                         version: "1.0.0".into(),
                         mode: PolicyMode::Baseline,
-                        rules: vec![Rule { code: "doc.sign".into(), enabled, description: None }],
+                        rules: vec![Rule {
+                            code: "doc.sign".into(),
+                            enabled,
+                            description: None,
+                        }],
                     },
                     now(),
                 )
                 .await
                 .unwrap();
         }
-        assert!(svc.authorize(&human_ctx("user:alice", "doc.sign"), None, now()).await.is_err());
+        assert!(svc
+            .authorize(&human_ctx("user:alice", "doc.sign"), None, now())
+            .await
+            .is_err());
     }
 
     // ── grant_delegation() ────────────────────────────────────────────────────
@@ -721,7 +869,10 @@ mod tests {
     #[tokio::test]
     async fn grant_delegation_system_bypassa_authority() {
         let svc = service();
-        svc.repo().save_policy(&strict_policy("pol-s"), now()).await.unwrap();
+        svc.repo()
+            .save_policy(&strict_policy("pol-s"), now())
+            .await
+            .unwrap();
 
         assert!(svc
             .grant_delegation(
@@ -736,7 +887,10 @@ mod tests {
     #[tokio::test]
     async fn grant_delegation_human_sem_autoridade_falha() {
         let svc = service();
-        svc.repo().save_policy(&strict_policy("pol-s"), now()).await.unwrap();
+        svc.repo()
+            .save_policy(&strict_policy("pol-s"), now())
+            .await
+            .unwrap();
 
         let err = svc
             .grant_delegation(
@@ -752,7 +906,10 @@ mod tests {
     #[tokio::test]
     async fn grant_delegation_human_com_autoridade_passa() {
         let svc = service();
-        svc.repo().save_policy(&strict_policy("pol-s"), now()).await.unwrap();
+        svc.repo()
+            .save_policy(&strict_policy("pol-s"), now())
+            .await
+            .unwrap();
 
         svc.grant_delegation(
             &grant_req("user:alice", "doc.sign"),
@@ -770,13 +927,19 @@ mod tests {
             )
             .await
             .is_ok());
-        assert!(svc.authorize(&human_ctx("user:bob", "doc.sign"), None, now()).await.is_ok());
+        assert!(svc
+            .authorize(&human_ctx("user:bob", "doc.sign"), None, now())
+            .await
+            .is_ok());
     }
 
     #[tokio::test]
     async fn grant_delegation_auto_propaga_granted_via_e_cascata() {
         let svc = service();
-        svc.repo().save_policy(&strict_policy("pol-s"), now()).await.unwrap();
+        svc.repo()
+            .save_policy(&strict_policy("pol-s"), now())
+            .await
+            .unwrap();
 
         // Sistema dá delegação raiz a alice
         let root = svc
@@ -801,8 +964,14 @@ mod tests {
         // O serviço preencheu granted_via automaticamente
         assert_eq!(bob_deleg.granted_via, Some(root.delegation_id.clone()));
 
-        assert!(svc.authorize(&human_ctx("user:alice", "doc.sign"), None, now()).await.is_ok());
-        assert!(svc.authorize(&human_ctx("user:bob", "doc.sign"), None, now()).await.is_ok());
+        assert!(svc
+            .authorize(&human_ctx("user:alice", "doc.sign"), None, now())
+            .await
+            .is_ok());
+        assert!(svc
+            .authorize(&human_ctx("user:bob", "doc.sign"), None, now())
+            .await
+            .is_ok());
 
         // Revogar root → cascata apanha bob automaticamente
         svc.revoke_delegation(
@@ -813,8 +982,14 @@ mod tests {
         .await
         .unwrap();
 
-        assert!(svc.authorize(&human_ctx("user:alice", "doc.sign"), None, now()).await.is_err());
-        assert!(svc.authorize(&human_ctx("user:bob", "doc.sign"), None, now()).await.is_err());
+        assert!(svc
+            .authorize(&human_ctx("user:alice", "doc.sign"), None, now())
+            .await
+            .is_err());
+        assert!(svc
+            .authorize(&human_ctx("user:bob", "doc.sign"), None, now())
+            .await
+            .is_err());
     }
 
     #[tokio::test]
@@ -840,7 +1015,10 @@ mod tests {
     async fn grant_delegation_respeita_granted_via_definido_pelo_caller() {
         // Se o caller já definiu granted_via, o serviço não o sobrescreve
         let svc = service();
-        svc.repo().save_policy(&strict_policy("pol-s"), now()).await.unwrap();
+        svc.repo()
+            .save_policy(&strict_policy("pol-s"), now())
+            .await
+            .unwrap();
 
         let root = svc
             .grant_delegation(
@@ -858,7 +1036,11 @@ mod tests {
         };
 
         let bob_deleg = svc
-            .grant_delegation(&req_com_parent, &human_ctx("user:alice", "delegation.grant"), now())
+            .grant_delegation(
+                &req_com_parent,
+                &human_ctx("user:alice", "delegation.grant"),
+                now(),
+            )
             .await
             .unwrap();
 
@@ -884,8 +1066,11 @@ mod tests {
     async fn audit_log_regista_concessao() {
         use crate::InMemoryAuditLog;
         let audit = InMemoryAuditLog::new();
-        let svc = SecurityService::with_audit(InMemorySecurityPolicyRepository::new(), audit.clone());
-        let _ = svc.authorize(&human_ctx("user:alice", "any.op"), None, now()).await;
+        let svc =
+            SecurityService::with_audit(InMemorySecurityPolicyRepository::new(), audit.clone());
+        let _ = svc
+            .authorize(&human_ctx("user:alice", "any.op"), None, now())
+            .await;
         assert_eq!(audit.len(), 1);
         assert_eq!(audit.entries()[0].decision, AuditDecision::Granted);
     }
@@ -896,8 +1081,13 @@ mod tests {
         let audit = InMemoryAuditLog::new();
         let svc =
             SecurityService::with_audit(InMemorySecurityPolicyRepository::new(), audit.clone());
-        svc.repo().save_policy(&strict_policy("pol-s"), now()).await.unwrap();
-        let _ = svc.authorize(&human_ctx("user:alice", "doc.sign"), None, now()).await;
+        svc.repo()
+            .save_policy(&strict_policy("pol-s"), now())
+            .await
+            .unwrap();
+        let _ = svc
+            .authorize(&human_ctx("user:alice", "doc.sign"), None, now())
+            .await;
         assert_eq!(audit.len(), 1);
         assert_eq!(audit.entries()[0].decision, AuditDecision::Denied);
     }
@@ -906,18 +1096,29 @@ mod tests {
 
     #[tokio::test]
     async fn bootstrap_sem_politicas_permite() {
-        let token =
-            service().authorize(&human_ctx("user:alice", "any.op"), None, now()).await.unwrap();
+        let token = service()
+            .authorize(&human_ctx("user:alice", "any.op"), None, now())
+            .await
+            .unwrap();
         assert!(matches!(token.granted_by, GrantedBy::Bootstrap));
     }
 
     #[tokio::test]
     async fn strict_passa_a_baseline_apos_revogar_unica_strict() {
         let svc = service();
-        svc.repo().save_policy(&strict_policy("pol-s"), now()).await.unwrap();
-        svc.repo().save_policy(&baseline_policy("pol-b"), now()).await.unwrap();
+        svc.repo()
+            .save_policy(&strict_policy("pol-s"), now())
+            .await
+            .unwrap();
+        svc.repo()
+            .save_policy(&baseline_policy("pol-b"), now())
+            .await
+            .unwrap();
 
-        assert!(svc.authorize(&human_ctx("user:alice", "op"), None, now()).await.is_err());
+        assert!(svc
+            .authorize(&human_ctx("user:alice", "op"), None, now())
+            .await
+            .is_err());
 
         svc.repo()
             .revoke_policy(
@@ -931,8 +1132,10 @@ mod tests {
             .await
             .unwrap();
 
-        let token =
-            svc.authorize(&human_ctx("user:alice", "op"), None, now()).await.unwrap();
+        let token = svc
+            .authorize(&human_ctx("user:alice", "op"), None, now())
+            .await
+            .unwrap();
         assert!(matches!(token.granted_by, GrantedBy::BaselinePolicy));
     }
 
@@ -962,15 +1165,27 @@ mod tests {
                         policy_id: format!("pol-{i:02}"),
                         version: "1.0.0".into(),
                         mode: PolicyMode::Baseline,
-                        rules: vec![Rule { code: "auth".into(), enabled: true, description: None }],
+                        rules: vec![Rule {
+                            code: "auth".into(),
+                            enabled: true,
+                            description: None,
+                        }],
                     },
                     now(),
                 )
                 .await
                 .unwrap();
         }
-        let p1 = svc.repo().list_active_policies(Some(ListOptions::page(1, 2))).await.unwrap();
-        let p2 = svc.repo().list_active_policies(Some(ListOptions::page(2, 2))).await.unwrap();
+        let p1 = svc
+            .repo()
+            .list_active_policies(Some(ListOptions::page(1, 2)))
+            .await
+            .unwrap();
+        let p2 = svc
+            .repo()
+            .list_active_policies(Some(ListOptions::page(2, 2)))
+            .await
+            .unwrap();
         assert_eq!(p1.len(), 2);
         assert_eq!(p2.len(), 2);
         assert_ne!(p1[0].policy_id, p2[0].policy_id);

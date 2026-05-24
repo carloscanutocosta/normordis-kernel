@@ -3,11 +3,9 @@
 //! Run: cargo run --example 10_advanced_elements -p normordis-pdf
 
 use normordis_pdf::{
-    CheckBoxDef, ComboBoxDef, DocumentBuilder, DocumentStyle, FieldRect, FormField,
-    NamedStyle, Paragraph, Section, Spacer,
+    elements::footer::PageFooter, elements::header::InstitutionalHeader, CheckBoxDef, ComboBoxDef,
+    DocumentBuilder, DocumentStyle, FieldRect, FormField, NamedStyle, Paragraph, Section, Spacer,
     Table, TableCell, TableOfContents, TextFieldDef, TextRun,
-    elements::footer::PageFooter,
-    elements::header::InstitutionalHeader,
 };
 
 fn main() -> normordis_pdf::Result<()> {
@@ -45,28 +43,28 @@ fn main() -> normordis_pdf::Result<()> {
         .style(style)
         .header(InstitutionalHeader::new("NORMAXIS", "Demonstração v1.5.0"))
         .footer(PageFooter::new().right("{{page}} / {{total_pages}}"))
-
         // ── TOC ───────────────────────────────────────────────────────
-        .push(TableOfContents::new()
-            .title("Índice")
-            .max_level(3)
-            .dot_leader('.'))
+        .push(
+            TableOfContents::new()
+                .title("Índice")
+                .max_level(3)
+                .dot_leader('.'),
+        )
         .push(Spacer::new(8.0))
-
         // ── Fontes ────────────────────────────────────────────────────
         .push(Section::new("1. Fontes Liberation", 1))
         .push(Paragraph::new(
             "Este texto usa Liberation Sans (equivalente Arial/Calibri). \
              Ideal para documentos institucionais modernos.",
         ))
-        .push(Paragraph::new(
-            "Este texto usa Liberation Serif (equivalente Times New Roman). \
+        .push(
+            Paragraph::new(
+                "Este texto usa Liberation Serif (equivalente Times New Roman). \
              Adequado para textos formais e jurídicos.",
-        ).style("classico"))
-        .push(Paragraph::new(
-            "struct Config { font: &'static str, size: f64 }",
-        ).style("codigo"))
-
+            )
+            .style("classico"),
+        )
+        .push(Paragraph::new("struct Config { font: &'static str, size: f64 }").style("codigo"))
         // ── Footnotes ─────────────────────────────────────────────────
         .push(Spacer::new(4.0))
         .push(Section::new("2. Notas de Rodapé", 1))
@@ -81,16 +79,12 @@ fn main() -> normordis_pdf::Result<()> {
             normordis_pdf::TextAlign::Left,
             None,
         ))
-
         // ── Tabela aninhada ───────────────────────────────────────────
         .push(Spacer::new(4.0))
         .push(Section::new("3. Tabela com Célula Aninhada", 1))
         .push(
             Table::builder()
-                .row(vec![
-                    TableCell::new("Campo"),
-                    TableCell::new("Dados"),
-                ])
+                .row(vec![TableCell::new("Campo"), TableCell::new("Dados")])
                 .row(vec![
                     TableCell::new("Entidade"),
                     TableCell::new("Câmara Municipal de Lisboa"),
@@ -103,16 +97,12 @@ fn main() -> normordis_pdf::Result<()> {
                                 TableCell::new("Email"),
                                 TableCell::new("geral@cm-lisboa.pt"),
                             ])
-                            .row(vec![
-                                TableCell::new("Tel."),
-                                TableCell::new("21 000 0000"),
-                            ])
+                            .row(vec![TableCell::new("Tel."), TableCell::new("21 000 0000")])
                             .build(),
                     ),
                 ])
                 .build(),
         )
-
         // ── Formulário ────────────────────────────────────────────────
         .push(Spacer::new(4.0))
         .push(Section::new("4. Campos de Formulário (AcroForm)", 1))
@@ -125,7 +115,12 @@ fn main() -> normordis_pdf::Result<()> {
             max_length: Some(100),
             readonly: false,
             required: true,
-            rect: FieldRect { x_mm: 25.0, y_mm: 130.0, width_mm: 120.0, height_mm: 8.0 },
+            rect: FieldRect {
+                x_mm: 25.0,
+                y_mm: 130.0,
+                width_mm: 120.0,
+                height_mm: 8.0,
+            },
             font_size: 11.0,
         }))
         .push(Paragraph::new("Aceita os termos e condições:"))
@@ -133,7 +128,12 @@ fn main() -> normordis_pdf::Result<()> {
             name: "aceita_termos".into(),
             checked_by_default: false,
             tooltip: Some("Marque para aceitar".into()),
-            rect: FieldRect { x_mm: 25.0, y_mm: 112.0, width_mm: 5.0, height_mm: 5.0 },
+            rect: FieldRect {
+                x_mm: 25.0,
+                y_mm: 112.0,
+                width_mm: 5.0,
+                height_mm: 5.0,
+            },
         }))
         .push(Paragraph::new("Categoria:"))
         .form_field(FormField::ComboBox(ComboBoxDef {
@@ -142,10 +142,14 @@ fn main() -> normordis_pdf::Result<()> {
             default_value: Some("Tipo A".into()),
             editable: false,
             tooltip: None,
-            rect: FieldRect { x_mm: 25.0, y_mm: 95.0, width_mm: 60.0, height_mm: 8.0 },
+            rect: FieldRect {
+                x_mm: 25.0,
+                y_mm: 95.0,
+                width_mm: 60.0,
+                height_mm: 8.0,
+            },
             font_size: 10.0,
         }))
-
         .render_to_bytes()?;
 
     let out = std::env::temp_dir().join("normaxis_advanced_elements.pdf");

@@ -124,8 +124,11 @@ impl SignatureConfig {
     /// Convert to the lower-level [`SignatureOptions`] used by the backend.
     pub fn to_options(&self) -> SignatureOptions {
         SignatureOptions {
-            reason:         self.reason.clone().unwrap_or_else(|| "Assinado digitalmente".into()),
-            location:       self.location.clone().unwrap_or_else(|| "Portugal".into()),
+            reason: self
+                .reason
+                .clone()
+                .unwrap_or_else(|| "Assinado digitalmente".into()),
+            location: self.location.clone().unwrap_or_else(|| "Portugal".into()),
             reserved_bytes: self.reserved_bytes.unwrap_or(8192),
         }
     }
@@ -155,7 +158,11 @@ impl SignatureConfig {
 /// let signed = sign_pdf(prepared, &config, &pkcs7_der)?;
 /// # Ok::<(), normordis_pdf::NormaxisPdfError>(())
 /// ```
-pub fn sign_pdf(prepared: PreparedPdf, _config: &SignatureConfig, pkcs7_der: &[u8]) -> Result<Vec<u8>> {
+pub fn sign_pdf(
+    prepared: PreparedPdf,
+    _config: &SignatureConfig,
+    pkcs7_der: &[u8],
+) -> Result<Vec<u8>> {
     prepared.embed_signature(pkcs7_der)
 }
 
@@ -167,10 +174,7 @@ pub fn sign_pdf(prepared: PreparedPdf, _config: &SignatureConfig, pkcs7_der: &[u
 /// Requires that the backend wrote:
 /// - `/Contents <80808080...>` (reserved_bytes × 0x80 as hex)
 /// - `/ByteRange [0 1111111111 1222222222 1333333333]` (36 bytes, patchable)
-pub(crate) fn extract_prepared(
-    mut bytes: Vec<u8>,
-    reserved_bytes: usize,
-) -> Result<PreparedPdf> {
+pub(crate) fn extract_prepared(mut bytes: Vec<u8>, reserved_bytes: usize) -> Result<PreparedPdf> {
     // ── Locate /Contents placeholder ─────────────────────────────────────────
     // Pattern: "/Contents <8080" (first 4 hex chars of the 0x80 run)
     let needle: &[u8] = b"/Contents <8080";
@@ -195,7 +199,7 @@ pub(crate) fn extract_prepared(
     }
 
     // ── Compute ByteRange ─────────────────────────────────────────────────────
-    let a = contents_start as u64;           // range1_length (bytes before '<')
+    let a = contents_start as u64; // range1_length (bytes before '<')
     let b = a + 1 + reserved_bytes as u64 * 2 + 1; // range2_start (after '>')
     let range2_len = bytes.len() as u64 - b;
 

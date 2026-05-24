@@ -31,8 +31,8 @@ impl MaintenanceService {
             return Ok(()); // já correu hoje
         };
 
-        let staging = tempfile::tempdir()
-            .map_err(|e| BackupServiceError::IoFailed(e.to_string()))?;
+        let staging =
+            tempfile::tempdir().map_err(|e| BackupServiceError::IoFailed(e.to_string()))?;
 
         let mut any_backup = false;
         let mut any_failure = false;
@@ -48,9 +48,9 @@ impl MaintenanceService {
                 .and_then(|n| n.to_str())
                 .unwrap_or(db_path);
 
-            let health = check_database(db_path).await.unwrap_or_else(|e| {
-                HealthStatus::Failed(e.to_string())
-            });
+            let health = check_database(db_path)
+                .await
+                .unwrap_or_else(|e| HealthStatus::Failed(e.to_string()));
 
             let file_meta = std::fs::metadata(db_path).ok();
             let file_size = file_meta.as_ref().map(|m| m.len() as i64);
@@ -105,17 +105,23 @@ impl MaintenanceService {
         let date_str = run.run_date.format("%Y-%m-%d").to_string();
         let dest_dir = Path::new(&self.config.destination_path);
 
-        let (archive_path, checksum, size) =
-            match create_archive(staging.path(), dest_dir, &date_str, &self.config.backup_passphrase).await {
-                Ok(result) => result,
-                Err(e) => {
-                    self.repo
-                        .finalize_run(run.id, MaintenanceStatus::Failed, None, None, None)
-                        .await
-                        .ok();
-                    return Err(e);
-                }
-            };
+        let (archive_path, checksum, size) = match create_archive(
+            staging.path(),
+            dest_dir,
+            &date_str,
+            &self.config.backup_passphrase,
+        )
+        .await
+        {
+            Ok(result) => result,
+            Err(e) => {
+                self.repo
+                    .finalize_run(run.id, MaintenanceStatus::Failed, None, None, None)
+                    .await
+                    .ok();
+                return Err(e);
+            }
+        };
 
         rotate_backups(&self.repo, self.config.keep_last).await?;
 
@@ -150,9 +156,10 @@ impl MaintenanceService {
         run: &crate::types::MaintenanceRun,
         dest_dir: &Path,
     ) -> Result<Vec<std::path::PathBuf>, BackupServiceError> {
-        let backup_path = run.backup_path.as_deref().ok_or_else(|| {
-            BackupServiceError::IoFailed("run has no backup_path".into())
-        })?;
+        let backup_path = run
+            .backup_path
+            .as_deref()
+            .ok_or_else(|| BackupServiceError::IoFailed("run has no backup_path".into()))?;
 
         let backup_path_owned = backup_path.to_string();
         let data = tokio::task::spawn_blocking(move || std::fs::read(&backup_path_owned))

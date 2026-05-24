@@ -2,10 +2,7 @@ use std::collections::{HashMap, HashSet};
 
 use serde::{Deserialize, Serialize};
 
-use crate::{
-    error::NormaxisPdfError,
-    layout::TextAlign,
-};
+use crate::{error::NormaxisPdfError, layout::TextAlign};
 
 /// Diagonal text watermark rendered on every page.
 ///
@@ -35,12 +32,27 @@ pub struct Watermark {
 
 impl Watermark {
     pub fn new(text: impl Into<String>) -> Self {
-        Self { text: text.into(), ..Self::default() }
+        Self {
+            text: text.into(),
+            ..Self::default()
+        }
     }
-    pub fn opacity(mut self, v: f64) -> Self { self.opacity = v; self }
-    pub fn color(mut self, c: RgbColor) -> Self { self.color = c; self }
-    pub fn font_size(mut self, pt: f64) -> Self { self.font_size = pt; self }
-    pub fn angle_deg(mut self, deg: f64) -> Self { self.angle_deg = deg; self }
+    pub fn opacity(mut self, v: f64) -> Self {
+        self.opacity = v;
+        self
+    }
+    pub fn color(mut self, c: RgbColor) -> Self {
+        self.color = c;
+        self
+    }
+    pub fn font_size(mut self, pt: f64) -> Self {
+        self.font_size = pt;
+        self
+    }
+    pub fn angle_deg(mut self, deg: f64) -> Self {
+        self.angle_deg = deg;
+        self
+    }
 }
 
 impl Default for Watermark {
@@ -48,7 +60,11 @@ impl Default for Watermark {
         Self {
             text: "RASCUNHO".into(),
             opacity: 0.10,
-            color: RgbColor { r: 0.7, g: 0.7, b: 0.7 },
+            color: RgbColor {
+                r: 0.7,
+                g: 0.7,
+                b: 0.7,
+            },
             font_size: 72.0,
             angle_deg: 45.0,
         }
@@ -96,8 +112,12 @@ pub struct DocumentStyle {
     pub min_widow_lines: u8,
 }
 
-fn default_orphan_lines() -> u8 { 2 }
-fn default_widow_lines() -> u8 { 2 }
+fn default_orphan_lines() -> u8 {
+    2
+}
+fn default_widow_lines() -> u8 {
+    2
+}
 
 impl Default for DocumentStyle {
     fn default() -> Self {
@@ -114,9 +134,17 @@ impl Default for DocumentStyle {
             font_size_small: 9.0,
             line_height: 1.4,
             // Institutional blue #003399
-            primary_color: RgbColor { r: 0.0, g: 0.2, b: 0.6 },
+            primary_color: RgbColor {
+                r: 0.0,
+                g: 0.2,
+                b: 0.6,
+            },
             // Near-black #1A1A1A
-            text_color: RgbColor { r: 0.102, g: 0.102, b: 0.102 },
+            text_color: RgbColor {
+                r: 0.102,
+                g: 0.102,
+                b: 0.102,
+            },
             named_styles: HashMap::new(),
             min_orphan_lines: 2,
             min_widow_lines: 2,
@@ -254,7 +282,9 @@ impl<'a> StyleResolver<'a> {
         }
 
         // User styles take priority over built-ins.
-        let style = self.styles.get(name)
+        let style = self
+            .styles
+            .get(name)
             .or_else(|| builtins.get(name))
             .ok_or_else(|| NormaxisPdfError::UnknownStyle(name.to_string()))?;
 
@@ -274,7 +304,9 @@ impl<'a> StyleResolver<'a> {
             space_after_mm: style.space_after_mm.unwrap_or(base.space_after_mm),
             indent_left_mm: style.indent_left_mm.unwrap_or(base.indent_left_mm),
             indent_right_mm: style.indent_right_mm.unwrap_or(base.indent_right_mm),
-            indent_first_line_mm: style.indent_first_line_mm.unwrap_or(base.indent_first_line_mm),
+            indent_first_line_mm: style
+                .indent_first_line_mm
+                .unwrap_or(base.indent_first_line_mm),
             color: style.color.clone().or(base.color),
             font_family: style.font_family.clone().unwrap_or(base.font_family),
         })
@@ -309,106 +341,139 @@ pub fn default_named_styles(doc: &DocumentStyle) -> HashMap<String, NamedStyle> 
     let mut m = HashMap::new();
 
     // normal — body text baseline
-    m.insert("normal".into(), NamedStyle {
-        font_size: Some(doc.font_size_body),
-        bold: Some(false),
-        italic: Some(false),
-        alignment: Some(TextAlign::Justify),
-        space_after_mm: Some(pt_to_mm(doc.font_size_body) * 0.3),
-        ..Default::default()
-    });
+    m.insert(
+        "normal".into(),
+        NamedStyle {
+            font_size: Some(doc.font_size_body),
+            bold: Some(false),
+            italic: Some(false),
+            alignment: Some(TextAlign::Justify),
+            space_after_mm: Some(pt_to_mm(doc.font_size_body) * 0.3),
+            ..Default::default()
+        },
+    );
 
     // heading_1 — document title level
-    m.insert("heading_1".into(), NamedStyle {
-        font_size: Some(doc.font_size_title),
-        bold: Some(true),
-        alignment: Some(TextAlign::Left),
-        space_before_mm: Some(8.0),
-        space_after_mm: Some(4.0),
-        color: Some(doc.primary_color.clone()),
-        ..Default::default()
-    });
+    m.insert(
+        "heading_1".into(),
+        NamedStyle {
+            font_size: Some(doc.font_size_title),
+            bold: Some(true),
+            alignment: Some(TextAlign::Left),
+            space_before_mm: Some(8.0),
+            space_after_mm: Some(4.0),
+            color: Some(doc.primary_color.clone()),
+            ..Default::default()
+        },
+    );
 
     // heading_2 — section level
-    m.insert("heading_2".into(), NamedStyle {
-        extends: Some("heading_1".into()),
-        font_size: Some(doc.font_size_section),
-        space_before_mm: Some(6.0),
-        space_after_mm: Some(3.0),
-        color: Some(doc.text_color.clone()),
-        ..Default::default()
-    });
+    m.insert(
+        "heading_2".into(),
+        NamedStyle {
+            extends: Some("heading_1".into()),
+            font_size: Some(doc.font_size_section),
+            space_before_mm: Some(6.0),
+            space_after_mm: Some(3.0),
+            color: Some(doc.text_color.clone()),
+            ..Default::default()
+        },
+    );
 
     // heading_3 — sub-section level
-    m.insert("heading_3".into(), NamedStyle {
-        extends: Some("heading_2".into()),
-        font_size: Some(doc.font_size_body),
-        space_before_mm: Some(4.0),
-        space_after_mm: Some(2.0),
-        ..Default::default()
-    });
+    m.insert(
+        "heading_3".into(),
+        NamedStyle {
+            extends: Some("heading_2".into()),
+            font_size: Some(doc.font_size_body),
+            space_before_mm: Some(4.0),
+            space_after_mm: Some(2.0),
+            ..Default::default()
+        },
+    );
 
     // caption — figure/table captions
-    m.insert("caption".into(), NamedStyle {
-        extends: Some("normal".into()),
-        font_size: Some(doc.font_size_small),
-        italic: Some(true),
-        alignment: Some(TextAlign::Center),
-        space_before_mm: Some(2.0),
-        space_after_mm: Some(4.0),
-        ..Default::default()
-    });
+    m.insert(
+        "caption".into(),
+        NamedStyle {
+            extends: Some("normal".into()),
+            font_size: Some(doc.font_size_small),
+            italic: Some(true),
+            alignment: Some(TextAlign::Center),
+            space_before_mm: Some(2.0),
+            space_after_mm: Some(4.0),
+            ..Default::default()
+        },
+    );
 
     // table_header — bold, left-aligned header cells
-    m.insert("table_header".into(), NamedStyle {
-        extends: Some("normal".into()),
-        bold: Some(true),
-        alignment: Some(TextAlign::Left),
-        space_before_mm: Some(0.0),
-        space_after_mm: Some(0.0),
-        ..Default::default()
-    });
+    m.insert(
+        "table_header".into(),
+        NamedStyle {
+            extends: Some("normal".into()),
+            bold: Some(true),
+            alignment: Some(TextAlign::Left),
+            space_before_mm: Some(0.0),
+            space_after_mm: Some(0.0),
+            ..Default::default()
+        },
+    );
 
     // table_body — standard body cell text
-    m.insert("table_body".into(), NamedStyle {
-        extends: Some("normal".into()),
-        alignment: Some(TextAlign::Left),
-        space_before_mm: Some(0.0),
-        space_after_mm: Some(0.0),
-        ..Default::default()
-    });
+    m.insert(
+        "table_body".into(),
+        NamedStyle {
+            extends: Some("normal".into()),
+            alignment: Some(TextAlign::Left),
+            space_before_mm: Some(0.0),
+            space_after_mm: Some(0.0),
+            ..Default::default()
+        },
+    );
 
     // footnote — small text at bottom of page
-    m.insert("footnote".into(), NamedStyle {
-        extends: Some("normal".into()),
-        font_size: Some(9.0),
-        space_before_mm: Some(0.5),
-        space_after_mm: Some(0.5),
-        ..Default::default()
-    });
+    m.insert(
+        "footnote".into(),
+        NamedStyle {
+            extends: Some("normal".into()),
+            font_size: Some(9.0),
+            space_before_mm: Some(0.5),
+            space_after_mm: Some(0.5),
+            ..Default::default()
+        },
+    );
 
     // TOC entry styles — indentation increases with level
-    m.insert("toc_1".into(), NamedStyle {
-        extends: Some("normal".into()),
-        font_size: Some(11.0),
-        bold: Some(true),
-        space_after_mm: Some(1.0),
-        ..Default::default()
-    });
+    m.insert(
+        "toc_1".into(),
+        NamedStyle {
+            extends: Some("normal".into()),
+            font_size: Some(11.0),
+            bold: Some(true),
+            space_after_mm: Some(1.0),
+            ..Default::default()
+        },
+    );
 
-    m.insert("toc_2".into(), NamedStyle {
-        extends: Some("toc_1".into()),
-        bold: Some(false),
-        indent_left_mm: Some(8.0),
-        ..Default::default()
-    });
+    m.insert(
+        "toc_2".into(),
+        NamedStyle {
+            extends: Some("toc_1".into()),
+            bold: Some(false),
+            indent_left_mm: Some(8.0),
+            ..Default::default()
+        },
+    );
 
-    m.insert("toc_3".into(), NamedStyle {
-        extends: Some("toc_2".into()),
-        indent_left_mm: Some(16.0),
-        font_size: Some(10.0),
-        ..Default::default()
-    });
+    m.insert(
+        "toc_3".into(),
+        NamedStyle {
+            extends: Some("toc_2".into()),
+            indent_left_mm: Some(16.0),
+            font_size: Some(10.0),
+            ..Default::default()
+        },
+    );
 
     m
 }
@@ -430,20 +495,36 @@ impl SecurityClassification {
     /// Portuguese label for this classification level.
     pub fn label_pt(self) -> &'static str {
         match self {
-            Self::Public       => "Público",
-            Self::Internal     => "Interno",
+            Self::Public => "Público",
+            Self::Internal => "Interno",
             Self::Confidential => "Confidencial",
-            Self::Reserved     => "Reservado",
+            Self::Reserved => "Reservado",
         }
     }
 
     /// Watermark colour for non-public documents.
     pub fn watermark_color(self) -> RgbColor {
         match self {
-            Self::Internal     => RgbColor { r: 0.0,  g: 0.0,  b: 0.5 },
-            Self::Confidential => RgbColor { r: 0.8,  g: 0.0,  b: 0.0 },
-            Self::Reserved     => RgbColor { r: 0.5,  g: 0.0,  b: 0.0 },
-            Self::Public       => RgbColor { r: 0.7,  g: 0.7,  b: 0.7 },
+            Self::Internal => RgbColor {
+                r: 0.0,
+                g: 0.0,
+                b: 0.5,
+            },
+            Self::Confidential => RgbColor {
+                r: 0.8,
+                g: 0.0,
+                b: 0.0,
+            },
+            Self::Reserved => RgbColor {
+                r: 0.5,
+                g: 0.0,
+                b: 0.0,
+            },
+            Self::Public => RgbColor {
+                r: 0.7,
+                g: 0.7,
+                b: 0.7,
+            },
         }
     }
 }

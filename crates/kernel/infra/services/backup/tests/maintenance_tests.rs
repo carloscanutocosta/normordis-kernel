@@ -1,6 +1,8 @@
 use std::path::Path;
 
-use infra_backup::{MaintenanceConfig, MaintenanceRepository, MaintenanceService, MaintenanceStatus};
+use infra_backup::{
+    MaintenanceConfig, MaintenanceRepository, MaintenanceService, MaintenanceStatus,
+};
 use tempfile::TempDir;
 
 // ---------------------------------------------------------------------------
@@ -9,10 +11,8 @@ use tempfile::TempDir;
 
 fn make_test_db(path: &Path) {
     let conn = rusqlite::Connection::open(path).unwrap();
-    conn.execute_batch(
-        "CREATE TABLE docs (id INTEGER PRIMARY KEY, body TEXT NOT NULL);",
-    )
-    .unwrap();
+    conn.execute_batch("CREATE TABLE docs (id INTEGER PRIMARY KEY, body TEXT NOT NULL);")
+        .unwrap();
     for i in 0..10 {
         conn.execute("INSERT INTO docs (body) VALUES (?1)", [format!("row-{i}")])
             .unwrap();
@@ -93,23 +93,24 @@ fn config_rejects_zero_keep_last() {
 #[tokio::test]
 async fn lock_is_acquired_once_per_day() {
     let dir = tempfile::tempdir().unwrap();
-    let repo = MaintenanceRepository::new(
-        dir.path().join("control.db").to_string_lossy().into_owned(),
-    );
+    let repo =
+        MaintenanceRepository::new(dir.path().join("control.db").to_string_lossy().into_owned());
 
     let first = repo.try_acquire_lock("test").await.unwrap();
     assert!(first.is_some(), "primeira aquisição deve ter sucesso");
 
     let second = repo.try_acquire_lock("test").await.unwrap();
-    assert!(second.is_none(), "segunda aquisição no mesmo dia deve ser ignorada");
+    assert!(
+        second.is_none(),
+        "segunda aquisição no mesmo dia deve ser ignorada"
+    );
 }
 
 #[tokio::test]
 async fn finalize_run_persists_status_and_metadata() {
     let dir = tempfile::tempdir().unwrap();
-    let repo = MaintenanceRepository::new(
-        dir.path().join("control.db").to_string_lossy().into_owned(),
-    );
+    let repo =
+        MaintenanceRepository::new(dir.path().join("control.db").to_string_lossy().into_owned());
 
     let run = repo.try_acquire_lock("test").await.unwrap().unwrap();
     repo.finalize_run(
@@ -260,10 +261,16 @@ async fn restore_recovers_original_db_data() {
     let restore_dir = dir.path().join("restored");
     let restored = service.restore(run, &restore_dir).await.unwrap();
 
-    assert!(!restored.is_empty(), "deve restaurar pelo menos um ficheiro");
+    assert!(
+        !restored.is_empty(),
+        "deve restaurar pelo menos um ficheiro"
+    );
 
     let restored_db = restore_dir.join("app.db");
-    assert!(restored_db.exists(), "app.db deve existir no diretório de restore");
+    assert!(
+        restored_db.exists(),
+        "app.db deve existir no diretório de restore"
+    );
 
     let conn = rusqlite::Connection::open(&restored_db).unwrap();
     let count: i64 = conn
@@ -289,10 +296,7 @@ async fn restore_fails_on_checksum_mismatch() {
 
     let restore_dir = dir.path().join("restored");
     let result = service.restore(&runs[0], &restore_dir).await;
-    assert!(
-        result.is_err(),
-        "restore with tampered checksum must fail"
-    );
+    assert!(result.is_err(), "restore with tampered checksum must fail");
 }
 
 // ---------------------------------------------------------------------------

@@ -1,4 +1,6 @@
-use core_metrics::{IndicatorInstance, IndicatorInstanceStore, InstanceStatus, ListOptions, MetricError};
+use core_metrics::{
+    IndicatorInstance, IndicatorInstanceStore, InstanceStatus, ListOptions, MetricError,
+};
 use rusqlite::{params, OptionalExtension};
 
 use crate::error::MetricsSqliteError;
@@ -32,7 +34,8 @@ impl IndicatorInstanceStore for MetricsSqliteStore {
     }
 
     fn get_instance(&self, id: &str) -> Result<IndicatorInstance, MetricError> {
-        let row = self.db()
+        let row = self
+            .db()
             .query_row(
                 "SELECT id, metric_version_id, evaluation_cycle_id, org_unit_id,
                         responsible_actor_id, scope, status, created_at, created_by, closed_at
@@ -52,8 +55,7 @@ impl IndicatorInstanceStore for MetricsSqliteStore {
         status: Option<&InstanceStatus>,
     ) -> Result<Vec<IndicatorInstance>, MetricError> {
         let lo = limit_offset(&opts);
-        let extra = status
-            .map_or(String::new(), |s| format!(" AND status = '{}'", s.as_str()));
+        let extra = status.map_or(String::new(), |s| format!(" AND status = '{}'", s.as_str()));
         let conn = self.db();
         let mut stmt = conn
             .prepare(&format!(
@@ -124,19 +126,14 @@ impl IndicatorInstanceStore for MetricsSqliteStore {
             .collect()
     }
 
-    fn update_instance_status(
-        &self,
-        id: &str,
-        status: &InstanceStatus,
-    ) -> Result<(), MetricError> {
+    fn update_instance_status(&self, id: &str, status: &InstanceStatus) -> Result<(), MetricError> {
         let mut extra = String::new();
         if matches!(status, InstanceStatus::Closed) {
             extra = format!(", closed_at = '{}'", dt_to_str(chrono::Utc::now()));
         }
-        let sql = format!(
-            "UPDATE indicator_instances SET status = ?1{extra} WHERE id = ?2"
-        );
-        let n = self.db()
+        let sql = format!("UPDATE indicator_instances SET status = ?1{extra} WHERE id = ?2");
+        let n = self
+            .db()
             .execute(&sql, params![status.as_str(), id])
             .map_err(MetricsSqliteError::Sqlite)?;
         if n == 0 {
@@ -267,7 +264,9 @@ mod tests {
         seed(&s);
         s.save_instance(&instance("i-001", "uo:porto")).unwrap();
         s.save_instance(&instance("i-002", "uo:lisboa")).unwrap();
-        let list = s.list_instances_for_cycle("c-001", ListOptions::default(), None).unwrap();
+        let list = s
+            .list_instances_for_cycle("c-001", ListOptions::default(), None)
+            .unwrap();
         assert_eq!(list.len(), 2);
     }
 
@@ -306,7 +305,9 @@ mod tests {
             instance("i-003", "uo:coimbra"),
         ];
         s.save_instances_batch(&batch).unwrap();
-        let list = s.list_instances_for_cycle("c-001", ListOptions::default(), None).unwrap();
+        let list = s
+            .list_instances_for_cycle("c-001", ListOptions::default(), None)
+            .unwrap();
         assert_eq!(list.len(), 3);
     }
 
@@ -320,7 +321,11 @@ mod tests {
         s.save_instance(&i1).unwrap();
         s.save_instance(&i2).unwrap();
         let pending = s
-            .list_instances_for_cycle("c-001", ListOptions::default(), Some(&InstanceStatus::Pending))
+            .list_instances_for_cycle(
+                "c-001",
+                ListOptions::default(),
+                Some(&InstanceStatus::Pending),
+            )
             .unwrap();
         assert_eq!(pending.len(), 1);
         assert_eq!(pending[0].id, "i-001");
@@ -329,9 +334,6 @@ mod tests {
     #[test]
     fn get_missing_returns_not_found() {
         let s = store();
-        assert!(matches!(
-            s.get_instance("nope"),
-            Err(MetricError::NotFound)
-        ));
+        assert!(matches!(s.get_instance("nope"), Err(MetricError::NotFound)));
     }
 }

@@ -241,11 +241,17 @@ impl Paragraph {
 
 fn parse_hex_color(hex: &str) -> Option<RgbColor> {
     let h = hex.trim_start_matches('#');
-    if h.len() != 6 { return None; }
+    if h.len() != 6 {
+        return None;
+    }
     let r = u8::from_str_radix(&h[0..2], 16).ok()?;
     let g = u8::from_str_radix(&h[2..4], 16).ok()?;
     let b = u8::from_str_radix(&h[4..6], 16).ok()?;
-    Some(RgbColor { r: r as f64 / 255.0, g: g as f64 / 255.0, b: b as f64 / 255.0 })
+    Some(RgbColor {
+        r: r as f64 / 255.0,
+        g: g as f64 / 255.0,
+        b: b as f64 / 255.0,
+    })
 }
 
 /// Estimates line count without a full FontRegistry (character-width heuristic).
@@ -253,7 +259,9 @@ fn estimate_line_count(runs: &[TextRun], max_width_mm: f64, font_size: f64) -> u
     let char_width_mm = font_size * 0.5 * 25.4 / 72.0;
     let chars_per_line = (max_width_mm / char_width_mm).floor() as usize;
     let total_chars: usize = runs.iter().map(|r| r.text.len()).sum();
-    if chars_per_line == 0 { return 1; }
+    if chars_per_line == 0 {
+        return 1;
+    }
     total_chars.div_ceil(chars_per_line).max(1)
 }
 
@@ -265,7 +273,11 @@ impl Element for Paragraph {
         let runs: Vec<TextRun> = match &self.content {
             ParagraphContent::Plain(text) => vec![TextRun {
                 text: text.clone(),
-                style: AppliedStyle { bold: self.bold, italic: self.italic, ..Default::default() },
+                style: AppliedStyle {
+                    bold: self.bold,
+                    italic: self.italic,
+                    ..Default::default()
+                },
                 letter_spacing_mm: 0.0,
                 ..Default::default()
             }],
@@ -292,7 +304,8 @@ impl Element for Paragraph {
         };
 
         // ── Effective values (explicit > resolved style > document defaults) ──
-        let font_size = self.font_size
+        let font_size = self
+            .font_size
             .or_else(|| resolved.as_ref().map(|r| r.font_size))
             .unwrap_or(ctx.style.font_size_body);
 
@@ -304,11 +317,13 @@ impl Element for Paragraph {
             self.alignment
         };
 
-        let space_after = self.space_after_mm
+        let space_after = self
+            .space_after_mm
             .or_else(|| resolved.as_ref().map(|r| r.space_after_mm))
             .unwrap_or(font_size * 0.3 * 25.4 / 72.0);
 
-        let space_before = self.space_before_mm
+        let space_before = self
+            .space_before_mm
             .or_else(|| resolved.as_ref().map(|r| r.space_before_mm))
             .unwrap_or(0.0);
 
@@ -327,7 +342,10 @@ impl Element for Paragraph {
         let indent_first = if self.indent_first_line_mm != 0.0 {
             self.indent_first_line_mm
         } else {
-            resolved.as_ref().map(|r| r.indent_first_line_mm).unwrap_or(0.0)
+            resolved
+                .as_ref()
+                .map(|r| r.indent_first_line_mm)
+                .unwrap_or(0.0)
         };
 
         if is_fresh && space_before > 0.0 && !ctx.flow.is_top_of_page() {
@@ -342,7 +360,11 @@ impl Element for Paragraph {
                 let italic = self.italic || resolved.as_ref().map(|r| r.italic).unwrap_or(false);
                 vec![TextRun {
                     text: text.clone(),
-                    style: AppliedStyle { bold, italic, ..Default::default() },
+                    style: AppliedStyle {
+                        bold,
+                        italic,
+                        ..Default::default()
+                    },
                     letter_spacing_mm: 0.0,
                     ..Default::default()
                 }]
@@ -353,7 +375,12 @@ impl Element for Paragraph {
         let max_width = (ctx.layout.content_width_mm - indent_left - indent_right).max(1.0);
 
         let result = ctx.layout_engine.layout_runs(
-            &ctx.fonts, &runs, max_width, effective_alignment, font_size, &self.tab_stops,
+            &ctx.fonts,
+            &runs,
+            max_width,
+            effective_alignment,
+            font_size,
+            &self.tab_stops,
         );
 
         // ── Orphan / widow pre-calculation ────────────────────────────────────
@@ -394,7 +421,11 @@ impl Element for Paragraph {
             if min_widow > 0 && lines_after > 0 && lines_after < min_widow {
                 let earlier = total.saturating_sub(min_widow);
                 // Only move break earlier if it leaves at least one line on current page.
-                if earlier > start_line { Some(earlier) } else { Some(nb) }
+                if earlier > start_line {
+                    Some(earlier)
+                } else {
+                    Some(nb)
+                }
             } else {
                 Some(nb)
             }
@@ -412,7 +443,8 @@ impl Element for Paragraph {
         };
 
         // Clone text color now to avoid borrow conflicts during drawing.
-        let text_color: RgbColor = resolved.as_ref()
+        let text_color: RgbColor = resolved
+            .as_ref()
             .and_then(|r| r.color.clone())
             .unwrap_or_else(|| ctx.style.text_color.clone());
 
@@ -425,7 +457,9 @@ impl Element for Paragraph {
         if is_fresh {
             if let Some(ref bg) = self.background {
                 let pad = self.border.as_ref().map(|b| b.padding_mm).unwrap_or(0.0);
-                if ctx.ua_config.enabled { ctx.backend.begin_artifact_content(); }
+                if ctx.ua_config.enabled {
+                    ctx.backend.begin_artifact_content();
+                }
                 ctx.backend.draw_rect(
                     block_x - pad,
                     block_y_top - block_h - pad,
@@ -433,7 +467,9 @@ impl Element for Paragraph {
                     block_h + pad * 2.0,
                     bg,
                 )?;
-                if ctx.ua_config.enabled { ctx.backend.end_tagged_content(); }
+                if ctx.ua_config.enabled {
+                    ctx.backend.end_tagged_content();
+                }
             }
         }
 
@@ -442,7 +478,9 @@ impl Element for Paragraph {
             // Break at the pre-calculated point (includes widow/orphan adjustments).
             if Some(line_idx) == break_at {
                 ctx.resume_index = line_idx;
-                if ua_mcid.is_some() { ctx.backend.end_tagged_content(); }
+                if ua_mcid.is_some() {
+                    ctx.backend.end_tagged_content();
+                }
                 return Ok(RenderResult::more());
             }
 
@@ -460,16 +498,33 @@ impl Element for Paragraph {
                 };
                 let x = ctx.layout.content_x_mm + indent_left + first_line_extra + seg.x_offset_mm;
                 let seg_w = ctx.fonts.measure_text_mm(
-                    &seg.text, &ctx.default_font_family, seg.font_size, seg.style.bold, seg.style.italic,
+                    &seg.text,
+                    &ctx.default_font_family,
+                    seg.font_size,
+                    seg.style.bold,
+                    seg.style.italic,
                 );
 
                 // Highlight pre-pass: filled rect behind the text (Artifact).
                 if let Some(ref h) = seg.style.highlight {
-                    let hl_color = parse_hex_color(h)
-                        .unwrap_or(RgbColor { r: 1.0, g: 1.0, b: 0.0 });
-                    if ctx.ua_config.enabled { ctx.backend.begin_artifact_content(); }
-                    ctx.backend.draw_rect(x, y - line.height_mm, seg_w, line.height_mm, &hl_color)?;
-                    if ctx.ua_config.enabled { ctx.backend.end_tagged_content(); }
+                    let hl_color = parse_hex_color(h).unwrap_or(RgbColor {
+                        r: 1.0,
+                        g: 1.0,
+                        b: 0.0,
+                    });
+                    if ctx.ua_config.enabled {
+                        ctx.backend.begin_artifact_content();
+                    }
+                    ctx.backend.draw_rect(
+                        x,
+                        y - line.height_mm,
+                        seg_w,
+                        line.height_mm,
+                        &hl_color,
+                    )?;
+                    if ctx.ua_config.enabled {
+                        ctx.backend.end_tagged_content();
+                    }
                 }
 
                 // Text.
@@ -484,7 +539,9 @@ impl Element for Paragraph {
                 let underline = seg.style.underline;
                 let strikethrough = seg.style.strikethrough;
                 if underline || strikethrough {
-                    if ctx.ua_config.enabled { ctx.backend.begin_artifact_content(); }
+                    if ctx.ua_config.enabled {
+                        ctx.backend.begin_artifact_content();
+                    }
                     if underline {
                         let ul_y = y - seg.font_size * 0.15 * 25.4 / 72.0;
                         ctx.draw_hline(x, x + seg_w, ul_y, 0.5, &text_color)?;
@@ -493,47 +550,69 @@ impl Element for Paragraph {
                         let st_y = y + seg.font_size * 0.25 * 25.4 / 72.0;
                         ctx.draw_hline(x, x + seg_w, st_y, 0.5, &text_color)?;
                     }
-                    if ctx.ua_config.enabled { ctx.backend.end_tagged_content(); }
+                    if ctx.ua_config.enabled {
+                        ctx.backend.end_tagged_content();
+                    }
                 }
             }
         }
 
         // ── Paragraph borders (only on fresh start — can't span pages) ────────
-        if is_fresh { if let Some(ref brd) = self.border {
-            let pad = brd.padding_mm;
-            let x0 = block_x - pad;
-            let x1 = block_x + block_w + pad;
-            let y_top = block_y_top + pad;
-            let y_bot = block_y_top - block_h - pad;
-            let has_border = brd.top.is_some() || brd.bottom.is_some()
-                || brd.left.is_some() || brd.right.is_some();
-            if ctx.ua_config.enabled && has_border { ctx.backend.begin_artifact_content(); }
-            if let Some(ref dl) = brd.top {
-                let col = dl.color.as_ref().cloned()
-                    .unwrap_or(RgbColor { r: 0.0, g: 0.0, b: 0.0 });
-                let pt = (dl.thickness_mm * 72.0 / 25.4) as f32;
-                ctx.draw_hline(x0, x1, y_top, pt, &col)?;
+        if is_fresh {
+            if let Some(ref brd) = self.border {
+                let pad = brd.padding_mm;
+                let x0 = block_x - pad;
+                let x1 = block_x + block_w + pad;
+                let y_top = block_y_top + pad;
+                let y_bot = block_y_top - block_h - pad;
+                let has_border = brd.top.is_some()
+                    || brd.bottom.is_some()
+                    || brd.left.is_some()
+                    || brd.right.is_some();
+                if ctx.ua_config.enabled && has_border {
+                    ctx.backend.begin_artifact_content();
+                }
+                if let Some(ref dl) = brd.top {
+                    let col = dl.color.as_ref().cloned().unwrap_or(RgbColor {
+                        r: 0.0,
+                        g: 0.0,
+                        b: 0.0,
+                    });
+                    let pt = (dl.thickness_mm * 72.0 / 25.4) as f32;
+                    ctx.draw_hline(x0, x1, y_top, pt, &col)?;
+                }
+                if let Some(ref dl) = brd.bottom {
+                    let col = dl.color.as_ref().cloned().unwrap_or(RgbColor {
+                        r: 0.0,
+                        g: 0.0,
+                        b: 0.0,
+                    });
+                    let pt = (dl.thickness_mm * 72.0 / 25.4) as f32;
+                    ctx.draw_hline(x0, x1, y_bot, pt, &col)?;
+                }
+                if let Some(ref dl) = brd.left {
+                    let col = dl.color.as_ref().cloned().unwrap_or(RgbColor {
+                        r: 0.0,
+                        g: 0.0,
+                        b: 0.0,
+                    });
+                    let pt = (dl.thickness_mm * 72.0 / 25.4) as f32;
+                    ctx.draw_vline(x0, y_bot, y_top, pt, &col)?;
+                }
+                if let Some(ref dl) = brd.right {
+                    let col = dl.color.as_ref().cloned().unwrap_or(RgbColor {
+                        r: 0.0,
+                        g: 0.0,
+                        b: 0.0,
+                    });
+                    let pt = (dl.thickness_mm * 72.0 / 25.4) as f32;
+                    ctx.draw_vline(x1, y_bot, y_top, pt, &col)?;
+                }
+                if ctx.ua_config.enabled && has_border {
+                    ctx.backend.end_tagged_content();
+                }
             }
-            if let Some(ref dl) = brd.bottom {
-                let col = dl.color.as_ref().cloned()
-                    .unwrap_or(RgbColor { r: 0.0, g: 0.0, b: 0.0 });
-                let pt = (dl.thickness_mm * 72.0 / 25.4) as f32;
-                ctx.draw_hline(x0, x1, y_bot, pt, &col)?;
-            }
-            if let Some(ref dl) = brd.left {
-                let col = dl.color.as_ref().cloned()
-                    .unwrap_or(RgbColor { r: 0.0, g: 0.0, b: 0.0 });
-                let pt = (dl.thickness_mm * 72.0 / 25.4) as f32;
-                ctx.draw_vline(x0, y_bot, y_top, pt, &col)?;
-            }
-            if let Some(ref dl) = brd.right {
-                let col = dl.color.as_ref().cloned()
-                    .unwrap_or(RgbColor { r: 0.0, g: 0.0, b: 0.0 });
-                let pt = (dl.thickness_mm * 72.0 / 25.4) as f32;
-                ctx.draw_vline(x1, y_bot, y_top, pt, &col)?;
-            }
-            if ctx.ua_config.enabled && has_border { ctx.backend.end_tagged_content(); }
-        } } // end is_fresh border block
+        } // end is_fresh border block
 
         if ua_mcid.is_some() {
             ctx.backend.end_tagged_content();

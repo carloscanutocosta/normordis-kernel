@@ -1,6 +1,5 @@
 use normordis_pdf::{
-    ncrtf_to_elements, parse_ncrtf, DocumentBuilder, DocumentStyle,
-    richtext::marks::MarkValue,
+    ncrtf_to_elements, parse_ncrtf, richtext::marks::MarkValue, DocumentBuilder, DocumentStyle,
 };
 
 const MINIMAL_JSON: &str = r#"{

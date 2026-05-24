@@ -29,8 +29,8 @@ pub use error::{
 
 // ── Store de eventos (contrato + tipos de filtro) ──────────────────────────────
 pub use repository::{
-    MetricListCriteria, MetricStore, StoreEmitter, DEFAULT_LIST_LIMIT,
-    DEFAULT_NAMESPACE, MAX_LIST_LIMIT,
+    MetricListCriteria, MetricStore, StoreEmitter, DEFAULT_LIST_LIMIT, DEFAULT_NAMESPACE,
+    MAX_LIST_LIMIT,
 };
 
 // StorageMetricStore depreciado: use metrics-sqlite::MetricsSqliteStore
@@ -66,13 +66,11 @@ pub use org_hierarchy::{LevelAggregationService, OrgHierarchyProvider, StaticOrg
 
 // ── SIADAP ─────────────────────────────────────────────────────────────────────
 pub use siadap::{
-    IntermediaryEvaluationWindow, QuotaValidationReport, QuotaViolation,
-    Siadap1EvaluationResult, Siadap1QuotaConfig, Siadap1Rating,
-    Siadap2EvaluationResult, Siadap2QuotaConfig, Siadap2Rating,
+    siadap2_weighted_score, siadap3_weighted_score, validate_score, validate_siadap1_quotas,
+    validate_siadap2_quotas, validate_siadap3_quotas, validate_weights,
+    IntermediaryEvaluationWindow, QuotaValidationReport, QuotaViolation, Siadap1EvaluationResult,
+    Siadap1QuotaConfig, Siadap1Rating, Siadap2EvaluationResult, Siadap2QuotaConfig, Siadap2Rating,
     Siadap3EvaluationResult, Siadap3QuotaConfig, Siadap3Rating,
-    siadap2_weighted_score, siadap3_weighted_score,
-    validate_siadap1_quotas, validate_siadap2_quotas, validate_siadap3_quotas,
-    validate_score, validate_weights,
 };
 
 #[cfg(test)]

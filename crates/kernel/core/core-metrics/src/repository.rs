@@ -75,7 +75,10 @@ impl MetricListCriteria {
 /// **Depreciado**: use `metrics-sqlite` (`MetricsSqliteStore`) em vez disto.
 /// `StorageMetricStore` não suporta os stores de governação e será removido
 /// numa versão futura.
-#[deprecated(since = "0.4.0", note = "Use metrics-sqlite::MetricsSqliteStore instead")]
+#[deprecated(
+    since = "0.4.0",
+    note = "Use metrics-sqlite::MetricsSqliteStore instead"
+)]
 pub struct StorageMetricStore<S: Storage> {
     storage: S,
     namespace: support_storage::StorageNamespace,
@@ -131,8 +134,7 @@ struct Index {
 const INDEX_KEY: &str = "events.index";
 
 fn event_storage_key(id: &str) -> Result<support_storage::StorageKey, MetricError> {
-    support_storage::StorageKey::new(format!("event.{id}"))
-        .map_err(|_| MetricError::MarshalFailed)
+    support_storage::StorageKey::new(format!("event.{id}")).map_err(|_| MetricError::MarshalFailed)
 }
 
 fn index_storage_key() -> Result<support_storage::StorageKey, MetricError> {
@@ -165,7 +167,10 @@ impl<S: Storage> MetricStore for StorageMetricStore<S> {
             .map_err(|_| MetricError::RepoUnavailable)?;
         let key = event_storage_key(&event.id)?;
         let value = serde_json::to_value(&event).map_err(|_| MetricError::MarshalFailed)?;
-        if !self.storage.put_json_if_absent(&self.namespace, &key, &value)? {
+        if !self
+            .storage
+            .put_json_if_absent(&self.namespace, &key, &value)?
+        {
             return Err(MetricError::Conflict);
         }
         let mut index = self.read_index()?;
@@ -270,15 +275,15 @@ fn matches_criteria(entry: &IndexEntry, c: &MetricListCriteria) -> bool {
         }
     }
     if let Some(from) = c.time_from {
-        let ts = DateTime::from_timestamp_millis(entry.timestamp_ms)
-            .unwrap_or(DateTime::<Utc>::MIN_UTC);
+        let ts =
+            DateTime::from_timestamp_millis(entry.timestamp_ms).unwrap_or(DateTime::<Utc>::MIN_UTC);
         if ts < from {
             return false;
         }
     }
     if let Some(to) = c.time_to {
-        let ts = DateTime::from_timestamp_millis(entry.timestamp_ms)
-            .unwrap_or(DateTime::<Utc>::MIN_UTC);
+        let ts =
+            DateTime::from_timestamp_millis(entry.timestamp_ms).unwrap_or(DateTime::<Utc>::MIN_UTC);
         if ts > to {
             return false;
         }
@@ -322,7 +327,13 @@ mod tests {
     }
 
     fn ev(id: &str) -> MetricEvent {
-        let mut e = new_event(id, "process.duration", 1.0, Some("ms"), None::<HashMap<String, String>>);
+        let mut e = new_event(
+            id,
+            "process.duration",
+            1.0,
+            Some("ms"),
+            None::<HashMap<String, String>>,
+        );
         e.timestamp = Utc.with_ymd_and_hms(2026, 5, 17, 10, 0, 0).unwrap();
         e
     }

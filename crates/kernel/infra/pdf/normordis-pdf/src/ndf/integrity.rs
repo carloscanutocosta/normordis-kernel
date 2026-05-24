@@ -23,11 +23,7 @@ pub struct NdfIntegrity {
 
 impl NdfIntegrity {
     /// Computes all integrity hashes for a new NDF.
-    pub fn compute(
-        content: &Value,
-        styles: &Value,
-        meta: &Value,
-    ) -> crate::Result<Self> {
+    pub fn compute(content: &Value, styles: &Value, meta: &Value) -> crate::Result<Self> {
         let content_hash = canonical_hash(content);
         let styles_hash = canonical_hash(styles);
 
@@ -66,8 +62,7 @@ impl NdfIntegrity {
 /// serialisation. Returns `"sha256:<hex>"`.
 pub fn canonical_hash(value: &Value) -> String {
     let canonical = crate::ndf::jcs::canonicalise(value);
-    let bytes =
-        serde_json::to_vec(&canonical).expect("canonical JSON serialisation is infallible");
+    let bytes = serde_json::to_vec(&canonical).expect("canonical JSON serialisation is infallible");
     format!("sha256:{}", hex::encode(Sha256::digest(&bytes)))
 }
 
@@ -97,8 +92,8 @@ pub fn verify(ndf: &super::NdfDocument) -> crate::Result<IntegrityReport> {
     let actual_content = canonical_hash(&ndf.content);
     let actual_styles = canonical_hash(&ndf.styles);
 
-    let meta_val = serde_json::to_value(&ndf.meta)
-        .map_err(|e| NormaxisPdfError::SerdeError(e.to_string()))?;
+    let meta_val =
+        serde_json::to_value(&ndf.meta).map_err(|e| NormaxisPdfError::SerdeError(e.to_string()))?;
 
     let content_ok = actual_content == ndf.integrity.content_hash;
     let styles_ok = actual_styles == ndf.integrity.styles_hash;

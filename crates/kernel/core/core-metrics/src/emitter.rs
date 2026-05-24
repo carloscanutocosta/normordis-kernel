@@ -71,7 +71,13 @@ mod tests {
     use std::collections::HashMap;
 
     fn ev(id: &str) -> MetricEvent {
-        new_event(id, "process.duration", 1.0, Some("ms"), None::<HashMap<String, String>>)
+        new_event(
+            id,
+            "process.duration",
+            1.0,
+            Some("ms"),
+            None::<HashMap<String, String>>,
+        )
     }
 
     #[test]
@@ -92,7 +98,11 @@ mod tests {
         reg.emit(e).unwrap();
 
         let mut snap = reg.snapshot();
-        snap[0].labels.as_mut().unwrap().insert("k".to_string(), "mutated".to_string());
+        snap[0]
+            .labels
+            .as_mut()
+            .unwrap()
+            .insert("k".to_string(), "mutated".to_string());
 
         let snap2 = reg.snapshot();
         assert_eq!(snap2[0].labels.as_ref().unwrap()["k"], "v");
@@ -112,10 +122,7 @@ mod tests {
         let ra = Arc::new(InMemoryMetricRegistry::new());
         let rb = Arc::new(InMemoryMetricRegistry::new());
 
-        let fanout = FanoutEmitter::new(vec![
-            Box::new(Arc::clone(&ra)),
-            Box::new(Arc::clone(&rb)),
-        ]);
+        let fanout = FanoutEmitter::new(vec![Box::new(Arc::clone(&ra)), Box::new(Arc::clone(&rb))]);
 
         fanout.emit(ev("m-001")).unwrap();
 
@@ -133,10 +140,7 @@ mod tests {
         }
 
         let reg = Arc::new(InMemoryMetricRegistry::new());
-        let fanout = FanoutEmitter::new(vec![
-            Box::new(AlwaysFail),
-            Box::new(Arc::clone(&reg)),
-        ]);
+        let fanout = FanoutEmitter::new(vec![Box::new(AlwaysFail), Box::new(Arc::clone(&reg))]);
 
         assert_eq!(fanout.emit(ev("m-001")), Err(MetricError::RepoUnavailable));
         assert_eq!(reg.snapshot().len(), 0);

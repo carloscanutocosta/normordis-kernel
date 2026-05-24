@@ -15,7 +15,9 @@ use chrono::{DateTime, Utc};
 use rusqlite::{params, Connection, OptionalExtension};
 use thiserror::Error;
 
-use adapter_sqlite::{open_relational_connection, run_relational_migrations, SqliteRelationalConfig};
+use adapter_sqlite::{
+    open_relational_connection, run_relational_migrations, SqliteRelationalConfig,
+};
 use domain_mef::{DiplomaRef, MefCode, MefEntry, MefError, MefRepository, UpsertMefEntryRequest};
 use support_errors::MiniError;
 
@@ -107,7 +109,8 @@ fn migrate_from_legacy_if_needed(conn: &Connection) -> Result<(), MefSqliteError
     if old_is_flat_table {
         // Copia os dados da tabela flat para a temporal, preservando todos os
         // registos mas sem informação de diploma (era desconhecida).
-        conn.execute_batch(r#"
+        conn.execute_batch(
+            r#"
             INSERT OR IGNORE INTO platform_mef_classification
                 (classification_code, label, parent_code, is_usable,
                  effective_from, effective_to, changed_by, change_reason,
@@ -126,12 +129,14 @@ fn migrate_from_legacy_if_needed(conn: &Connection) -> Result<(), MefSqliteError
             FROM platform_reference_document_classification;
 
             DROP TABLE platform_reference_document_classification;
-        "#)?;
+        "#,
+        )?;
     }
 
     // Garante que a view de compatibilidade existe (tabela flat já foi removida
     // ou nunca existiu).
-    conn.execute_batch(r#"
+    conn.execute_batch(
+        r#"
         CREATE VIEW IF NOT EXISTS platform_reference_document_classification AS
         SELECT
             classification_code,
@@ -141,7 +146,8 @@ fn migrate_from_legacy_if_needed(conn: &Connection) -> Result<(), MefSqliteError
         FROM platform_mef_classification
         WHERE effective_to IS NULL
         ORDER BY length(classification_code) ASC, classification_code ASC;
-    "#)?;
+    "#,
+    )?;
 
     Ok(())
 }
@@ -165,9 +171,11 @@ fn row_to_entry(row: &rusqlite::Row<'_>) -> rusqlite::Result<MefEntry> {
     })?;
     let parent_code = parent_str
         .filter(|s| !s.is_empty())
-        .map(|s| MefCode::new(s).map_err(|e| {
-            rusqlite::Error::InvalidColumnType(2, e.to_string(), rusqlite::types::Type::Text)
-        }))
+        .map(|s| {
+            MefCode::new(s).map_err(|e| {
+                rusqlite::Error::InvalidColumnType(2, e.to_string(), rusqlite::types::Type::Text)
+            })
+        })
         .transpose()?;
 
     let effective_from = DateTime::parse_from_rfc3339(&effective_from_str)
@@ -196,8 +204,7 @@ fn row_to_entry(row: &rusqlite::Row<'_>) -> rusqlite::Result<MefEntry> {
     })
 }
 
-const SELECT_COLS: &str =
-    "classification_code, label, parent_code, is_usable, \
+const SELECT_COLS: &str = "classification_code, label, parent_code, is_usable, \
      effective_from, effective_to, changed_by, change_reason, \
      diploma_ref, diploma_date";
 
@@ -434,7 +441,8 @@ mod tests {
     fn open_tmp() -> (tempfile::TempDir, MefSqliteStore) {
         let dir = tempdir().unwrap();
         let path = dir.path().join("mef.db");
-        let store = MefSqliteStore::open(&SqliteRelationalConfig::read_write_create(&path)).unwrap();
+        let store =
+            MefSqliteStore::open(&SqliteRelationalConfig::read_write_create(&path)).unwrap();
         (dir, store)
     }
 
@@ -476,7 +484,10 @@ mod tests {
 
         let history = store.get_history(&code("100.10")).unwrap();
         assert_eq!(history.len(), 2, "deve haver 2 versões no histórico");
-        assert!(history[0].effective_to.is_none(), "versão mais recente activa");
+        assert!(
+            history[0].effective_to.is_none(),
+            "versão mais recente activa"
+        );
         assert!(history[1].effective_to.is_some(), "versão anterior fechada");
         assert_eq!(history[0].label, "Apoio Técnico Geral");
     }
@@ -514,7 +525,13 @@ mod tests {
         let (_dir, store) = open_tmp();
         upsert(&store, "100", "Administração", None, false);
         upsert(&store, "100.10", "Gestão de Recursos", Some("100"), false);
-        upsert(&store, "100.10.01", "Recursos Humanos", Some("100.10"), true);
+        upsert(
+            &store,
+            "100.10.01",
+            "Recursos Humanos",
+            Some("100.10"),
+            true,
+        );
 
         let path = store.resolve_path(&code("100.10.01")).unwrap();
         assert_eq!(path.len(), 3);
@@ -528,8 +545,12 @@ mod tests {
         let (_dir, store) = open_tmp();
         upsert(&store, "100", "Gestão", None, false);
 
-        store.deactivate_entry(&code("100"), "admin", Some("Abolido"), None).unwrap();
-        store.deactivate_entry(&code("100"), "admin", Some("Abolido"), None).unwrap(); // segunda vez
+        store
+            .deactivate_entry(&code("100"), "admin", Some("Abolido"), None)
+            .unwrap();
+        store
+            .deactivate_entry(&code("100"), "admin", Some("Abolido"), None)
+            .unwrap(); // segunda vez
 
         let current = store.get_current().unwrap();
         assert!(current.is_empty(), "código deve estar inactivo");
@@ -568,7 +589,8 @@ mod tests {
         // Simula a tabela flat legada.
         {
             let conn = Connection::open(&path).unwrap();
-            conn.execute_batch(r#"
+            conn.execute_batch(
+                r#"
                 CREATE TABLE platform_reference_document_classification (
                     classification_code TEXT NOT NULL,
                     label TEXT NOT NULL,
@@ -578,23 +600,30 @@ mod tests {
                 INSERT INTO platform_reference_document_classification VALUES
                     ('100', 'Administração', NULL, 0),
                     ('100.10', 'Recursos', '100', 1);
-            "#).unwrap();
+            "#,
+            )
+            .unwrap();
         }
 
-        let store = MefSqliteStore::open(
-            &SqliteRelationalConfig::read_write_create(&path)
-        ).unwrap();
+        let store =
+            MefSqliteStore::open(&SqliteRelationalConfig::read_write_create(&path)).unwrap();
 
         let current = store.get_current().unwrap();
         assert_eq!(current.len(), 2, "dados legados devem ter sido migrados");
 
         // A view de compatibilidade deve existir.
-        let view_exists: bool = store.conn.query_row(
-            "SELECT COUNT(*) > 0 FROM sqlite_master WHERE type='view' \
+        let view_exists: bool = store
+            .conn
+            .query_row(
+                "SELECT COUNT(*) > 0 FROM sqlite_master WHERE type='view' \
              AND name='platform_reference_document_classification'",
-            [],
-            |row| row.get(0),
-        ).unwrap();
-        assert!(view_exists, "view de compatibilidade deve existir após migração");
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert!(
+            view_exists,
+            "view de compatibilidade deve existir após migração"
+        );
     }
 }

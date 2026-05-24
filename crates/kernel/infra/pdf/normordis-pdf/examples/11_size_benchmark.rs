@@ -2,9 +2,8 @@
 //! Run: cargo run --example 11_size_benchmark -p normordis-pdf
 
 use normordis_pdf::{
-    CompressionLevel, DocumentBuilder, Paragraph, Section, Spacer, Table, TableCell,
-    elements::footer::PageFooter,
-    elements::header::InstitutionalHeader,
+    elements::footer::PageFooter, elements::header::InstitutionalHeader, CompressionLevel,
+    DocumentBuilder, Paragraph, Section, Spacer, Table, TableCell,
 };
 
 fn build_document(compression: CompressionLevel) -> normordis_pdf::Result<Vec<u8>> {
@@ -15,9 +14,11 @@ fn build_document(compression: CompressionLevel) -> normordis_pdf::Result<Vec<u8
                 .with_reference("REF/2026/001")
                 .with_date("30 de Abril de 2026"),
         )
-        .footer(PageFooter::new()
-            .left("REF/2026/001")
-            .right("{{page}} / {{total_pages}}"))
+        .footer(
+            PageFooter::new()
+                .left("REF/2026/001")
+                .right("{{page}} / {{total_pages}}"),
+        )
         .push(Section::new("1. Introdução", 1))
         .push(Paragraph::new(
             "Este documento serve como benchmark para medir o tamanho de \
@@ -31,11 +32,20 @@ fn build_document(compression: CompressionLevel) -> normordis_pdf::Result<Vec<u8
         .push(
             Table::builder()
                 .row(vec![TableCell::new("Campo"), TableCell::new("Valor")])
-                .row(vec![TableCell::new("Entidade"), TableCell::new("Câmara Municipal")])
-                .row(vec![TableCell::new("Referência"), TableCell::new("REF/2026/001")])
+                .row(vec![
+                    TableCell::new("Entidade"),
+                    TableCell::new("Câmara Municipal"),
+                ])
+                .row(vec![
+                    TableCell::new("Referência"),
+                    TableCell::new("REF/2026/001"),
+                ])
                 .row(vec![TableCell::new("Data"), TableCell::new("30-04-2026")])
                 .row(vec![TableCell::new("Versão"), TableCell::new("1.5.1")])
-                .row(vec![TableCell::new("Compressão"), TableCell::new(&format!("{compression:?}"))])
+                .row(vec![
+                    TableCell::new("Compressão"),
+                    TableCell::new(&format!("{compression:?}")),
+                ])
                 .build(),
         )
         .push(Spacer::new(4.0))
@@ -54,9 +64,9 @@ fn main() -> normordis_pdf::Result<()> {
 
     let levels = [
         ("None (sem compressão)", CompressionLevel::None),
-        ("Fast (zlib nível 1)",   CompressionLevel::Fast),
+        ("Fast (zlib nível 1)", CompressionLevel::Fast),
         ("Default (zlib nível 6)", CompressionLevel::Default),
-        ("Best (zlib nível 9)",   CompressionLevel::Best),
+        ("Best (zlib nível 9)", CompressionLevel::Best),
     ];
 
     let mut results: Vec<(&str, usize, Vec<u8>)> = Vec::new();

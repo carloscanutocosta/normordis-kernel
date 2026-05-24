@@ -22,7 +22,12 @@ pub struct SectionMargins {
 
 impl SectionMargins {
     pub fn uniform(mm: f64) -> Self {
-        Self { top_mm: mm, bottom_mm: mm, left_mm: mm, right_mm: mm }
+        Self {
+            top_mm: mm,
+            bottom_mm: mm,
+            left_mm: mm,
+            right_mm: mm,
+        }
     }
 
     pub fn symmetric(vertical_mm: f64, horizontal_mm: f64) -> Self {
@@ -60,11 +65,17 @@ pub struct SectionBreak {
 
 impl SectionBreak {
     pub fn portrait() -> Self {
-        Self { orientation: Orientation::Portrait, margins: None }
+        Self {
+            orientation: Orientation::Portrait,
+            margins: None,
+        }
     }
 
     pub fn landscape() -> Self {
-        Self { orientation: Orientation::Landscape, margins: None }
+        Self {
+            orientation: Orientation::Landscape,
+            margins: None,
+        }
     }
 
     pub fn with_margins(mut self, margins: SectionMargins) -> Self {

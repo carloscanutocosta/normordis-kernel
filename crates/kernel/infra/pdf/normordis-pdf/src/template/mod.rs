@@ -9,8 +9,7 @@ pub use model::NdtDocument;
 pub use renderer::render_template;
 
 pub use ndf_pipeline::{
-    compile_ndt, parse_ndf, render_ndf, render_ndf_prepared_for_signing, verify_ndf,
-    CompileOptions,
+    compile_ndt, parse_ndf, render_ndf, render_ndf_prepared_for_signing, verify_ndf, CompileOptions,
 };
 mod ndf_pipeline;
 
@@ -31,7 +30,11 @@ pub enum TemplateError {
     #[error("Placeholder '{name}' invalid: {reason}")]
     InvalidPlaceholder { name: String, reason: String },
     #[error("Placeholder '{name}' type mismatch: expected {expected}, got {got}")]
-    PlaceholderTypeMismatch { name: String, expected: String, got: String },
+    PlaceholderTypeMismatch {
+        name: String,
+        expected: String,
+        got: String,
+    },
     #[error("Zone '{name}' not found")]
     ZoneNotFound { name: String },
     #[error("Include not found: {path}")]

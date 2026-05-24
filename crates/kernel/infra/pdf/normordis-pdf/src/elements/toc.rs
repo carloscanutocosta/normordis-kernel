@@ -1,8 +1,5 @@
 use super::{Element, RenderContext, RenderResult};
-use crate::{
-    layout::TextAlign,
-    styles::StyleResolver,
-};
+use crate::{layout::TextAlign, styles::StyleResolver};
 
 // ── TocEntry ──────────────────────────────────────────────────────────────────
 
@@ -56,7 +53,11 @@ impl Default for TableOfContents {
             max_level: 3,
             leader_char: '.',
             title_style: "heading_1".to_string(),
-            entry_styles: vec!["toc_1".to_string(), "toc_2".to_string(), "toc_3".to_string()],
+            entry_styles: vec![
+                "toc_1".to_string(),
+                "toc_2".to_string(),
+                "toc_3".to_string(),
+            ],
             entries: None,
         }
     }
@@ -132,7 +133,12 @@ impl Element for TableOfContents {
             if entry.level > self.max_level {
                 continue;
             }
-            render_toc_entry(entry, self.leader_char, self.entry_style_for(entry.level), ctx)?;
+            render_toc_entry(
+                entry,
+                self.leader_char,
+                self.entry_style_for(entry.level),
+                ctx,
+            )?;
         }
 
         Ok(RenderResult::done())
@@ -154,15 +160,25 @@ fn render_toc_entry(
 
     // Measure title and page number.
     let page_str = entry.page_number.to_string();
-    let page_w = ctx.fonts.get_family(&resolved.font_family)
+    let page_w = ctx
+        .fonts
+        .get_family(&resolved.font_family)
         .measure_text_mm(&page_str, font_size, true, false);
-    let title_w = ctx.fonts.get_family(&resolved.font_family)
-        .measure_text_mm(&entry.title, font_size, resolved.bold, resolved.italic);
+    let title_w = ctx.fonts.get_family(&resolved.font_family).measure_text_mm(
+        &entry.title,
+        font_size,
+        resolved.bold,
+        resolved.italic,
+    );
 
     // Calculate how many leader characters fit in the gap.
     let leader_str = leader_char.to_string();
-    let leader_char_w = ctx.fonts.get_family(&resolved.font_family)
-        .measure_text_mm(&leader_str, font_size, false, false);
+    let leader_char_w = ctx.fonts.get_family(&resolved.font_family).measure_text_mm(
+        &leader_str,
+        font_size,
+        false,
+        false,
+    );
     let gap = usable_w - title_w - page_w - 4.0; // 4mm breathing room
     let n_leaders = if leader_char_w > 0.0 {
         ((gap / leader_char_w).floor() as usize).saturating_sub(1)
@@ -185,7 +201,8 @@ fn render_toc_entry(
     // Invisible GoTo link annotation covering the full entry row.
     let x1 = ctx.layout.content_x_mm;
     let x2 = x1 + ctx.layout.content_width_mm;
-    ctx.backend.add_link_annotation(x1, y_bot_mm, x2, y_top_mm, &entry.title, entry.page_number);
+    ctx.backend
+        .add_link_annotation(x1, y_bot_mm, x2, y_top_mm, &entry.title, entry.page_number);
 
     Ok(())
 }

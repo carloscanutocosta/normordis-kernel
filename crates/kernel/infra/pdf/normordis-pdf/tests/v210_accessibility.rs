@@ -1,7 +1,7 @@
 use normordis_pdf::{
-    AccessibilityConfig, BulletList, DocumentBuilder, FixedBox, ImageElement,
-    ListItemElement, Paragraph, PdfStandard, Section, Spacer, StructTag,
-    StructureTree, Table, TableCell, UaError, UaValidator,
+    AccessibilityConfig, BulletList, DocumentBuilder, FixedBox, ImageElement, ListItemElement,
+    Paragraph, PdfStandard, Section, Spacer, StructTag, StructureTree, Table, TableCell, UaError,
+    UaValidator,
 };
 
 // ── helpers ───────────────────────────────────────────────────────────────────
@@ -21,15 +21,11 @@ fn renders_ok(b: DocumentBuilder) -> bool {
 
 fn tiny_png() -> Vec<u8> {
     vec![
-        0x89,0x50,0x4E,0x47,0x0D,0x0A,0x1A,0x0A,
-        0x00,0x00,0x00,0x0D,0x49,0x48,0x44,0x52,
-        0x00,0x00,0x00,0x01,0x00,0x00,0x00,0x01,
-        0x08,0x02,0x00,0x00,0x00,0x90,0x77,0x53,
-        0xDE,0x00,0x00,0x00,0x0C,0x49,0x44,0x41,
-        0x54,0x08,0xD7,0x63,0xF8,0xFF,0xFF,0x3F,
-        0x00,0x05,0xFE,0x02,0xFE,0xDC,0xCC,0x59,
-        0xE7,0x00,0x00,0x00,0x00,0x49,0x45,0x4E,
-        0x44,0xAE,0x42,0x60,0x82,
+        0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00, 0x00, 0x0D, 0x49, 0x48, 0x44,
+        0x52, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x08, 0x02, 0x00, 0x00, 0x00, 0x90,
+        0x77, 0x53, 0xDE, 0x00, 0x00, 0x00, 0x0C, 0x49, 0x44, 0x41, 0x54, 0x08, 0xD7, 0x63, 0xF8,
+        0xFF, 0xFF, 0x3F, 0x00, 0x05, 0xFE, 0x02, 0xFE, 0xDC, 0xCC, 0x59, 0xE7, 0x00, 0x00, 0x00,
+        0x00, 0x49, 0x45, 0x4E, 0x44, 0xAE, 0x42, 0x60, 0x82,
     ]
 }
 
@@ -60,17 +56,23 @@ fn ua03_pdfa_ua2_standard_enables_ua_automatically() {
 
 #[test]
 fn ua04_section_level1_renders() {
-    assert!(renders_ok(ua_builder("UA-04").push(Section::new("Título", 1))));
+    assert!(renders_ok(
+        ua_builder("UA-04").push(Section::new("Título", 1))
+    ));
 }
 
 #[test]
 fn ua05_section_level6_renders() {
-    assert!(renders_ok(ua_builder("UA-05").push(Section::new("Sub-sub-sub", 6))));
+    assert!(renders_ok(
+        ua_builder("UA-05").push(Section::new("Sub-sub-sub", 6))
+    ));
 }
 
 #[test]
 fn ua06_paragraph_renders() {
-    assert!(renders_ok(ua_builder("UA-06").push(Paragraph::new("Parágrafo."))));
+    assert!(renders_ok(
+        ua_builder("UA-06").push(Paragraph::new("Parágrafo."))
+    ));
 }
 
 #[test]
@@ -136,21 +138,39 @@ fn ua14_spacer_renders_without_panic() {
 #[test]
 fn ua15_fixed_box_without_ua_role_renders() {
     use normordis_pdf::TextAlign;
-    let fb = FixedBox { x_mm: 10.0, y_mm: 50.0, width_mm: 50.0, height_mm: 15.0,
-        ua_role: None, ua_alt: None, ..Default::default() };
-    assert!(renders_ok(ua_builder("UA-15").fixed_text(fb, "Sem role", TextAlign::Left)));
+    let fb = FixedBox {
+        x_mm: 10.0,
+        y_mm: 50.0,
+        width_mm: 50.0,
+        height_mm: 15.0,
+        ua_role: None,
+        ua_alt: None,
+        ..Default::default()
+    };
+    assert!(renders_ok(ua_builder("UA-15").fixed_text(
+        fb,
+        "Sem role",
+        TextAlign::Left
+    )));
 }
 
 #[test]
 fn ua16_fixed_box_with_ua_role_figure_renders() {
     use normordis_pdf::TextAlign;
     let fb = FixedBox {
-        x_mm: 10.0, y_mm: 50.0, width_mm: 50.0, height_mm: 15.0,
+        x_mm: 10.0,
+        y_mm: 50.0,
+        width_mm: 50.0,
+        height_mm: 15.0,
         ua_role: Some(StructTag::Figure),
         ua_alt: Some("Figura decorativa".into()),
         ..Default::default()
     };
-    assert!(renders_ok(ua_builder("UA-16").fixed_text(fb, "Figura", TextAlign::Center)));
+    assert!(renders_ok(ua_builder("UA-16").fixed_text(
+        fb,
+        "Figura",
+        TextAlign::Center
+    )));
 }
 
 // ── 17–21: Structure tree ─────────────────────────────────────────────────────
@@ -195,9 +215,9 @@ fn ua20_ua2_pdf_contains_struct_tree_root() {
 
 #[test]
 fn ua21_mcid_counter_starts_at_zero() {
-    use normordis_pdf::{DocumentStyle, PageFlow, PageLayout, FontRegistry, RenderContext};
-    use normordis_pdf::layout::TextLayoutEngine;
     use normordis_pdf::backend::pdf_writer_backend::PdfWriterBackend;
+    use normordis_pdf::layout::TextLayoutEngine;
+    use normordis_pdf::{DocumentStyle, FontRegistry, PageFlow, PageLayout, RenderContext};
     let style = DocumentStyle::default();
     let fonts = FontRegistry::new();
     let ctx = RenderContext {
@@ -215,7 +235,10 @@ fn ua21_mcid_counter_starts_at_zero() {
         resume_index: 0,
         glyph_tracker: normordis_pdf::GlyphUsageTracker::new(),
         reserved_footnotes_mm: 0.0,
-        ua_config: AccessibilityConfig { enabled: true, ..Default::default() },
+        ua_config: AccessibilityConfig {
+            enabled: true,
+            ..Default::default()
+        },
         ua_events: StructureTree::new(),
         mcid_counter: 0,
         last_heading_level: None,
@@ -242,7 +265,10 @@ fn ua23_fixed_box_with_role_renders() {
     let bytes = ua_builder("UA-23")
         .fixed_text(
             FixedBox {
-                x_mm: 10.0, y_mm: 250.0, width_mm: 80.0, height_mm: 10.0,
+                x_mm: 10.0,
+                y_mm: 250.0,
+                width_mm: 80.0,
+                height_mm: 10.0,
                 ua_role: Some(StructTag::Caption),
                 ua_alt: None,
                 ..Default::default()
@@ -272,20 +298,29 @@ fn ua25_validator_missing_lang_returns_error() {
     tree.begin_group(StructTag::Document, None);
     tree.end_group();
     let v = UaValidator::validate(Some(&tree), "");
-    assert!(v.errors.iter().any(|e| matches!(e, UaError::NoDocumentLanguage)));
+    assert!(v
+        .errors
+        .iter()
+        .any(|e| matches!(e, UaError::NoDocumentLanguage)));
 }
 
 #[test]
 fn ua26_validator_empty_tree_returns_error() {
     let tree = StructureTree::new();
     let v = UaValidator::validate(Some(&tree), "pt-PT");
-    assert!(v.errors.iter().any(|e| matches!(e, UaError::NoStructureTree)));
+    assert!(v
+        .errors
+        .iter()
+        .any(|e| matches!(e, UaError::NoStructureTree)));
 }
 
 #[test]
 fn ua27_validator_none_tree_returns_error() {
     let v = UaValidator::validate(None, "pt-PT");
-    assert!(v.errors.iter().any(|e| matches!(e, UaError::NoStructureTree)));
+    assert!(v
+        .errors
+        .iter()
+        .any(|e| matches!(e, UaError::NoStructureTree)));
 }
 
 // ── 28–30: NDT 2.1.0 ─────────────────────────────────────────────────────────
@@ -347,7 +382,11 @@ fn ua32_ua2_pdf_size_reasonable() {
         .render_to_bytes()
         .unwrap();
     // Structure tree adds ~5–15KB on top of base PDF/A-2b (~37–50KB)
-    assert!(bytes.len() < 150_000, "PDF demasiado grande: {} bytes", bytes.len());
+    assert!(
+        bytes.len() < 150_000,
+        "PDF demasiado grande: {} bytes",
+        bytes.len()
+    );
 }
 
 #[test]
@@ -361,12 +400,19 @@ fn ua33_image_alt_field_set_correctly() {
 fn ua34_fixed_box_role_figure_and_alt_set_correctly() {
     use normordis_pdf::TextAlign;
     let fb = FixedBox {
-        x_mm: 10.0, y_mm: 80.0, width_mm: 60.0, height_mm: 20.0,
+        x_mm: 10.0,
+        y_mm: 80.0,
+        width_mm: 60.0,
+        height_mm: 20.0,
         ua_role: Some(StructTag::Figure),
         ua_alt: Some("Alt da figura fixa".into()),
         ..Default::default()
     };
     assert_eq!(fb.ua_role, Some(StructTag::Figure));
     assert_eq!(fb.ua_alt.as_deref(), Some("Alt da figura fixa"));
-    assert!(renders_ok(ua_builder("UA-34").fixed_text(fb, "Figura", TextAlign::Left)));
+    assert!(renders_ok(ua_builder("UA-34").fixed_text(
+        fb,
+        "Figura",
+        TextAlign::Left
+    )));
 }

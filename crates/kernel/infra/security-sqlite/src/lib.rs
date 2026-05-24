@@ -120,21 +120,26 @@ pub struct SecuritySqliteStore {
 impl SecuritySqliteStore {
     pub fn open(config: &SqliteRelationalConfig) -> Result<Self, SecuritySqliteError> {
         let conn = open_relational_connection(config)?;
-        let store = Self { conn: Arc::new(Mutex::new(conn)) };
+        let store = Self {
+            conn: Arc::new(Mutex::new(conn)),
+        };
         store.migrate()?;
         Ok(store)
     }
 
     pub fn from_connection(conn: Connection) -> Result<Self, SecuritySqliteError> {
-        let store = Self { conn: Arc::new(Mutex::new(conn)) };
+        let store = Self {
+            conn: Arc::new(Mutex::new(conn)),
+        };
         store.migrate()?;
         Ok(store)
     }
 
     pub fn migrate(&self) -> Result<(), SecuritySqliteError> {
-        let conn = self.conn.lock().map_err(|_| {
-            SecuritySqliteError::Sqlite(rusqlite::Error::InvalidQuery)
-        })?;
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|_| SecuritySqliteError::Sqlite(rusqlite::Error::InvalidQuery))?;
         run_relational_migrations(&conn, SECURITY_SQLITE_MIGRATIONS)?;
         Ok(())
     }
@@ -187,11 +192,13 @@ fn page_sql(opts: Option<ListOptions>) -> (i64, i64) {
 impl SecurityPolicyRepository for SecuritySqliteStore {
     async fn save_policy(&self, policy: &Policy, now: DateTime<Utc>) -> Result<(), SecurityError> {
         validate_policy(policy)?;
-        let rules_json =
-            rules_to_json(&policy.rules).map_err(|e| SecurityError::OperationFailed(e.to_string()))?;
+        let rules_json = rules_to_json(&policy.rules)
+            .map_err(|e| SecurityError::OperationFailed(e.to_string()))?;
 
-        let conn =
-            self.conn.lock().map_err(|_| SecurityError::RepoUnavailable("lock poisoned".into()))?;
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|_| SecurityError::RepoUnavailable("lock poisoned".into()))?;
 
         let existing: Option<String> = conn
             .query_row(
@@ -229,8 +236,10 @@ impl SecurityPolicyRepository for SecuritySqliteStore {
     }
 
     async fn get_policy(&self, policy_id: &str) -> Result<Option<Policy>, SecurityError> {
-        let conn =
-            self.conn.lock().map_err(|_| SecurityError::RepoUnavailable("lock poisoned".into()))?;
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|_| SecurityError::RepoUnavailable("lock poisoned".into()))?;
         let row = conn
             .query_row(
                 "SELECT policy_id, version, mode, rules
@@ -255,15 +264,22 @@ impl SecurityPolicyRepository for SecuritySqliteStore {
             str_to_mode(&mode_s).map_err(|e| SecurityError::OperationFailed(e.to_string()))?;
         let rules =
             json_to_rules(&rules_s).map_err(|e| SecurityError::OperationFailed(e.to_string()))?;
-        Ok(Some(Policy { policy_id: id, version, mode, rules }))
+        Ok(Some(Policy {
+            policy_id: id,
+            version,
+            mode,
+            rules,
+        }))
     }
 
     async fn list_active_policies(
         &self,
         opts: Option<ListOptions>,
     ) -> Result<Vec<Policy>, SecurityError> {
-        let conn =
-            self.conn.lock().map_err(|_| SecurityError::RepoUnavailable("lock poisoned".into()))?;
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|_| SecurityError::RepoUnavailable("lock poisoned".into()))?;
         let (limit, offset) = page_sql(opts);
 
         let mut stmt = conn
@@ -290,11 +306,16 @@ impl SecurityPolicyRepository for SecuritySqliteStore {
         for row in rows {
             let (id, version, mode_s, rules_s) =
                 row.map_err(|e| SecurityError::OperationFailed(e.to_string()))?;
-            let mode = str_to_mode(&mode_s)
-                .map_err(|e| SecurityError::OperationFailed(e.to_string()))?;
+            let mode =
+                str_to_mode(&mode_s).map_err(|e| SecurityError::OperationFailed(e.to_string()))?;
             let rules = json_to_rules(&rules_s)
                 .map_err(|e| SecurityError::OperationFailed(e.to_string()))?;
-            result.push(Policy { policy_id: id, version, mode, rules });
+            result.push(Policy {
+                policy_id: id,
+                version,
+                mode,
+                rules,
+            });
         }
         Ok(result)
     }
@@ -305,8 +326,10 @@ impl SecurityPolicyRepository for SecuritySqliteStore {
         now: DateTime<Utc>,
     ) -> Result<(), SecurityError> {
         req.validate()?;
-        let conn =
-            self.conn.lock().map_err(|_| SecurityError::RepoUnavailable("lock poisoned".into()))?;
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|_| SecurityError::RepoUnavailable("lock poisoned".into()))?;
         let affected = conn
             .execute(
                 "UPDATE security_policies
@@ -342,8 +365,10 @@ impl SecurityPolicyRepository for SecuritySqliteStore {
             granted_via: req.granted_via.clone(),
         };
 
-        let conn =
-            self.conn.lock().map_err(|_| SecurityError::RepoUnavailable("lock poisoned".into()))?;
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|_| SecurityError::RepoUnavailable("lock poisoned".into()))?;
         conn.execute(
             "INSERT INTO security_delegations
                  (delegation_id, principal, operation, resource, granted_by,
@@ -375,8 +400,10 @@ impl SecurityPolicyRepository for SecuritySqliteStore {
         let now_s = dt_to_str(now);
         let (limit, offset) = page_sql(opts);
 
-        let conn =
-            self.conn.lock().map_err(|_| SecurityError::RepoUnavailable("lock poisoned".into()))?;
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|_| SecurityError::RepoUnavailable("lock poisoned".into()))?;
         let mut stmt = conn
             .prepare(
                 "SELECT delegation_id, principal, operation, resource, granted_by,
@@ -411,9 +438,19 @@ impl SecurityPolicyRepository for SecuritySqliteStore {
 
         let mut result = Vec::new();
         for row in rows {
-            let (id_s, principal_s, operation, resource, granted_by, granted_at_s, vfrom_s,
-                vto_s, conditions, revoked_i, granted_via_s) =
-                row.map_err(|e| SecurityError::OperationFailed(e.to_string()))?;
+            let (
+                id_s,
+                principal_s,
+                operation,
+                resource,
+                granted_by,
+                granted_at_s,
+                vfrom_s,
+                vto_s,
+                conditions,
+                revoked_i,
+                granted_via_s,
+            ) = row.map_err(|e| SecurityError::OperationFailed(e.to_string()))?;
             result.push(Delegation {
                 delegation_id: DelegationId(id_s),
                 principal: principal_s,
@@ -439,8 +476,10 @@ impl SecurityPolicyRepository for SecuritySqliteStore {
         delegation_id: &DelegationId,
         _now: DateTime<Utc>,
     ) -> Result<(), SecurityError> {
-        let conn =
-            self.conn.lock().map_err(|_| SecurityError::RepoUnavailable("lock poisoned".into()))?;
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|_| SecurityError::RepoUnavailable("lock poisoned".into()))?;
 
         // Verificar que existe e não está revogada
         let exists: bool = conn
@@ -452,7 +491,9 @@ impl SecurityPolicyRepository for SecuritySqliteStore {
             .map_err(|e| SecurityError::OperationFailed(e.to_string()))?;
 
         if !exists {
-            return Err(SecurityError::DelegationNotFound(delegation_id.as_str().into()));
+            return Err(SecurityError::DelegationNotFound(
+                delegation_id.as_str().into(),
+            ));
         }
 
         // Revogação em cascata via CTE recursiva
@@ -478,8 +519,10 @@ impl SecurityPolicyRepository for SecuritySqliteStore {
 
 impl SecurityAuditLog for SecuritySqliteStore {
     async fn record_decision(&self, entry: &SecurityAuthDecision) -> Result<(), SecurityError> {
-        let conn =
-            self.conn.lock().map_err(|_| SecurityError::RepoUnavailable("lock poisoned".into()))?;
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|_| SecurityError::RepoUnavailable("lock poisoned".into()))?;
 
         let decision_s = match entry.decision {
             AuditDecision::Granted => "granted",
@@ -510,7 +553,11 @@ impl SecurityAuditLog for SecuritySqliteStore {
 // ── Convenience façade ────────────────────────────────────────────────────────
 
 impl SecuritySqliteStore {
-    pub async fn save_policy(&self, policy: &Policy, now: DateTime<Utc>) -> Result<(), SecurityError> {
+    pub async fn save_policy(
+        &self,
+        policy: &Policy,
+        now: DateTime<Utc>,
+    ) -> Result<(), SecurityError> {
         SecurityPolicyRepository::save_policy(self, policy, now).await
     }
 
@@ -628,7 +675,10 @@ mod tests {
         assert_eq!(loaded.mode, PolicyMode::Baseline);
         assert_eq!(loaded.rules.len(), 1);
         assert_eq!(loaded.rules[0].code, "MIN-AUTH");
-        assert_eq!(loaded.rules[0].description.as_deref(), Some("Autenticação mínima"));
+        assert_eq!(
+            loaded.rules[0].description.as_deref(),
+            Some("Autenticação mínima")
+        );
     }
 
     #[tokio::test]
@@ -655,8 +705,14 @@ mod tests {
     #[tokio::test]
     async fn list_active_excludes_revoked() {
         let store = test_store();
-        store.save_policy(&sample_policy("pol-a"), now()).await.unwrap();
-        store.save_policy(&sample_policy("pol-b"), now()).await.unwrap();
+        store
+            .save_policy(&sample_policy("pol-a"), now())
+            .await
+            .unwrap();
+        store
+            .save_policy(&sample_policy("pol-b"), now())
+            .await
+            .unwrap();
 
         store
             .revoke_policy(
@@ -700,8 +756,16 @@ mod tests {
             version: "1.0.0".into(),
             mode: PolicyMode::Strict,
             rules: vec![
-                Rule { code: "AUTH".into(), enabled: true, description: None },
-                Rule { code: "AUDIT".into(), enabled: true, description: None },
+                Rule {
+                    code: "AUTH".into(),
+                    enabled: true,
+                    description: None,
+                },
+                Rule {
+                    code: "AUDIT".into(),
+                    enabled: true,
+                    description: None,
+                },
             ],
         };
         store.save_policy(&policy, now()).await.unwrap();
@@ -739,9 +803,18 @@ mod tests {
                 .await
                 .unwrap();
         }
-        let page1 = store.list_active_policies(Some(ListOptions::page(1, 2))).await.unwrap();
-        let page2 = store.list_active_policies(Some(ListOptions::page(2, 2))).await.unwrap();
-        let page3 = store.list_active_policies(Some(ListOptions::page(3, 2))).await.unwrap();
+        let page1 = store
+            .list_active_policies(Some(ListOptions::page(1, 2)))
+            .await
+            .unwrap();
+        let page2 = store
+            .list_active_policies(Some(ListOptions::page(2, 2)))
+            .await
+            .unwrap();
+        let page3 = store
+            .list_active_policies(Some(ListOptions::page(3, 2)))
+            .await
+            .unwrap();
         assert_eq!(page1.len(), 2);
         assert_eq!(page2.len(), 2);
         assert_eq!(page3.len(), 1);
@@ -790,7 +863,10 @@ mod tests {
         store.delegate_permission(&req, n).await.unwrap();
 
         let after = Utc.with_ymd_and_hms(2026, 3, 1, 0, 0, 0).unwrap();
-        let expired = store.list_delegations("user:bob", after, None).await.unwrap();
+        let expired = store
+            .list_delegations("user:bob", after, None)
+            .await
+            .unwrap();
         assert!(expired.is_empty());
     }
 
@@ -819,8 +895,10 @@ mod tests {
     #[tokio::test]
     async fn revoke_delegation_not_found_sqlite() {
         let store = test_store();
-        let err =
-            store.revoke_delegation(&DelegationId("nao-existe".into()), now()).await.unwrap_err();
+        let err = store
+            .revoke_delegation(&DelegationId("nao-existe".into()), now())
+            .await
+            .unwrap_err();
         assert!(matches!(err, SecurityError::DelegationNotFound(_)));
     }
 
@@ -828,10 +906,18 @@ mod tests {
     async fn revoke_delegation_idempotent_false() {
         let store = test_store();
         let n = now();
-        let deleg = store.delegate_permission(&grant_req("user:dave", "read"), n).await.unwrap();
-        store.revoke_delegation(&deleg.delegation_id, n).await.unwrap();
-        let err =
-            store.revoke_delegation(&deleg.delegation_id, n).await.unwrap_err();
+        let deleg = store
+            .delegate_permission(&grant_req("user:dave", "read"), n)
+            .await
+            .unwrap();
+        store
+            .revoke_delegation(&deleg.delegation_id, n)
+            .await
+            .unwrap();
+        let err = store
+            .revoke_delegation(&deleg.delegation_id, n)
+            .await
+            .unwrap_err();
         assert!(matches!(err, SecurityError::DelegationNotFound(_)));
     }
 
@@ -841,7 +927,10 @@ mod tests {
         let n = now();
 
         // Root: alice
-        let root = store.delegate_permission(&grant_req("user:alice", "doc.sign"), n).await.unwrap();
+        let root = store
+            .delegate_permission(&grant_req("user:alice", "doc.sign"), n)
+            .await
+            .unwrap();
 
         // Child: bob, granted_via root
         let child_req = DelegationRequest {
@@ -870,16 +959,52 @@ mod tests {
         store.delegate_permission(&grandchild_req, n).await.unwrap();
 
         // Todos têm delegações activas antes da revogação
-        assert_eq!(store.list_delegations("user:alice", n, None).await.unwrap().len(), 1);
-        assert_eq!(store.list_delegations("user:bob", n, None).await.unwrap().len(), 1);
-        assert_eq!(store.list_delegations("user:carol", n, None).await.unwrap().len(), 1);
+        assert_eq!(
+            store
+                .list_delegations("user:alice", n, None)
+                .await
+                .unwrap()
+                .len(),
+            1
+        );
+        assert_eq!(
+            store
+                .list_delegations("user:bob", n, None)
+                .await
+                .unwrap()
+                .len(),
+            1
+        );
+        assert_eq!(
+            store
+                .list_delegations("user:carol", n, None)
+                .await
+                .unwrap()
+                .len(),
+            1
+        );
 
         // Revogar root → cascata para child e grandchild
-        store.revoke_delegation(&root.delegation_id, n).await.unwrap();
+        store
+            .revoke_delegation(&root.delegation_id, n)
+            .await
+            .unwrap();
 
-        assert!(store.list_delegations("user:alice", n, None).await.unwrap().is_empty());
-        assert!(store.list_delegations("user:bob", n, None).await.unwrap().is_empty());
-        assert!(store.list_delegations("user:carol", n, None).await.unwrap().is_empty());
+        assert!(store
+            .list_delegations("user:alice", n, None)
+            .await
+            .unwrap()
+            .is_empty());
+        assert!(store
+            .list_delegations("user:bob", n, None)
+            .await
+            .unwrap()
+            .is_empty());
+        assert!(store
+            .list_delegations("user:carol", n, None)
+            .await
+            .unwrap()
+            .is_empty());
     }
 
     // ── SecurityService + SecuritySqliteStore (integração completa) ───────────
@@ -889,7 +1014,10 @@ mod tests {
         use core_security::{GrantedBy, SecurityService};
         let store = test_store();
         let svc = SecurityService::new(store);
-        let dec = svc.authorize(&human_ctx("user:alice", "doc.sign"), None, now()).await.unwrap();
+        let dec = svc
+            .authorize(&human_ctx("user:alice", "doc.sign"), None, now())
+            .await
+            .unwrap();
         assert!(matches!(dec.granted_by, GrantedBy::Bootstrap));
     }
 
@@ -905,7 +1033,11 @@ mod tests {
                     policy_id: "pol-strict".into(),
                     version: "1.0.0".into(),
                     mode: PolicyMode::Strict,
-                    rules: vec![Rule { code: "AUTH".into(), enabled: true, description: None }],
+                    rules: vec![Rule {
+                        code: "AUTH".into(),
+                        enabled: true,
+                        description: None,
+                    }],
                 },
                 n,
             )
@@ -930,7 +1062,10 @@ mod tests {
             .unwrap();
 
         let svc = SecurityService::new(store);
-        let dec = svc.authorize(&human_ctx("user:alice", "doc.sign"), None, n).await.unwrap();
+        let dec = svc
+            .authorize(&human_ctx("user:alice", "doc.sign"), None, n)
+            .await
+            .unwrap();
         assert!(matches!(dec.granted_by, GrantedBy::Delegation(_)));
         assert_eq!(dec.principal, "user:alice");
         assert_eq!(dec.operation, "doc.sign");
@@ -948,7 +1083,11 @@ mod tests {
                     policy_id: "pol-strict".into(),
                     version: "1.0.0".into(),
                     mode: PolicyMode::Strict,
-                    rules: vec![Rule { code: "AUTH".into(), enabled: true, description: None }],
+                    rules: vec![Rule {
+                        code: "AUTH".into(),
+                        enabled: true,
+                        description: None,
+                    }],
                 },
                 n,
             )
@@ -956,8 +1095,10 @@ mod tests {
             .unwrap();
 
         let svc = SecurityService::new(store);
-        let err =
-            svc.authorize(&human_ctx("user:bob", "doc.sign"), None, n).await.unwrap_err();
+        let err = svc
+            .authorize(&human_ctx("user:bob", "doc.sign"), None, n)
+            .await
+            .unwrap_err();
         assert!(matches!(err, SecurityError::InvariantViolated(_)));
     }
 
@@ -973,7 +1114,11 @@ mod tests {
                     policy_id: "pol-s".into(),
                     version: "1.0.0".into(),
                     mode: PolicyMode::Strict,
-                    rules: vec![Rule { code: "A".into(), enabled: true, description: None }],
+                    rules: vec![Rule {
+                        code: "A".into(),
+                        enabled: true,
+                        description: None,
+                    }],
                 },
                 n,
             )
@@ -999,9 +1144,15 @@ mod tests {
 
         let svc = SecurityService::new(store);
         let ctx = human_ctx("user:carol", "report.export");
-        let dec = svc.authorize(&ctx, Some("relatorio-2026"), n).await.unwrap();
+        let dec = svc
+            .authorize(&ctx, Some("relatorio-2026"), n)
+            .await
+            .unwrap();
         assert!(matches!(dec.granted_by, GrantedBy::Delegation(_)));
-        let err = svc.authorize(&ctx, Some("outro-relatorio"), n).await.unwrap_err();
+        let err = svc
+            .authorize(&ctx, Some("outro-relatorio"), n)
+            .await
+            .unwrap_err();
         assert!(matches!(err, SecurityError::InvariantViolated(_)));
     }
 
@@ -1018,12 +1169,16 @@ mod tests {
         // SecuritySqliteStore implementa tanto SecurityPolicyRepository como SecurityAuditLog
         let svc = SecurityService::with_audit(store.clone(), store.clone());
 
-        let _ = svc.authorize(&human_ctx("user:alice", "any.op"), None, now()).await;
+        let _ = svc
+            .authorize(&human_ctx("user:alice", "any.op"), None, now())
+            .await;
 
         // Ler audit_log directamente da BD
         let conn = store.conn.lock().unwrap();
         let count: i64 = conn
-            .query_row("SELECT COUNT(*) FROM security_auth_decisions", [], |r| r.get(0))
+            .query_row("SELECT COUNT(*) FROM security_auth_decisions", [], |r| {
+                r.get(0)
+            })
             .unwrap();
         assert_eq!(count, 1);
 
@@ -1050,18 +1205,27 @@ mod tests {
                     policy_id: "pol-s".into(),
                     version: "1.0.0".into(),
                     mode: PolicyMode::Strict,
-                    rules: vec![Rule { code: "AUTH".into(), enabled: true, description: None }],
+                    rules: vec![Rule {
+                        code: "AUTH".into(),
+                        enabled: true,
+                        description: None,
+                    }],
                 },
                 n,
             )
             .await
             .unwrap();
 
-        let deleg =
-            store.delegate_permission(&grant_req("user:alice", "doc.sign"), n).await.unwrap();
+        let deleg = store
+            .delegate_permission(&grant_req("user:alice", "doc.sign"), n)
+            .await
+            .unwrap();
         let svc = SecurityService::new(store);
 
-        assert!(svc.authorize(&human_ctx("user:alice", "doc.sign"), None, n).await.is_ok());
+        assert!(svc
+            .authorize(&human_ctx("user:alice", "doc.sign"), None, n)
+            .await
+            .is_ok());
 
         svc.revoke_delegation(
             &deleg.delegation_id,
@@ -1075,8 +1239,10 @@ mod tests {
         .await
         .unwrap();
 
-        let err =
-            svc.authorize(&human_ctx("user:alice", "doc.sign"), None, n).await.unwrap_err();
+        let err = svc
+            .authorize(&human_ctx("user:alice", "doc.sign"), None, n)
+            .await
+            .unwrap_err();
         assert!(matches!(err, SecurityError::InvariantViolated(_)));
     }
 }

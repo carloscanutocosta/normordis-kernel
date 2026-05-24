@@ -205,7 +205,7 @@ pub struct FixedBoxBlock {
     pub y_mm: f64,
     pub width_mm: f64,
     pub height_mm: f64,
-    pub overflow: Option<String>,  // "truncate" | "clip" | "shrink" | "overflow"
+    pub overflow: Option<String>, // "truncate" | "clip" | "shrink" | "overflow"
     pub padding_mm: Option<f64>,
     pub border: Option<BoxBorderSpec>,
     pub background: Option<String>, // hex color string e.g. "#F5F5F5"
@@ -218,5 +218,5 @@ pub struct FixedBoxBlock {
 pub struct BoxBorderSpec {
     pub width_mm: f64,
     pub color: String,
-    pub style: Option<String>,  // "solid" | "dashed" | "dotted"
+    pub style: Option<String>, // "solid" | "dashed" | "dotted"
 }

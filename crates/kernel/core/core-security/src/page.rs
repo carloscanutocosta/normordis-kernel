@@ -14,11 +14,17 @@ pub struct ListOptions {
 impl ListOptions {
     /// Página 1-indexed com `per_page` resultados por página.
     pub fn page(page: usize, per_page: usize) -> Self {
-        Self { limit: per_page, offset: page.saturating_sub(1) * per_page }
+        Self {
+            limit: per_page,
+            offset: page.saturating_sub(1) * per_page,
+        }
     }
 
     /// Primeiros `n` resultados.
     pub fn first(n: usize) -> Self {
-        Self { limit: n, offset: 0 }
+        Self {
+            limit: n,
+            offset: 0,
+        }
     }
 }

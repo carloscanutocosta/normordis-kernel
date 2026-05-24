@@ -1,4 +1,6 @@
-use normordis_pdf::{backend::pdf_writer_backend::encode_for_identity_h, DocumentBuilder, Paragraph};
+use normordis_pdf::{
+    backend::pdf_writer_backend::encode_for_identity_h, DocumentBuilder, Paragraph,
+};
 
 // ── ENC-01: ASCII → UTF-16-BE with BOM ───────────────────────────────────────
 
@@ -31,7 +33,11 @@ fn enc02_portuguese_chars_utf16be() {
 #[test]
 fn enc03_empty_string_is_bom_only() {
     let encoded = encode_for_identity_h("");
-    assert_eq!(encoded, vec![0xFE, 0xFF], "empty string must produce only BOM");
+    assert_eq!(
+        encoded,
+        vec![0xFE, 0xFF],
+        "empty string must produce only BOM"
+    );
 }
 
 // ── ENC-04: length matches UTF-16 code unit count ────────────────────────────
@@ -42,7 +48,11 @@ fn enc04_length_matches_utf16_code_units() {
     let encoded = encode_for_identity_h(text);
     assert_eq!(&encoded[0..2], &[0xFE, 0xFF]);
     let utf16_units = text.encode_utf16().count();
-    assert_eq!(encoded.len(), 2 + utf16_units * 2, "BOM + UTF-16 code units × 2");
+    assert_eq!(
+        encoded.len(),
+        2 + utf16_units * 2,
+        "BOM + UTF-16 code units × 2"
+    );
 }
 
 // ── ENC-05: PDF with Portuguese text is structurally valid ───────────────────
@@ -77,8 +87,8 @@ fn enc06_text_extractable_from_pdf() {
         .render_to_bytes()
         .expect("must render");
 
-    let doc = lopdf::Document::load_from(std::io::Cursor::new(&pdf))
-        .expect("must be parseable by lopdf");
+    let doc =
+        lopdf::Document::load_from(std::io::Cursor::new(&pdf)).expect("must be parseable by lopdf");
 
     let text = doc.extract_text(&[1]).unwrap_or_default();
     assert!(

@@ -36,7 +36,12 @@ pub enum StructTag {
     // Block-level elements
     P,
     H,
-    H1, H2, H3, H4, H5, H6,
+    H1,
+    H2,
+    H3,
+    H4,
+    H5,
+    H6,
     BlockQuote,
     Caption,
     Index,
@@ -63,7 +68,9 @@ pub enum StructTag {
     Link,
     Annot,
     Ruby,
-    RB, RT, RP,
+    RB,
+    RT,
+    RP,
     Warichu,
     // Illustration elements
     Figure,
@@ -194,7 +201,9 @@ impl Default for StructureTree {
 #[derive(Debug, Clone)]
 pub enum UaError {
     NoStructureTree,
-    MissingAlt { element_index: usize },
+    MissingAlt {
+        element_index: usize,
+    },
     NoDocumentLanguage,
     /// Structure tree root is not Document or DocumentFragment.
     InvalidRootTag(String),
@@ -214,7 +223,10 @@ pub struct UaValidator {
 
 impl UaValidator {
     pub fn new() -> Self {
-        Self { warnings: Vec::new(), errors: Vec::new() }
+        Self {
+            warnings: Vec::new(),
+            errors: Vec::new(),
+        }
     }
 
     pub fn validate(tree: Option<&StructureTree>, lang: &str) -> Self {
@@ -228,7 +240,8 @@ impl UaValidator {
             Some(t) => {
                 if let Some(StructEvent::BeginGroup { tag, .. }) = t.events.first() {
                     if *tag != StructTag::Document && *tag != StructTag::DocumentFragment {
-                        v.errors.push(UaError::InvalidRootTag(tag.pdf_name().to_string()));
+                        v.errors
+                            .push(UaError::InvalidRootTag(tag.pdf_name().to_string()));
                     }
                 }
             }

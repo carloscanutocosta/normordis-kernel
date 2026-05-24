@@ -45,7 +45,11 @@ mod tests {
     use crate::VerifiedPrincipal;
 
     fn ctx(op: &str, corr: &str, principal: VerifiedPrincipal) -> WriteInvariantContext {
-        WriteInvariantContext { operation: op.into(), correlation_id: corr.into(), principal }
+        WriteInvariantContext {
+            operation: op.into(),
+            correlation_id: corr.into(),
+            principal,
+        }
     }
 
     #[test]
