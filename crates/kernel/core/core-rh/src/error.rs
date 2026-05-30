@@ -17,6 +17,10 @@ pub enum RhError {
     InvalidOrgRef,
     #[error("invalid session")]
     InvalidSession,
+    #[error("role não encontrado no catálogo: {0}")]
+    RoleNotFound(String),
+    #[error("role inactivo: {0}")]
+    RoleInactive(String),
     #[error("RH operation failed: {0}")]
     OperationFailed(String),
 }
@@ -29,6 +33,8 @@ impl RhError {
             Self::InvalidProfile => "MINI.RH.INVALID_PROFILE",
             Self::InvalidOrgRef => "MINI.RH.INVALID_ORG_REF",
             Self::InvalidSession => "MINI.RH.INVALID_SESSION",
+            Self::RoleNotFound(_) => "MINI.RH.ROLE_NOT_FOUND",
+            Self::RoleInactive(_) => "MINI.RH.ROLE_INACTIVE",
             Self::OperationFailed(_) => "MINI.RH.OPERATION_FAILED",
         }
     }
@@ -40,6 +46,8 @@ impl RhError {
             Self::InvalidProfile => "invalid user profile".to_owned(),
             Self::InvalidOrgRef => "invalid organization unit reference".to_owned(),
             Self::InvalidSession => "invalid session".to_owned(),
+            Self::RoleNotFound(id) => format!("role não encontrado: {id}"),
+            Self::RoleInactive(id) => format!("role inactivo: {id}"),
             Self::OperationFailed(message) => message.clone(),
         }
     }

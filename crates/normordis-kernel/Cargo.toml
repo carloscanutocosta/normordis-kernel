@@ -24,6 +24,8 @@ core-ingest      = { path = "../kernel/core/core-ingest" }
 # ── Domain transversal ────────────────────────────────────────────────────────
 domain-numerador = { path = "../domain/domain-numerador" }
 domain-mef       = { path = "../domain/domain-mef" }
+domain-registry  = { path = "../domain/domain-registry" }
+domain-telemetry = { path = "../domain/domain-telemetry" }
 
 # ── Runtime ───────────────────────────────────────────────────────────────────
 miniapp-runtime  = { path = "../runtime/miniapp-runtime" }

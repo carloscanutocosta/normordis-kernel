@@ -60,7 +60,7 @@ ehthumbs.db
 .env.local
 .env.*.local
 
-# Ficheiros de contexto para agentes de IA (não versionar)
+# Ficheiros de contexto local para agentes de IA (não versionar)
 # =================================================================
 AGENTS.md
 DESIGN.md
