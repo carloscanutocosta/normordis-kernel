@@ -13,8 +13,8 @@ mod target;
 
 pub use actor::AuditActor;
 pub use chain::{
-    AuditChainIndex, AuditChainIndexEntry, AuditChainLink, AuditChainReport, AuditChainState,
-    AuditExportManifest,
+    compute_manifest_hash, compute_record_hash, AuditChainIndex, AuditChainIndexEntry,
+    AuditChainLink, AuditChainReport, AuditChainState, AuditExportManifest,
 };
 pub use config::{AuditStoreConfig, DEFAULT_AUDIT_EVENTS_NAMESPACE};
 pub use error::{

@@ -1,27 +1,23 @@
-use core_audit::AuditStoreConfig;
-use core_config::{ConfigError, LoggingProfile, MiniKernelProfile, StorageProfile};
+use std::path::PathBuf;
+
+use core_config::{ConfigError, LoggingProfile, MiniKernelProfile, StorageBackend, StorageProfile};
 use support_crypto::{KeyProvider, KeyResolver};
 use support_errors::MiniError;
 use support_logging::{FileLogger, LoggingConfig, TechnicalLogger};
-use support_storage::StorageNamespace;
 
-use crate::audit::{AuditDbRuntime, AuditDbService};
+use crate::audit::{AuditDbConfig, AuditDbRuntime, AuditDbService};
 use crate::error::{RuntimeError, RUNTIME_COMPONENT};
-use crate::storage::RuntimeStorage;
 
-pub struct KernelRuntime<P>
-where
-    P: KeyProvider + KeyResolver + Send + Sync,
-{
-    audit: AuditDbRuntime<P>,
+pub struct KernelRuntime {
+    audit: AuditDbRuntime,
     logger: Option<FileLogger>,
 }
 
-impl<P> KernelRuntime<P>
-where
-    P: KeyProvider + KeyResolver + Send + Sync,
-{
-    pub fn open(profile: &MiniKernelProfile, keys: P) -> Result<Self, MiniError> {
+impl KernelRuntime {
+    pub fn open<P: KeyProvider + KeyResolver + Send + Sync>(
+        profile: &MiniKernelProfile,
+        keys: P,
+    ) -> Result<Self, MiniError> {
         profile.validate().map_err(runtime_error_from_config)?;
 
         let logger = open_logger(&profile.logging)?;
@@ -30,11 +26,10 @@ where
         }
 
         let audit_storage_profile = resolve_audit_storage_profile(profile)?;
-        let audit_storage = RuntimeStorage::open(audit_storage_profile, keys)
+        let db_path = resolve_audit_db_path(audit_storage_profile)?;
+        let audit_config = AuditDbConfig::new(db_path);
+        let audit = AuditDbRuntime::open(audit_config, keys)
             .map_err(|_| RuntimeError::AuditRuntimeFailed)?;
-        let namespace = StorageNamespace::new(profile.audit.namespace.clone())
-            .map_err(|_| RuntimeError::AuditRuntimeFailed)?;
-        let audit = AuditDbRuntime::from_storage(audit_storage, AuditStoreConfig::new(namespace));
 
         if let Some(logger) = &logger {
             logger.info(RUNTIME_COMPONENT, "kernel runtime opened");
@@ -43,7 +38,7 @@ where
         Ok(Self { audit, logger })
     }
 
-    pub fn audit(&self) -> &AuditDbService<P> {
+    pub fn audit(&self) -> &AuditDbService {
         self.audit.service()
     }
 
@@ -78,6 +73,16 @@ fn resolve_audit_storage_profile(
         .storage
         .profile(&profile.audit.storage_profile)
         .ok_or(RuntimeError::InvalidStorageProfile)
+}
+
+fn resolve_audit_db_path(storage: &StorageProfile) -> Result<PathBuf, RuntimeError> {
+    match storage.backend {
+        StorageBackend::Sqlite => storage
+            .database_path
+            .clone()
+            .ok_or(RuntimeError::InvalidStorageProfile),
+        StorageBackend::Memory => Ok(PathBuf::from(":memory:")),
+    }
 }
 
 fn open_logger(profile: &LoggingProfile) -> Result<Option<FileLogger>, RuntimeError> {
@@ -122,10 +127,7 @@ mod tests {
         )
     }
 
-    fn record_one<P>(runtime: &KernelRuntime<P>) -> String
-    where
-        P: support_crypto::KeyProvider + support_crypto::KeyResolver + Send + Sync,
-    {
+    fn record_one(runtime: &KernelRuntime) -> String {
         runtime
             .audit()
             .record_event(
@@ -159,18 +161,6 @@ mod tests {
         let event_id = record_one(&runtime);
         assert!(runtime.audit().get(&event_id).unwrap().is_some());
         runtime.shutdown().unwrap();
-    }
-
-    #[test]
-    fn audit_runtime_uses_namespace_from_core_config() {
-        let mut profile = MiniKernelProfile::test_memory();
-        profile.audit.namespace = "audit.custom".to_owned();
-        let runtime = KernelRuntime::open(&profile, keys()).unwrap();
-
-        assert_eq!(
-            runtime.audit().store().config().namespace.as_str(),
-            "audit.custom"
-        );
     }
 
     #[test]
