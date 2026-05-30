@@ -133,13 +133,13 @@ fn user_role_parse_desconhecido_rejeita() {
 
 #[test]
 fn role_new_valido_aceita() {
-    assert!(Role::new("SIGN_L1", "Assinar ofícios nível 1").is_ok());
+    assert!(Role::new("SIGN_L1", "Assinar ofícios nível 1", None, true).is_ok());
 }
 
 #[test]
 fn role_new_role_id_vazio_rejeita() {
     assert!(matches!(
-        Role::new("", "Display"),
+        Role::new("", "Display", None, true),
         Err(RhError::InvalidRole)
     ));
 }
@@ -147,7 +147,7 @@ fn role_new_role_id_vazio_rejeita() {
 #[test]
 fn role_new_display_name_vazio_rejeita() {
     assert!(matches!(
-        Role::new("SIGN_L1", ""),
+        Role::new("SIGN_L1", "", None, true),
         Err(RhError::InvalidRole)
     ));
 }
@@ -155,7 +155,7 @@ fn role_new_display_name_vazio_rejeita() {
 #[test]
 fn role_new_role_id_com_espaco_rejeita() {
     assert!(matches!(
-        Role::new("SIGN L1", "Display"),
+        Role::new("SIGN L1", "Display", None, true),
         Err(RhError::InvalidRole)
     ));
 }

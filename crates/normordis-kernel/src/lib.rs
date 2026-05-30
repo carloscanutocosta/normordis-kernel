@@ -18,6 +18,8 @@
 //! | [`ingest`] | Entrada de documentos externos |
 //! | [`numerador`] | Numeração sequencial de documentos |
 //! | [`mef`] | Classificação orçamental MEF |
+//! | [`registry`] | Catálogo institucional de apps e ciclo de vida |
+//! | [`telemetry`] | Telemetria de uso — eventos e estatísticas por app |
 //! | [`runtime`] | Contexto e ciclo de vida de mini-apps |
 //! | [`errors`] | Tipos de erro partilhados |
 //! | [`ids`] | Geração de identificadores |
@@ -85,6 +87,16 @@ pub mod numerador {
 pub mod mef {
     //! Classificação orçamental MEF — estrutura económica da despesa.
     pub use domain_mef::*;
+}
+
+pub mod registry {
+    //! Catálogo institucional de apps — registo, ciclo de vida e histórico de estados.
+    pub use domain_registry::*;
+}
+
+pub mod telemetry {
+    //! Telemetria de uso — eventos de apps e estatísticas de utilização.
+    pub use domain_telemetry::*;
 }
 
 // ── Runtime ───────────────────────────────────────────────────────────────────

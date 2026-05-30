@@ -11,7 +11,7 @@ fn valid_profile() -> UserProfile {
         "Ana Silva",
         Some("ana.silva@example.test".to_owned()),
         UserRole::Utilizador,
-        vec![Role::new("technician", "Tecnico").unwrap()],
+        vec![Role::new("technician", "Tecnico", None, true).unwrap()],
         Some(OrgUnitRef::new("org-1", Some("Unidade 1".to_owned())).unwrap()),
     )
     .unwrap()
@@ -38,14 +38,14 @@ fn user_id_with_spaces_fails() {
 
 #[test]
 fn role_valid() {
-    let role = Role::new("manager", "Manager").unwrap();
-    assert_eq!(role.role_id, "manager");
+    let role = Role::new("manager", "Manager", None, true).unwrap();
+    assert_eq!(role.id.as_str(), "manager");
 }
 
 #[test]
 fn role_invalid_fails() {
     assert_eq!(
-        Role::new("bad role", "Bad Role").unwrap_err(),
+        Role::new("bad role", "Bad Role", None, true).unwrap_err(),
         RhError::InvalidRole
     );
 }

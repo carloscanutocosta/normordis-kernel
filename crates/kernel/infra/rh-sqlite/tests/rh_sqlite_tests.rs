@@ -1,5 +1,5 @@
 use adapter_sqlite::SqliteRelationalConfig;
-use core_rh::{UserIdentity, UserRole};
+use core_rh::{Role, RoleId, RoleRepository, UserIdentity, UserRole};
 use rh_sqlite::UsersSqliteStore;
 
 fn sample_user() -> UserIdentity {
@@ -76,4 +76,83 @@ fn crate_does_not_depend_on_tauri_or_network() {
     for forbidden in ["reqwest", "ureq", "hyper", "ldap", "oauth", "oidc"] {
         assert!(!cargo.contains(forbidden));
     }
+}
+
+// ── RoleRepository ──────────────────────────────────────────────────────────
+
+fn rid(s: &str) -> RoleId {
+    RoleId::new(s).unwrap()
+}
+
+#[test]
+fn role_upsert_and_get() {
+    let store = store();
+    store
+        .upsert(&Role::new("gestor_rh", "Gestor de RH", Some("Gere pessoal".into()), true).unwrap())
+        .unwrap();
+
+    let role = store.get(&rid("gestor_rh")).unwrap().unwrap();
+    assert_eq!(role.id.as_str(), "gestor_rh");
+    assert_eq!(role.name, "Gestor de RH");
+    assert_eq!(role.description.as_deref(), Some("Gere pessoal"));
+    assert!(role.is_active);
+}
+
+#[test]
+fn role_get_unknown_returns_none() {
+    let store = store();
+    assert!(store.get(&rid("inexistente")).unwrap().is_none());
+}
+
+#[test]
+fn role_upsert_is_idempotent_update() {
+    let store = store();
+    store.upsert(&Role::new("admin", "Admin", None, true).unwrap()).unwrap();
+    store.upsert(&Role::new("admin", "Administrador", None, true).unwrap()).unwrap();
+
+    let role = store.get(&rid("admin")).unwrap().unwrap();
+    assert_eq!(role.name, "Administrador");
+    assert_eq!(store.list_active().unwrap().len(), 1, "não deve duplicar");
+}
+
+#[test]
+fn role_exists_and_active() {
+    let store = store();
+    store.upsert(&Role::new("ativo", "Ativo", None, true).unwrap()).unwrap();
+    store.upsert(&Role::new("inativo", "Inativo", None, false).unwrap()).unwrap();
+
+    assert!(store.exists_and_active(&rid("ativo")).unwrap());
+    assert!(!store.exists_and_active(&rid("inativo")).unwrap());
+    assert!(!store.exists_and_active(&rid("inexistente")).unwrap());
+}
+
+#[test]
+fn role_list_active_excludes_inactive() {
+    let store = store();
+    store.upsert(&Role::new("a", "Role A", None, true).unwrap()).unwrap();
+    store.upsert(&Role::new("b", "Role B", None, true).unwrap()).unwrap();
+    store.upsert(&Role::new("c", "Role C", None, false).unwrap()).unwrap();
+
+    let active = store.list_active().unwrap();
+    assert_eq!(active.len(), 2);
+    assert!(active.iter().all(|r| r.is_active));
+}
+
+#[test]
+fn role_deactivate_marks_inactive() {
+    let store = store();
+    store.upsert(&Role::new("temp", "Temporário", None, true).unwrap()).unwrap();
+
+    store.deactivate(&rid("temp")).unwrap();
+
+    let role = store.get(&rid("temp")).unwrap().unwrap();
+    assert!(!role.is_active);
+    assert!(!store.exists_and_active(&rid("temp")).unwrap());
+}
+
+#[test]
+fn role_deactivate_unknown_fails() {
+    let store = store();
+    let err = store.deactivate(&rid("nao-existe")).unwrap_err();
+    assert!(err.to_string().contains("nao-existe"));
 }

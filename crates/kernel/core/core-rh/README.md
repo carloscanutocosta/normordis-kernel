@@ -7,7 +7,8 @@ Domínio de identidade e gestão de utilizadores do Mini-Kernel RS.
 - Identificador canónico de utilizador (`UserId`) com validação de formato.
 - Perfil de utilizador (`UserProfile`) com papel sistémico, roles aplicacionais e referência orgânica opcional.
 - Papéis sistémicos (`UserRole`: Utilizador, Auditor, Administrator) com serialização canónica e aliases de parse.
-- Roles aplicacionais (`Role`) com id e nome display.
+- Catálogo gerido de roles funcionais: `RoleId` (identificador validado), `Role` (com `is_active`), `RoleRepository` (port implementado por `rh-sqlite`).
+  O catálogo é a fonte de verdade que impede roles arbitrários nas apps — o `AppRegistryService` valida sempre contra ele.
 - Identidade operacional (`UserIdentity`) e contexto de sessão corrente (`CurrentSession`).
 - Metadados de autoria (`AuthorMetadata`) usados por outros crates para rastrear quem praticou um acto.
 - Referência leve a unidade orgânica (`OrgUnitRef`) sem dependência directa de `core-org`.
@@ -20,7 +21,8 @@ Domínio de identidade e gestão de utilizadores do Mini-Kernel RS.
 - Não implementa autenticação, LDAP, OAuth, OIDC, SSO, passwords ou tokens.
 - Não gere sessões persistentes — `CurrentSession` é um valor em memória.
 - Não detém a estrutura orgânica completa — usa `OrgUnitRef` como referência leve; a hierarquia pertence a `core-org`.
-- Não implementa RBAC hierárquico — papéis são simples e sem herança.
+- Não implementa RBAC hierárquico — papéis sistémicos são simples e sem herança.
+- Não persiste o catálogo de roles — a persistência pertence a `rh-sqlite`.
 
 ## Exemplo mínimo
 

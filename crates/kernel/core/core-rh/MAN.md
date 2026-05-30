@@ -16,7 +16,10 @@ sistémicos, sessões locais, referências orgânicas e o bridge para `core-audi
 UserId              // identificador canónico — alfanum + _ - . , máx 128 chars
 UserProfile         // perfil completo: username, display_name, email, role, roles, org_unit
 UserRole            // papel sistémico: Utilizador | Auditor | Administrator
-Role                // role aplicacional com role_id e display_name
+
+// Catálogo de roles funcionais (gerido administrativamente)
+RoleId              // identificador único de role funcional — sem espaços, não-vazio
+Role                // role funcional: id, name, description, is_active
 
 // Identidade operacional
 UserIdentity        // snapshot operacional do utilizador autenticado
@@ -66,10 +69,17 @@ USER_ID_MAX_LENGTH: usize  // = 128
   Uma string vazia é tratada como ausência de email (sem erro).
 - `roles`: pode estar vazia.
 
+### RoleId
+
+- Não pode estar vazio nem conter espaços em branco.
+- Exemplos válidos: `"gestor_rh"`, `"admin"`, `"chefe_divisao"`.
+
 ### Role
 
-- `role_id`: obrigatório, sem espaços.
-- `display_name`: obrigatório.
+- `id` (`RoleId`): validado em construção.
+- `name`: obrigatório, não pode estar vazio.
+- `description`: opcional.
+- `is_active`: `false` desactiva sem apagar (histórico preservado).
 
 ### OrgUnitRef
 
@@ -89,6 +99,67 @@ USER_ID_MAX_LENGTH: usize  // = 128
 
 Os adapters SQLite devem usar `as_str()` / `from_str()` para garantir consistência.
 `parse` é para input do utilizador (formulários, importações).
+
+## Catálogo de roles funcionais
+
+`RoleId`, `Role` e `RoleRepository` formam o catálogo gerido de roles funcionais.
+Distinct de `UserRole` (papel sistémico, enum fixo), os roles funcionais são geridos
+administrativamente e definem o acesso a apps no workspace.
+
+### RoleId
+
+```rust
+pub struct RoleId(String);
+
+RoleId::new(s: impl Into<String>) -> Result<Self, RhError>
+// Rejeita vazio e qualquer carácter de espaço em branco.
+// Trimmed internamente.
+
+roleid.as_str()    -> &str
+roleid.to_string() // via Display
+```
+
+### Role
+
+```rust
+pub struct Role {
+    pub id:          RoleId,
+    pub name:        String,
+    pub description: Option<String>,
+    pub is_active:   bool,
+}
+
+Role::new(id, name, description, is_active) -> Result<Self, RhError>
+role.validate() -> Result<(), RhError>
+```
+
+Desactivar um role (`is_active = false`) não o apaga — preserva o histórico
+e impede que seja atribuído a novas apps. Roles inactivos são rejeitados
+pelo `AppRegistryService` ao validar `allowed_roles`.
+
+### RoleRepository (port)
+
+```rust
+pub trait RoleRepository {
+    type Error;
+
+    fn get(&self, id: &RoleId)            -> Result<Option<Role>, Self::Error>;
+    fn list_active(&self)                 -> Result<Vec<Role>, Self::Error>;
+    fn exists_and_active(&self, id: &RoleId) -> Result<bool, Self::Error>;
+    // Verifica existência E is_active numa só query — usado para validação de roles.
+
+    fn upsert(&self, role: &Role)         -> Result<(), Self::Error>;
+    // INSERT OR UPDATE idempotente.
+
+    fn deactivate(&self, id: &RoleId)    -> Result<(), Self::Error>;
+    // UPDATE is_active = 0. Não apaga.
+}
+```
+
+Implementado por `rh-sqlite` (`UsersSqliteStore`).
+Consumido por `domain-registry::AppRegistryService` para validar roles antes de persistir.
+
+---
 
 ## Bridge para core-audit
 
@@ -132,9 +203,16 @@ usar `AuditActor` directamente via `audit_actor_from_user`.
 ### UserRole sem RBAC hierárquico
 
 Os três papéis sistémicos (Utilizador, Auditor, Administrator) são intencionalmente
-simples. `roles: Vec<Role>` permite roles aplicacionais adicionais, mas não implementa
-herança nem hierarquia. A decisão adiada: avaliar RBAC hierárquico apenas quando
-houver necessidade documentada de negócio.
+simples e cobrem o acesso a operações do kernel. `roles: Vec<Role>` em `UserProfile`
+transporta os roles funcionais do utilizador mas sem herança nem hierarquia.
+A decisão adiada: avaliar RBAC hierárquico apenas quando houver necessidade documentada de negócio.
+
+### Catálogo de roles como source of truth
+
+O catálogo `platform_roles` (gerido por `rh-sqlite`) é a única fonte de verdade para
+roles funcionais válidos. O `AppRegistryService` valida sempre os roles contra
+`RoleRepository::exists_and_active` antes de persistir. Esta decisão impede que
+cada app invente roles arbitrários, garantindo vocabulário controlado institucional.
 
 ### Email vazio tratado como ausência
 
@@ -149,10 +227,12 @@ forçar conversão para `None` no caller.
 | Variante              | Situação                                              |
 |-----------------------|-------------------------------------------------------|
 | `InvalidUserId`       | UserId vazio, com espaços, chars inválidos ou longo   |
-| `InvalidRole`         | role_id vazio ou com espaços; display_name vazio      |
+| `InvalidRole`         | RoleId ou name vazio; RoleId com espaços              |
 | `InvalidProfile`      | username/display_name inválidos; email mal formado    |
 | `InvalidOrgRef`       | org_unit_id vazio                                     |
 | `InvalidSession`      | session_id nulo ou perfil inválido na sessão          |
+| `RoleNotFound(s)`     | RoleId não existe ou está inactivo no catálogo        |
+| `RoleInactive(s)`     | RoleId existe mas is_active = false                   |
 | `OperationFailed(s)`  | Erro de operação genérico                             |
 
 `RhError` implementa `From<RhError> for MiniError` para conversão pelo service layer.
@@ -174,7 +254,9 @@ core-audit       — AuditActor (bridge em audit.rs)
 - `UserId` com validação rigorosa de formato.
 - `UserProfile` com validação de todos os campos.
 - `UserRole` com serialização canónica, aliases de parse e `TryFrom<&str>`.
-- `Role` aplicacional com validação.
+- `RoleId` com validação de formato.
+- `Role` funcional com `id`, `name`, `description`, `is_active`.
+- `RoleRepository` — port do catálogo gerido de roles; implementado por `rh-sqlite`.
 - `OrgUnitRef` como referência leve.
 - `UserIdentity` / `UserContext` / `AuthorMetadata` para identidade operacional.
 - `CurrentUser` / `CurrentSession` com UUID v4 e timestamp UTC.
@@ -189,6 +271,7 @@ core-audit       — AuditActor (bridge em audit.rs)
 - Sem política formal para utilizadores técnicos/sistema (daemons, importações).
 - `CurrentSession` não tem TTL nem mecanismo de expiração.
 - Sem validação de unicidade de `username` — responsabilidade do adapter de persistência.
+- `RoleRepository` não tem operação de listagem paginada — adequado enquanto o catálogo for pequeno.
 
 ## ToDo
 
@@ -199,3 +282,5 @@ core-audit       — AuditActor (bridge em audit.rs)
 - Definir proveniência de sessão (`session_id`) nos eventos de `core-audit` quando
   exigido pelo modelo de auditoria.
 - Criar adapter de autenticação local/externa em infra, mantendo segredos fora do core.
+- Adicionar paginação a `RoleRepository::list_active` quando o catálogo crescer.
+- Definir processo de aprovação para criação de novos roles no catálogo (fluxo governativo).

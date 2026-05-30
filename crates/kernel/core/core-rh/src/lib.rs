@@ -30,7 +30,7 @@ pub use identity::{resolve_current_user, AuthorMetadata, UserContext, UserIdenti
 pub use org::{OrgPositionRef, OrgUnitRef};
 
 // ── role ──────────────────────────────────────────────────────────────────────
-pub use role::{Role, UserRole};
+pub use role::{Role, RoleId, RoleRepository, UserRole};
 
 // ── session ───────────────────────────────────────────────────────────────────
 pub use session::{CurrentSession, CurrentUser};

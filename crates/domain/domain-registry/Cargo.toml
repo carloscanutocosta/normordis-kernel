@@ -1,0 +1,13 @@
+[package]
+name        = "domain-registry"
+version.workspace   = true
+edition.workspace   = true
+license.workspace   = true
+authors.workspace   = true
+description = "Domínio registry — catálogo institucional de apps e ciclo de vida datado"
+
+[dependencies]
+core-rh   = { path = "../../kernel/core/core-rh" }
+chrono    = { workspace = true }
+serde     = { workspace = true }
+thiserror = { workspace = true }
