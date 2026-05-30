@@ -13,7 +13,10 @@ support-storage = { path = "../../support/support-storage" }
 support-logging = { path = "../../support/support-logging" }
 core-audit = { path = "../../core/core-audit" }
 core-config = { path = "../../core/core-config" }
-adapter-sqlite = { path = "../adapter-sqlite" }
+adapter-sqlite        = { path = "../adapter-sqlite" }
+adapter-audit-sqlite  = { path = "../adapter-audit-sqlite" }
+serde_json            = { workspace = true }
+zeroize               = { workspace = true }
 
 [dev-dependencies]
 serde_json.workspace = true

@@ -37,13 +37,20 @@ impl AuditStore for RecordingAuditStore {
             .cloned())
     }
 
-    fn list_by_actor(&self, actor_id: &str) -> Result<Vec<AuditEvent>, AuditError> {
+    fn list_by_actor(
+        &self,
+        actor_id: &str,
+        limit: usize,
+        offset: usize,
+    ) -> Result<Vec<AuditEvent>, AuditError> {
         Ok(self
             .events
             .lock()
             .unwrap()
             .iter()
             .filter(|e| e.actor.actor_id == actor_id)
+            .skip(offset)
+            .take(limit)
             .cloned()
             .collect())
     }
@@ -51,6 +58,8 @@ impl AuditStore for RecordingAuditStore {
     fn list_by_target(
         &self,
         target: &core_audit::AuditTarget,
+        limit: usize,
+        offset: usize,
     ) -> Result<Vec<AuditEvent>, AuditError> {
         Ok(self
             .events
@@ -58,11 +67,62 @@ impl AuditStore for RecordingAuditStore {
             .unwrap()
             .iter()
             .filter(|e| e.target == *target)
+            .skip(offset)
+            .take(limit)
+            .cloned()
+            .collect())
+    }
+
+    fn list_all(&self, limit: usize, offset: usize) -> Result<Vec<AuditEvent>, AuditError> {
+        Ok(self
+            .events
+            .lock()
+            .unwrap()
+            .iter()
+            .skip(offset)
+            .take(limit)
+            .cloned()
+            .collect())
+    }
+
+    fn list_by_date_range(
+        &self,
+        from: chrono::DateTime<chrono::Utc>,
+        to: chrono::DateTime<chrono::Utc>,
+        limit: usize,
+        offset: usize,
+    ) -> Result<Vec<AuditEvent>, AuditError> {
+        Ok(self
+            .events
+            .lock()
+            .unwrap()
+            .iter()
+            .filter(|e| e.occurred_at_utc >= from && e.occurred_at_utc < to)
+            .skip(offset)
+            .take(limit)
             .cloned()
             .collect())
     }
 
     fn verify_chain(&self) -> Result<AuditChainReport, AuditError> {
+        Ok(AuditChainReport {
+            checked_events: self.len(),
+            head_record_hash: None,
+        })
+    }
+
+    fn verify_chain_since(&self, _from_sequence: u64) -> Result<AuditChainReport, AuditError> {
+        Ok(AuditChainReport {
+            checked_events: self.len(),
+            head_record_hash: None,
+        })
+    }
+
+    fn verify_chain_from_checkpoint(
+        &self,
+        _checkpoint_sequence: u64,
+        _checkpoint_hash: &str,
+    ) -> Result<AuditChainReport, AuditError> {
         Ok(AuditChainReport {
             checked_events: self.len(),
             head_record_hash: None,

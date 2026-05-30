@@ -1,97 +1,75 @@
 # core-audit
 
-`core-audit` e o core de auditoria institucional/local do Mini-Kernel RS.
+Núcleo de auditoria institucional do kernel normordis.
 
-Este componente regista eventos auditaveis como evidencia institucional local. O backend fisico e abstraido por `support-storage`, que guarda os valores protegidos por criptografia atraves do pipeline do kernel.
+Grava eventos como evidência imutável, liga-os numa cadeia de hashes verificável (SHA-256) e permite exportar e assinar manifestos com Ed25519.
 
 ## Fronteira conceptual
 
-```text
-support-logging = diagnostico tecnico operacional
-core-audit = evidencia institucional/local auditavel
+```
+support-logging  → diagnóstico técnico operacional
+core-audit       → evidência institucional auditável
 ```
 
-`core-audit` nao deve usar `support-logging` como mecanismo de auditoria e nao deve aplicar retencao destrutiva automatica nesta fase.
+`core-audit` não usa `support-logging`, não conhece SQLite, filesystem, Tauri nem configuração de runtime. A persistência física é injectada pelo `runtime/bootstrap`.
 
-## Relacao com auditoria legada
+## Funcionalidades
 
-`core-audit` substitui o contrato legado `support-audit` e o adapter
-`support-audit-sqlite`. Novos consumidores devem usar este crate e compor a
-persistencia em `runtime-bootstrap`.
+- **Append-only:** `event_id` duplicado é rejeitado
+- **Integridade por registo:** cada leitura recomputa o SHA-256 e rejeita eventos adulterados
+- **Cadeia de hashes:** cada registo encadeia o hash do anterior
+- **Verificação completa:** `verify_chain()` valida toda a cadeia de origem
+- **Verificação incremental:** `verify_chain_since(N)` verifica apenas eventos novos — escalável para dezenas de milhões de registos
+- **Consulta temporal:** `list_by_date_range(from, to, limit, offset)` — intervalo `[from, to[`
+- **Manifesto exportável:** `export_manifest()` gera hash do manifesto sobre contagem + cabeça da cadeia
+- **Assinatura Ed25519:** `sign_and_export(key, key_id)` produz manifesto assinado verificável por terceiros sem a chave privada
 
-## Configuracao externa
-
-O `core-audit` recebe `AuditStoreConfig` com o namespace de auditoria que deve usar:
+## Utilização rápida
 
 ```rust
-use core_audit::{AuditStoreConfig, StorageAuditStore};
+use core_audit::{AuditActor, AuditService, AuditStoreConfig, AuditTarget, StorageAuditStore};
 use support_storage::StorageNamespace;
 
 let config = AuditStoreConfig::new(StorageNamespace::new("audit.events")?);
-let store = StorageAuditStore::new(storage, config);
-# Ok::<(), support_storage::StorageError>(())
+let store  = StorageAuditStore::new(storage, config);
+let svc    = AuditService::new(store);
+
+// Gravar
+let event = svc.record_event(
+    "document.created",
+    AuditActor::new("user-123")?,
+    AuditTarget::new("document", "doc-456")?,
+    None,
+)?;
+
+// Consultar por intervalo temporal
+let from = Utc.with_ymd_and_hms(2026, 1, 1, 0, 0, 0).unwrap();
+let to   = Utc.with_ymd_and_hms(2026, 2, 1, 0, 0, 0).unwrap();
+let eventos = svc.list_by_date_range(from, to, 100, 0)?;
+
+// Verificar cadeia completa
+let report = svc.verify_chain()?;
+
+// Verificar apenas eventos novos (incremental)
+let report_inc = svc.verify_chain_since(ultimo_seq_verificado + 1)?;
+
+// Exportar e assinar manifesto
+let key    = AuditSigningKey::from_bytes(raw_bytes);
+let signed = svc.sign_and_export(&key, Some("audit-key-1".to_string()))?;
+verify_signed_manifest(&signed)?;
 ```
 
-O default de `AuditStoreConfig` continua a usar `audit.events` apenas para compatibilidade retroativa.
+## Backends
 
-O `core-audit` nao conhece `core-config`, `AuditProfile`, storage profiles, SQLite, filesystem, Tauri ou UI. A composicao correta e:
+| Backend | Crate | Recomendado para |
+|---|---|---|
+| `StorageAuditStore<S>` | `core-audit` | Testes e volumes pequenos |
+| `AuditSqliteStore` | `adapter-audit-sqlite` | Produção — qualquer volume |
 
-```text
-core-config
-  define namespace e storage_profile
+Para produção, use `adapter-audit-sqlite`: suporta verificação incremental eficiente,
+`list_by_date_range` com índice SQL e atomicidade nas escritas via SAVEPOINT.
 
-runtime/bootstrap
-  resolve storage_profile para um support-storage::Storage concreto
-  cria AuditStoreConfig
-  injeta StorageAuditStore no core-audit
+## Documentação detalhada
 
-core-audit
-  executa auditoria no namespace recebido
-```
-
-## Persistencia
-
-O core usa `support-storage::Storage` no namespace recebido por `AuditStoreConfig`.
-
-## Endurecimento atual
-
-- Eventos sao append-only no processo: um `event_id` existente e rejeitado.
-- Cada evento e armazenado num record com hash SHA-256 de integridade.
-- Leituras validam o hash antes de devolver o evento.
-- Eventos sao ligados por cadeia hash sequencial.
-- `verify_chain` valida sequencia, hash anterior e cabeca da cadeia.
-- `export_manifest` gera manifesto verificavel com contagem de eventos, head hash e hash do manifesto.
-- Manifestos podem ser assinados com Ed25519 e verificados por terceiros com a chave publica embutida.
-- `details_json` tem limite de tamanho.
-- `details_json` rejeita chaves com nomes sensiveis como password, secret, token, key, plaintext, ciphertext e payload.
-- O store mantem indices protegidos por ator e por alvo para consultas basicas sem SQL.
-- Nao existe retencao destrutiva automatica.
-
-## Base de dados audit.db
-
-E recomendado compor este core com uma base dedicada `audit.db` no bootstrap/runtime.
-
-O `core-audit` nao deve abrir essa base diretamente. A composicao correta e:
-
-```text
-runtime/bootstrap
-  abre audit.db com adapter-sqlite
-  cria RawStorage SQLite
-  monta support-storage protegido
-  injeta StorageAuditStore em core-audit
-```
-
-Esta separacao permite tratar a auditoria como evidencia institucional sem acoplar o core a SQLite.
-
-## Nivel probatorio local
-
-O modulo fornece prova local de integridade por:
-
-- append-only logico;
-- rejeicao fisica de overwrite quando usado com `audit.db`;
-- hash por record;
-- cadeia hash sequencial;
-- manifesto de exportacao verificavel.
-- assinatura digital Ed25519 destacada do manifesto.
-
-Export para ficheiro evidencial fica para uma fase posterior; a assinatura e verificacao do manifesto ja sao headless e independentes de filesystem.
+Ver [MAN.md](MAN.md) para referência completa do contrato, índices internos,
+política de dados, tabela de erros e separação de responsabilidades.

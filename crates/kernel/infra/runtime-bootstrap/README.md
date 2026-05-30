@@ -1,8 +1,6 @@
 # runtime-bootstrap
 
-`runtime-bootstrap` compoe componentes de infra do Mini-Kernel RS.
-
-O caminho oficial novo e `KernelRuntime + core_config::MiniKernelProfile`:
+`runtime-bootstrap` compõe componentes de infra do Mini-Kernel RS.
 
 ```text
 core-config define perfis
@@ -10,9 +8,9 @@ runtime-bootstrap resolve e instancia
 cores executam
 ```
 
-Nesta fase o runtime resolve o storage profile de auditoria, abre SQLite ou Memory,
-monta `ProtectedStorage -> StorageAuditStore -> AuditService` e expoe o servico de
-auditoria.
+O runtime resolve o storage profile de auditoria, abre a base SQLite relacional,
+monta `AuditSqliteStore<CryptoDetailsEncryptor> -> AuditService` e expõe o serviço
+de auditoria com `details_json` cifrado com XChaCha20-Poly1305.
 
 ## KernelRuntime
 
@@ -23,32 +21,38 @@ let profile = core_config::MiniKernelProfile::dev_default(data_dir);
 let runtime = KernelRuntime::open(&profile, key_provider)?;
 
 runtime.audit().record_event(event_type, actor, target, details)?;
+runtime.audit().verify_chain()?;
 runtime.shutdown()?;
 ```
 
-## Compatibilidade
+`KernelRuntime` não é genérico — a chave é extraída do provider na construção.
 
-`AuditDbConfig` e `AuditDbRuntime` continuam disponiveis para abrir uma base SQLite
-dedicada de auditoria local:
+## AuditDbRuntime (base dedicada)
 
-```text
-audit.db
-  adapter-sqlite::SqliteRawStorage
-  support-storage::ProtectedStorage
-  core-audit::StorageAuditStore
-  core-audit::AuditService
+```rust
+use runtime_bootstrap::{AuditDbConfig, AuditDbRuntime};
+
+let config = AuditDbConfig::from_data_dir(data_dir);
+let runtime = AuditDbRuntime::open(config, key_provider)?;
+
+runtime.service().record_event(event_type, actor, target, details)?;
+runtime.shutdown()?;
 ```
 
-`audit.db` e uma base SQLite dedicada a evidencia institucional/local auditavel.
+## Stack de auditoria
 
-O `core-audit` continua sem conhecer SQLite. A decisao de abrir storage concreto
-pertence ao bootstrap/runtime.
+```text
+AuditSqliteStore<CryptoDetailsEncryptor>
+  ├── CryptoDetailsEncryptor (XChaCha20-Poly1305, AAD = event_id)
+  ├── Schema relacional: audit_events + audit_chain_state
+  ├── Triggers append-only (UPDATE/DELETE bloqueados ao nível da BD)
+  ├── UNIQUE(sequence) + CHECK(sequence > 0)
+  └── BEGIN IMMEDIATE em record() — serialização multi-processo
+```
 
 ## Fronteira
 
 ```text
-support-logging = diagnostico tecnico operacional
-core-audit + audit.db = evidencia institucional/local auditavel
+support-logging  = diagnóstico técnico operacional
+core-audit + audit.db = evidência institucional auditável (AP Portuguesa/Europeia, RGPD)
 ```
-
-Nao usar logs tecnicos como auditoria.

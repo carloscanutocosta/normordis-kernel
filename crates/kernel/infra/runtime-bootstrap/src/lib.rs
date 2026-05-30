@@ -1,10 +1,10 @@
 mod audit;
 mod error;
 mod runtime;
-mod storage;
 
 pub use audit::{
-    AuditDbConfig, AuditDbRuntime, AuditDbService, AuditDbStorage, AuditDbStore, AUDIT_DB_FILE_NAME,
+    AuditDbConfig, AuditDbRuntime, AuditDbService, AuditDbStore, CryptoDetailsEncryptor,
+    AUDIT_DB_FILE_NAME,
 };
 pub use error::{
     RuntimeError, AUDIT_RUNTIME_FAILED, INVALID_STORAGE_PROFILE, LOGGING_RUNTIME_FAILED,

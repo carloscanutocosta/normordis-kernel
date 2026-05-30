@@ -1,15 +1,15 @@
-# Manual do modulo runtime-bootstrap
+# Manual do módulo runtime-bootstrap
 
 ## Objetivo
 
-Compor componentes do Mini-Kernel RS sem contaminar cores com detalhes de infraestrutura.
+Compor componentes do Mini-Kernel RS sem contaminar os cores com detalhes de infraestrutura.
 
 ## KernelRuntime oficial
 
-`KernelRuntime` e o caminho oficial novo para materializar um runtime local a partir
+`KernelRuntime` é o caminho oficial para materializar um runtime local a partir
 de `core_config::MiniKernelProfile`.
 
-Regra arquitetural:
+Regra arquitectural:
 
 ```text
 core-config define perfis
@@ -33,70 +33,72 @@ runtime.shutdown()?;
 
 - valida o `MiniKernelProfile`;
 - resolve `profile.audit.storage_profile`;
-- abre `StorageBackend::Sqlite` ou `StorageBackend::Memory`;
-- usa `profile.audit.namespace` em `AuditStoreConfig`;
-- cria logger tecnico opcional quando `profile.logging.enabled = true`;
-- nao cria runtime async, DI container, UI ou dependencia Tauri.
+- abre `StorageBackend::Sqlite` (ficheiro) ou `StorageBackend::Memory` (`:memory:`);
+- extrai a chave criptográfica do provider e constrói `CryptoDetailsEncryptor`;
+- abre `AuditSqliteStore<CryptoDetailsEncryptor>` com as migrações aplicadas;
+- cria logger técnico opcional quando `profile.logging.enabled = true`;
+- não cria runtime async, DI container, UI ou dependência Tauri.
 
-## Contrato publico
-
-- `KernelRuntime::open(&MiniKernelProfile, keys) -> Result<KernelRuntime<_>, MiniError>`
-- `KernelRuntime::audit() -> &AuditDbService<_>`
-- `KernelRuntime::logger() -> Option<&dyn support_logging::TechnicalLogger>`
-- `KernelRuntime::shutdown() -> Result<(), MiniError>`
-- `AuditDbConfig`, `AuditDbRuntime`, `AuditDbService`, `AuditDbStore` e `AuditDbStorage`
-  permanecem disponiveis por compatibilidade.
-
-## Auditoria dedicada
-
-`AuditDbRuntime` abre uma base `audit.db` e monta:
-
-```text
-SqliteRawStorage
-JsonStorageCodec
-CryptoStorageProtector
-ProtectedStorage
-StorageAuditStore
-AuditService
-```
-
-## Uso legado compativel
+## Contrato público
 
 ```rust
-use runtime_bootstrap::{AuditDbConfig, AuditDbRuntime};
+// KernelRuntime — não genérico (chave extraída na construção)
+KernelRuntime::open<P: KeyProvider + KeyResolver>(&MiniKernelProfile, P) -> Result<KernelRuntime, MiniError>
+KernelRuntime::audit() -> &AuditDbService
+KernelRuntime::logger() -> Option<&dyn TechnicalLogger>
+KernelRuntime::shutdown() -> Result<(), MiniError>
 
-let config = AuditDbConfig::from_data_dir(data_dir);
-let runtime = AuditDbRuntime::open(config, key_provider)?;
+// AuditDbRuntime — base dedicada de auditoria
+AuditDbRuntime::open<P: KeyProvider>(AuditDbConfig, P) -> Result<AuditDbRuntime, MiniError>
+AuditDbRuntime::service() -> &AuditDbService
+AuditDbRuntime::shutdown() -> Result<(), MiniError>
+```
 
-runtime.service().record_event(event_type, actor, target, details)?;
-runtime.shutdown()?;
+Tipos exportados: `AuditDbConfig`, `AuditDbRuntime`, `AuditDbService`, `AuditDbStore`,
+`CryptoDetailsEncryptor`, `AUDIT_DB_FILE_NAME`.
+
+## Stack de auditoria
+
+```text
+AuditSqliteStore<CryptoDetailsEncryptor>
+  ├── CryptoDetailsEncryptor
+  │     ├── XChaCha20-Poly1305 (via support-crypto)
+  │     ├── AAD = event_id (liga cifra ao evento, impede substituição)
+  │     └── Chave extraída do KeyProvider na construção
+  ├── Schema relacional (adapter-audit-sqlite):
+  │     ├── audit_events (append-only)
+  │     │     ├── sequence UNIQUE CHECK(> 0)
+  │     │     ├── record_hash SHA-256 (cadeia verificável)
+  │     │     └── details_json cifrado em repouso
+  │     └── audit_chain_state (cabeça da cadeia)
+  ├── Triggers BEFORE UPDATE/DELETE — adulteração bloqueada ao nível da BD
+  └── BEGIN IMMEDIATE em record() — serialização multi-processo
 ```
 
 ## Garantias
 
-- `audit.db` e separado da base funcional.
-- O core nao depende de SQLite.
-- Escritas de evento usam `support-storage`.
-- `SqliteRawStorage` suporta escrita condicional atomica para rejeitar overwrite de eventos.
-- `StorageBackend::Memory` permite testes e runtime dev sem SQLite.
-- O logger tecnico de `support-logging` nao substitui `core-audit` e nao recebe eventos
-  auditaveis automaticamente.
-- `shutdown()` e idempotente para runtimes SQLite e Memory.
-- Depois de `shutdown()`, novas escritas SQLite atraves do runtime falham de forma controlada
-  no store de auditoria.
+- `audit.db` é separado da base funcional.
+- O core (`core-audit`) não depende de SQLite nem de criptografia.
+- `details_json` é cifrado com XChaCha20-Poly1305; campos de indexação (actor, target, datas) ficam em plaintext para eficiência SQL.
+- `record()` usa `BEGIN IMMEDIATE` — serializa escritores entre processos distintos.
+- `UNIQUE(sequence)` é segunda linha de defesa contra race conditions multi-processo.
+- Triggers `BEFORE UPDATE/DELETE` bloqueam adulteração directa na BD.
+- `shutdown()` é idempotente; escritas após shutdown falham com `StoreFailed`.
+- `StorageBackend::Memory` usa SQLite `:memory:` — adequado para testes sem ficheiro.
 
-## Erros publicos
+## Erros públicos
 
-- `MINI.RUNTIME.INVALID_STORAGE_PROFILE`
-- `MINI.RUNTIME.UNSUPPORTED_STORAGE_BACKEND`
-- `MINI.RUNTIME.RUNTIME_OPEN_FAILED`
-- `MINI.RUNTIME.AUDIT_RUNTIME_FAILED`
-- `MINI.RUNTIME.LOGGING_RUNTIME_FAILED`
+| Código | Quando |
+|---|---|
+| `MINI.RUNTIME.INVALID_STORAGE_PROFILE` | Profile de auditoria em falta ou inválido |
+| `MINI.RUNTIME.UNSUPPORTED_STORAGE_BACKEND` | Backend não suportado (ex: S3) |
+| `MINI.RUNTIME.RUNTIME_OPEN_FAILED` | Erro genérico na abertura do runtime |
+| `MINI.RUNTIME.AUDIT_RUNTIME_FAILED` | Falha ao abrir o store de auditoria |
+| `MINI.RUNTIME.LOGGING_RUNTIME_FAILED` | Falha ao inicializar o logger técnico |
 
-## Limites atuais
+## Limites actuais
 
-- Nao gere ciclo de vida de recovery passphrase.
-- Nao importa automaticamente bases antigas criadas pelo adapter legado `support-audit-sqlite`.
-- Export, assinatura e cadeia hash pertencem ao `core-audit`; este crate apenas compoe a infra.
-- Ainda nao implementa plugin system, dynamic module loading, network sync, scheduler,
-  metrics ou telemetry.
+- Não gere ciclo de vida de recovery passphrase.
+- Não importa automaticamente bases antigas criadas pelo adapter legado `support-audit-sqlite`.
+- Export, assinatura e cadeia hash pertencem ao `core-audit`; este crate apenas compõe a infra.
+- Sem plugin system, dynamic module loading, network sync, scheduler, metrics ou telemetry.

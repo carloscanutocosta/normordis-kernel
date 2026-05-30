@@ -1,148 +1,264 @@
-# Manual do modulo core-audit
+# Manual técnico — core-audit
 
-## Objetivo
+## Propósito
 
-`core-audit` fornece o contrato institucional/local de auditoria do Mini-Kernel RS. O modulo grava eventos auditaveis em `support-storage`, sem conhecer o backend fisico.
+`core-audit` é o núcleo de auditoria institucional do kernel normordis. Grava eventos como evidência imutável, liga-os numa cadeia de hashes verificável e permite exportar e assinar manifestos para custódia ou transmissão.
 
-## Contrato publico
+Não conhece SQLite, filesystem, Tauri, logging técnico nem configuração de runtime. Recebe um `AuditStore` por injecção.
 
-Tipos principais:
+---
+
+## Contrato público
+
+### Tipos de domínio
+
+| Tipo | Papel |
+|---|---|
+| `AuditEvent` | Evento auditável — `event_id`, `event_type`, `actor`, `target`, `occurred_at_utc`, `details_json` |
+| `AuditActor` | Quem executou — `actor_id` obrigatório; `actor_name`, `actor_type` opcionais |
+| `AuditTarget` | Sobre o quê — `target_type` + `target_id` |
+| `AuditService<S>` | Fachada de alto nível sobre qualquer `AuditStore` |
+| `StorageAuditStore<S>` | Implementação genérica sobre `support_storage::Storage` |
+| `AuditStoreConfig` | Namespace de armazenamento |
+| `AuditError` | Erros tipados com código canónico `MINI.AUDIT.*` |
+
+### Trait AuditStore
 
 ```rust
-AuditActor
-AuditTarget
-AuditEvent
-AuditStore
-StorageAuditStore
-AuditStoreConfig
-AuditService
-AuditError
+pub trait AuditStore: Send + Sync {
+    // Escrita
+    fn record(&self, event: &AuditEvent) -> Result<(), AuditError>;
+
+    // Leitura por chave
+    fn get(&self, event_id: &str) -> Result<Option<AuditEvent>, AuditError>;
+
+    // Listagens
+    fn list_by_actor(&self, actor_id: &str, limit: usize, offset: usize)         -> Result<Vec<AuditEvent>, AuditError>;
+    fn list_by_target(&self, target: &AuditTarget, limit: usize, offset: usize)  -> Result<Vec<AuditEvent>, AuditError>;
+    fn list_all(&self, limit: usize, offset: usize)                              -> Result<Vec<AuditEvent>, AuditError>;
+    fn list_by_date_range(&self, from: DateTime<Utc>, to: DateTime<Utc>,
+                          limit: usize, offset: usize)                           -> Result<Vec<AuditEvent>, AuditError>;
+
+    // Verificação e exportação
+    fn verify_chain(&self)                                                        -> Result<AuditChainReport, AuditError>;
+    fn verify_chain_since(&self, from_sequence: u64)                             -> Result<AuditChainReport, AuditError>;
+    /// Verifica o sufixo após um checkpoint externo de confiança.
+    /// Rejeita se o evento na posição checkpoint_sequence não tiver exactamente
+    /// checkpoint_hash — prova que o prefixo não foi adulterado.
+    /// Rejeita checkpoint_sequence == 0 com ChainVerificationFailed.
+    fn verify_chain_from_checkpoint(&self, checkpoint_sequence: u64,
+                                    checkpoint_hash: &str)                       -> Result<AuditChainReport, AuditError>;
+    fn export_manifest(&self)                                                     -> Result<AuditExportManifest, AuditError>;
+}
 ```
 
-`AuditService::record_event` cria `event_id` UUID v4, define `occurred_at_utc`, valida o evento e delega a persistencia no `AuditStore`.
-
-Consultas disponiveis nesta fase:
+### AuditService — métodos públicos
 
 ```rust
-AuditStore::get(event_id)
-AuditStore::list_by_actor(actor_id)
-AuditStore::list_by_target(target)
-AuditStore::verify_chain()
-AuditStore::export_manifest()
-sign_manifest(manifest, signing_key, key_id)
-verify_signed_manifest(signed_manifest)
+impl<S: AuditStore> AuditService<S> {
+    fn record_event(event_type, actor, target, details_json) -> Result<AuditEvent>
+    fn get(event_id) -> Result<Option<AuditEvent>>
+    fn list_by_actor(actor_id, limit, offset) -> Result<Vec<AuditEvent>>
+    fn list_by_target(target, limit, offset) -> Result<Vec<AuditEvent>>
+    fn list_all(limit, offset) -> Result<Vec<AuditEvent>>
+    fn list_by_date_range(from, to, limit, offset) -> Result<Vec<AuditEvent>>
+    fn verify_chain() -> Result<AuditChainReport>
+    fn verify_chain_since(from_sequence) -> Result<AuditChainReport>
+    fn verify_chain_from_checkpoint(checkpoint_sequence, checkpoint_hash) -> Result<AuditChainReport>
+    fn export_manifest() -> Result<AuditExportManifest>
+    fn sign_and_export(signing_key, key_id) -> Result<SignedAuditExportManifest>
+}
 ```
 
-## Como usar
+---
+
+## Utilização
+
+### Gravação de um evento
 
 ```rust
 use core_audit::{AuditActor, AuditService, AuditStoreConfig, AuditTarget, StorageAuditStore};
 use support_storage::StorageNamespace;
 
 let config = AuditStoreConfig::new(StorageNamespace::new("audit.events")?);
-let store = StorageAuditStore::new(storage, config);
-let service = AuditService::new(store);
+let store  = StorageAuditStore::new(storage, config);
+let svc    = AuditService::new(store);
 
-let event = service.record_event(
+let event = svc.record_event(
     "document.created",
-    AuditActor::new("user-1")?,
-    AuditTarget::new("document", "doc-1")?,
-    None,
+    AuditActor::new("user-123")?,
+    AuditTarget::new("document", "doc-456")?,
+    Some(json!({"acção": "criação", "origem": "interface-web"})),
 )?;
-# Ok::<(), Box<dyn std::error::Error>>(())
 ```
 
-Para compatibilidade retroativa do namespace, `AuditStoreConfig::default()` usa `audit.events`.
+`record_event` gera UUID v4 para `event_id` e registra `occurred_at_utc = Utc::now()`.
+Para testes deterministas use `AuditEvent::with_id_and_time`.
 
-## Storage
+### Consulta por intervalo temporal
 
-O namespace e externo e vem de `AuditStoreConfig`. `core-audit` nao conhece `core-config`, `AuditProfile`, storage profiles, SQLite, paths, filesystem, Tauri ou UI.
+```rust
+use chrono::{TimeZone, Utc};
 
-## Configuracao externa
+let from = Utc.with_ymd_and_hms(2026, 1, 1, 0, 0, 0).unwrap();
+let to   = Utc.with_ymd_and_hms(2026, 2, 1, 0, 0, 0).unwrap();
 
-```text
-core-config decide o que:
-  namespace = "audit.events"
-  storage_profile = "audit"
-
-runtime/bootstrap constroi como:
-  resolve storage_profile
-  cria support-storage::Storage concreto
-  cria AuditStoreConfig
-  injeta StorageAuditStore
-
-core-audit executa:
-  grava, consulta, verifica cadeia e exporta manifesto no namespace recebido
+let eventos_janeiro = svc.list_by_date_range(from, to, 100, 0)?;
 ```
 
-A conversao entre `core_config::AuditProfile` e `AuditStoreConfig` deve acontecer fora deste crate.
+O intervalo é `[from, to[` — `from` inclusivo, `to` exclusivo.
+Com `adapter-audit-sqlite` a consulta usa `idx_audit_time` e é eficiente para qualquer volume.
 
-Cada evento e guardado como JSON protegido via `support-storage`. O core guarda tambem uma entrada tecnica de lookup por `event_id`, porque o contrato atual de `support-storage` ainda nao expoe listagem ou indices.
+### Verificação incremental da cadeia
 
-O store guarda tambem indices protegidos:
+```rust
+// Primeira verificação completa — guarda o resultado
+let report = svc.verify_chain()?;
+let checkpoint_seq = report.checked_events as u64;
 
-```text
-by-id.<event_id>
-by-actor.<sha256(actor_id)>
-by-target.<sha256(target_type + target_id)>
+// ... novos eventos gravados ...
+
+// Verificação incremental — apenas os novos
+let report_inc = svc.verify_chain_since(checkpoint_seq + 1)?;
+println!("{} novos eventos verificados", report_inc.checked_events);
 ```
 
-As chaves de indice usam hash para nao expor identificadores diretamente em `StorageKey` e para cumprir a validacao de `support-storage`.
+`verify_chain_since(N)` verifica apenas eventos a partir da sequência N, calculando
+o hash âncora a partir do evento N-1 já gravado. Para dezenas de milhões de eventos,
+este padrão reduz o custo de verificação periódica para O(novos_eventos).
+
+### Exportação e assinatura
+
+```rust
+// Manifesto verificável (sem chave)
+let manifest = svc.export_manifest()?;
+
+// Manifesto assinado com Ed25519
+let key    = AuditSigningKey::from_bytes(raw_key_bytes);
+let signed = svc.sign_and_export(&key, Some("audit-key-prod".to_string()))?;
+
+// Verificação por terceiro (não precisa da chave privada)
+verify_signed_manifest(&signed)?;
+```
+
+A chave privada é mantida em `AuditSigningKey` com `Debug` redigido e zeroização automática em drop.
+
+---
 
 ## Integridade e imutabilidade
 
-- `record` rejeita `event_id` duplicado.
-- O `StorageAuditStore` serializa cada evento dentro de um record com `schema_version` e `event_hash`.
-- Cada record contem `AuditChainLink` com `sequence`, `previous_record_hash` e `record_hash`.
-- `record_hash` e SHA-256 canonico do evento, sequencia e hash anterior.
-- `get` e listagens verificam o hash antes de devolver eventos.
-- Se o conteudo armazenado for alterado, a leitura falha com `MINI.AUDIT.INTEGRITY_FAILED`.
-- `verify_chain` valida sequencia completa, hash anterior, hashes de records e cabeca da cadeia.
-- `export_manifest` devolve contagem, head hash e hash do manifesto para export posterior.
-- `sign_manifest` produz uma assinatura digital Ed25519 destacada para o manifesto.
-- `verify_signed_manifest` valida assinatura, algoritmo, chave publica e bytes canonicos do manifesto.
+Cada evento gravado cria um **record de cadeia**:
 
-## Assinatura digital
-
-Tipos publicos:
-
-```rust
-AuditSigningKey
-AuditManifestSignature
-SignedAuditExportManifest
+```
+record_hash = SHA-256({schema_version, sequence, previous_record_hash, event})
 ```
 
-A assinatura usa Ed25519. A chave privada e mantida em `AuditSigningKey` com `Debug` redigido e zeroizacao em drop. O manifesto assinado inclui a chave publica em Base64 para permitir verificacao por terceiros.
+| Garantia | Mecanismo |
+|---|---|
+| Append-only lógico | `record` rejeita `event_id` duplicado com `DUPLICATE_EVENT` |
+| Tamper-evident por registo | Leitura recomputa hash; falha com `INTEGRITY_FAILED` se divergir |
+| Cadeia verificável | `verify_chain` valida sequência, `previous_record_hash` e `record_hash` de cada elo |
+| Verificação incremental | `verify_chain_since(N)` verifica a partir da sequência N, usando âncora segura |
+| Manifesto exportável | `export_manifest` gera hash do manifesto sobre contagem + cabeça da cadeia |
+| Assinatura Ed25519 | `sign_and_export` produz assinatura destacada verificável por terceiros |
 
-O formato assinado nao inclui payloads auditaveis completos; assina o manifesto, que referencia a cabeca da cadeia hash e a contagem de eventos.
+---
 
-Nota: a imutabilidade atual e garantida no contrato do store e serializada no processo por mutex. Quando composto por `runtime-bootstrap` com `audit.db`, `adapter-sqlite` usa escrita condicional atomica para rejeitar overwrite no backend fisico.
+## Política de dados
 
-## Politica de dados
+| Regra | Detalhe |
+|---|---|
+| `details_json` é opcional | Pode ser `None` |
+| Tamanho máximo | 16 KiB (serializado) |
+| Chaves sensíveis bloqueadas | `password`, `passphrase`, `secret`, `token`, `key`, `plaintext`, `ciphertext`, `payload`, `authorization`, `cookie`, `recovery` |
+| Payloads completos proibidos | Documentos, plantext sensível e credenciais não devem constar em auditoria |
 
-- `details_json` e opcional.
-- `details_json` tem limite default de 16 KiB.
-- Chaves sensiveis sao rejeitadas por nome: `password`, `passphrase`, `secret`, `token`, `key`, `plaintext`, `ciphertext`, `payload`, `authorization`, `cookie`, `recovery`.
-- Payloads documentais completos, plaintext sensivel e secrets nao devem ser colocados em auditoria.
+---
 
-## Limites atuais
+## Índices internos (StorageAuditStore)
 
-- Sem export institucional.
-- Sem export para ficheiro evidencial.
-- Sem retencao auditavel.
-- Sem importacao automatica de bases antigas criadas pelo adapter legado `support-audit-sqlite`.
-- Sem dependencia de SQLite, Tauri, filesystem ou UI.
+O `StorageAuditStore` mantém no namespace configurado:
 
-## Diferenca para logging tecnico
-
-```text
-support-logging = diagnostico tecnico operacional
-core-audit = evidencia institucional/local auditavel
+```
+{epoch_ms}.{event_id}          ← record completo com chain_link
+by-id.{event_id}               ← lookup por event_id
+by-actor.{sha256(actor_id)}    ← índice por actor (ordenado por tempo)
+by-target.{sha256(type+id)}    ← índice por target (ordenado por tempo)
+chain.head                     ← estado da cabeça (sequence + head_record_hash)
+chain.events                   ← índice completo da cadeia (em sequência)
 ```
 
-Logs tecnicos podem rodar e expirar. Eventos de auditoria nao sao apagados automaticamente nesta fase.
+As chaves de índice usam SHA-256 do identificador para não expor dados directamente em `StorageKey`.
 
-## ToDo
+> **Nota de escalabilidade:** `StorageAuditStore` carrega o `chain.events` inteiro em memória para `verify_chain` e `list_by_date_range`. Para volumes acima de ~100K eventos, recomenda-se `adapter-audit-sqlite` (ver abaixo).
 
-- Retencao auditavel e nao silenciosa.
-- Importador controlado para bases antigas criadas pelo adapter legado `support-audit-sqlite`, se for preciso preservar historico local.
+---
+
+## Backends disponíveis
+
+| Backend | Crate | Recomendado para |
+|---|---|---|
+| `StorageAuditStore<S>` | `core-audit` | Testes, volumes pequenos, backends abstractos |
+| `AuditSqliteStore` | `adapter-audit-sqlite` | Produção — qualquer volume, verificação incremental eficiente |
+
+---
+
+## Separação de responsabilidades
+
+```
+core-config
+  └─ define namespace e storage_profile
+
+runtime/bootstrap
+  └─ resolve storage_profile → Storage concreto
+  └─ cria AuditStoreConfig
+  └─ constrói AuditSqliteStore ou StorageAuditStore
+  └─ injeta em AuditService
+
+core-audit
+  └─ grava, consulta, verifica cadeia, exporta manifesto
+  └─ não conhece SQLite, filesystem, Tauri, logging
+```
+
+---
+
+## Diferença para logging técnico
+
+```
+support-logging  → diagnóstico técnico operacional (pode rodar, expirar, ser filtrado)
+core-audit       → evidência institucional auditável (append-only, verificável, exportável)
+```
+
+---
+
+## Erros
+
+Todos os erros são variantes de `AuditError` com código canónico `MINI.AUDIT.*`:
+
+| Código | Significado |
+|---|---|
+| `MINI.AUDIT.INVALID_EVENT_TYPE` | Tipo de evento vazio, com espaços ou excede 128 chars |
+| `MINI.AUDIT.INVALID_ACTOR` | actor_id inválido ou excede 256 chars |
+| `MINI.AUDIT.INVALID_TARGET` | target_type/target_id inválidos ou excedem 256 chars |
+| `MINI.AUDIT.DETAILS_TOO_LARGE` | details_json excede 16 KiB |
+| `MINI.AUDIT.SENSITIVE_DETAILS` | details_json contém chave sensível |
+| `MINI.AUDIT.DUPLICATE_EVENT` | event_id já existe |
+| `MINI.AUDIT.INTEGRITY_FAILED` | Hash do registo não coincide com o calculado |
+| `MINI.AUDIT.CHAIN_VERIFICATION_FAILED` | Cadeia inconsistente (sequência ou hash) |
+| `MINI.AUDIT.SIGN_FAILED` | Falha ao serializar manifesto para assinatura |
+| `MINI.AUDIT.SIGNATURE_VERIFICATION_FAILED` | Assinatura Ed25519 inválida |
+| `MINI.AUDIT.STORE_FAILED` | Erro no backend de armazenamento |
+| `MINI.AUDIT.OPERATION_FAILED` | Erro interno genérico |
+
+---
+
+## Restrições de dependências (guardas em testes)
+
+`core-audit` nunca pode depender de:
+
+- `rusqlite` / `adapter-sqlite` — isolamento da infra
+- `tauri` — isolamento da UI
+- `core-config` — isolamento da configuração de runtime
+- `support-logging` — fronteira entre auditoria e logging
+
+Violações são detectadas por testes no `manifest_tests` do crate.

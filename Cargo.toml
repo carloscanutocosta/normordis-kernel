@@ -50,6 +50,7 @@ members = [
   "crates/kernel/infra/mef-sqlite",
   "crates/kernel/infra/adapter-registry-sqlite",
   "crates/kernel/infra/adapter-telemetry-sqlite",
+  "crates/kernel/infra/adapter-audit-sqlite",
   "crates/kernel/infra/services/signing",
   "crates/kernel/infra/services/export",
   "crates/kernel/infra/services/backup",
