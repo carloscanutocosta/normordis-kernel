@@ -1,4 +1,6 @@
-use support_crypto::{decrypt_bytes_with_passphrase, encrypt_bytes_with_passphrase, EncryptedPayload};
+use support_crypto::{
+    decrypt_bytes_with_passphrase, encrypt_bytes_with_passphrase, EncryptedPayload,
+};
 
 use crate::error::BackupError;
 

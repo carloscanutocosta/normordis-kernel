@@ -49,7 +49,10 @@ fn main() -> Result<()> {
         .push(Paragraph::new("Referência: DEMO/2026/001").align(TextAlign::Right))
         // ── Tabela com col_span ───────────────────────────────────────────────
         .push(Spacer::new(6.0))
-        .push(Section::new("3. Tabela com células mescladas (col_span)", 1))
+        .push(Section::new(
+            "3. Tabela com células mescladas (col_span)",
+            1,
+        ))
         .push(
             Table::builder()
                 .col_widths(vec![25.0, 25.0, 25.0, 25.0])
@@ -80,28 +83,38 @@ fn main() -> Result<()> {
         )
         // ── Paginação automática de tabela ───────────────────────────────────
         .push(Spacer::new(6.0))
-        .push(Section::new("4. Tabela com paginação automática (40 linhas)", 1))
+        .push(Section::new(
+            "4. Tabela com paginação automática (40 linhas)",
+            1,
+        ))
         .push(
             Table::new(
                 vec!["#".into(), "Descrição".into(), "Valor (€)".into()],
                 (1..=40)
-                    .map(|i| TableRow::plain(vec![
-                        i.to_string(),
-                        format!("Item de demonstração número {i}"),
-                        format!("{:.2}", i as f64 * 12.5),
-                    ]))
+                    .map(|i| {
+                        TableRow::plain(vec![
+                            i.to_string(),
+                            format!("Item de demonstração número {i}"),
+                            format!("{:.2}", i as f64 * 12.5),
+                        ])
+                    })
                     .collect(),
             )
             .stripe(),
         )
         // ── Paginação de lista ────────────────────────────────────────────────
         .push(Spacer::new(6.0))
-        .push(Section::new("5. Lista com paginação automática (30 itens)", 1))
+        .push(Section::new(
+            "5. Lista com paginação automática (30 itens)",
+            1,
+        ))
         .push(BulletList::new(
             (1..=30)
-                .map(|i| ListItemElement::plain(
-                    format!("Item de lista paginado número {i} — conteúdo de demonstração")
-                ))
+                .map(|i| {
+                    ListItemElement::plain(format!(
+                        "Item de lista paginado número {i} — conteúdo de demonstração"
+                    ))
+                })
                 .collect(),
         ))
         .render_to_bytes()?;

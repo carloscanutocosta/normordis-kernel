@@ -1,6 +1,6 @@
 use crate::{
-    AppUsageEvent, AppUsageStats, TelemetryError, TelemetryRepository,
-    UsageEventFilter, UsagePeriod,
+    AppUsageEvent, AppUsageStats, TelemetryError, TelemetryRepository, UsageEventFilter,
+    UsagePeriod,
 };
 
 /// Ponto de entrada único para registo e consulta de telemetria de uso de apps.

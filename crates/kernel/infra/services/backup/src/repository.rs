@@ -226,7 +226,10 @@ impl MaintenanceRepository {
         .map_err(|e| BackupServiceError::ControlDbFailed(e.to_string()))?
     }
 
-    pub async fn list_all_runs(&self, limit: usize) -> Result<Vec<MaintenanceRun>, BackupServiceError> {
+    pub async fn list_all_runs(
+        &self,
+        limit: usize,
+    ) -> Result<Vec<MaintenanceRun>, BackupServiceError> {
         let repo = self.clone();
         tokio::task::spawn_blocking(move || {
             let conn = repo.open()?;

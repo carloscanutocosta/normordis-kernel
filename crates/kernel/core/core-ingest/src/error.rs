@@ -33,7 +33,10 @@ pub enum IngestError {
     RouteUnavailable,
 
     #[error("bundle excede limite: limite={limit_bytes}B, tamanho={actual_bytes}B")]
-    Oversized { limit_bytes: usize, actual_bytes: usize },
+    Oversized {
+        limit_bytes: usize,
+        actual_bytes: usize,
+    },
 
     #[error("falha a serializar: {0}")]
     MarshalFailed(String),

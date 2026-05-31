@@ -49,24 +49,26 @@ pub enum AppState {
 impl AppState {
     pub fn as_str(&self) -> &str {
         match self {
-            AppState::Draft        => "Draft",
+            AppState::Draft => "Draft",
             AppState::Experimental => "Experimental",
-            AppState::Active       => "Active",
-            AppState::Suspended    => "Suspended",
-            AppState::Deprecated   => "Deprecated",
-            AppState::Retired      => "Retired",
+            AppState::Active => "Active",
+            AppState::Suspended => "Suspended",
+            AppState::Deprecated => "Deprecated",
+            AppState::Retired => "Retired",
         }
     }
 
     pub fn from_str(s: &str) -> Result<Self, RegistryError> {
         match s {
-            "Draft"        => Ok(AppState::Draft),
+            "Draft" => Ok(AppState::Draft),
             "Experimental" => Ok(AppState::Experimental),
-            "Active"       => Ok(AppState::Active),
-            "Suspended"    => Ok(AppState::Suspended),
-            "Deprecated"   => Ok(AppState::Deprecated),
-            "Retired"      => Ok(AppState::Retired),
-            other => Err(RegistryError::Storage(format!("estado desconhecido: {other}"))),
+            "Active" => Ok(AppState::Active),
+            "Suspended" => Ok(AppState::Suspended),
+            "Deprecated" => Ok(AppState::Deprecated),
+            "Retired" => Ok(AppState::Retired),
+            other => Err(RegistryError::Storage(format!(
+                "estado desconhecido: {other}"
+            ))),
         }
     }
 
@@ -76,12 +78,12 @@ impl AppState {
 
     pub fn valid_transitions(&self) -> &[AppState] {
         match self {
-            AppState::Draft        => &[AppState::Experimental, AppState::Active, AppState::Retired],
+            AppState::Draft => &[AppState::Experimental, AppState::Active, AppState::Retired],
             AppState::Experimental => &[AppState::Active, AppState::Suspended, AppState::Retired],
-            AppState::Active       => &[AppState::Suspended, AppState::Deprecated, AppState::Retired],
-            AppState::Suspended    => &[AppState::Active, AppState::Deprecated, AppState::Retired],
-            AppState::Deprecated   => &[AppState::Retired],
-            AppState::Retired      => &[],
+            AppState::Active => &[AppState::Suspended, AppState::Deprecated, AppState::Retired],
+            AppState::Suspended => &[AppState::Active, AppState::Deprecated, AppState::Retired],
+            AppState::Deprecated => &[AppState::Retired],
+            AppState::Retired => &[],
         }
     }
 
@@ -99,10 +101,10 @@ impl std::fmt::Display for AppState {
 /// Registo datado e imutável de uma transição de estado.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AppStateTransition {
-    pub state:           AppState,
+    pub state: AppState,
     pub transitioned_at: DateTime<Utc>,
     pub transitioned_by: String,
-    pub reason:          Option<String>,
+    pub reason: Option<String>,
 }
 
 /// Visibilidade organizacional de uma app no workspace.
@@ -122,16 +124,18 @@ pub enum AppVisibility {
 impl AppVisibility {
     pub fn as_str(&self) -> &str {
         match self {
-            AppVisibility::Public   => "Public",
+            AppVisibility::Public => "Public",
             AppVisibility::Internal => "Internal",
         }
     }
 
     pub fn from_str(s: &str) -> Result<Self, RegistryError> {
         match s {
-            "Public"   => Ok(AppVisibility::Public),
+            "Public" => Ok(AppVisibility::Public),
             "Internal" => Ok(AppVisibility::Internal),
-            other => Err(RegistryError::Storage(format!("visibilidade desconhecida: {other}"))),
+            other => Err(RegistryError::Storage(format!(
+                "visibilidade desconhecida: {other}"
+            ))),
         }
     }
 }
@@ -139,14 +143,14 @@ impl AppVisibility {
 /// Registo completo de uma app no catálogo institucional.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AppRegistration {
-    pub id:            AppId,
-    pub name:          String,
-    pub version:       String,
-    pub owner:         String,
-    pub domain:        String,
-    pub description:   Option<String>,
-    pub capabilities:  Vec<String>,
-    pub visibility:    AppVisibility,
+    pub id: AppId,
+    pub name: String,
+    pub version: String,
+    pub owner: String,
+    pub domain: String,
+    pub description: Option<String>,
+    pub capabilities: Vec<String>,
+    pub visibility: AppVisibility,
     /// Roles que têm acesso a esta app.
     /// Vazio = todos os utilizadores (sujeito a `AppVisibility`).
     /// Não-vazio = só utilizadores com pelo menos um dos roles listados.
@@ -180,14 +184,14 @@ impl AppRegistration {
 /// Pedido de registo de uma nova app no catálogo.
 #[derive(Debug, Clone)]
 pub struct RegisterAppRequest {
-    pub id:            AppId,
-    pub name:          String,
-    pub version:       String,
-    pub owner:         String,
-    pub domain:        String,
-    pub description:   Option<String>,
-    pub capabilities:  Vec<String>,
-    pub visibility:    AppVisibility,
+    pub id: AppId,
+    pub name: String,
+    pub version: String,
+    pub owner: String,
+    pub domain: String,
+    pub description: Option<String>,
+    pub capabilities: Vec<String>,
+    pub visibility: AppVisibility,
     /// Roles com acesso a esta app. Vazio = acesso livre.
     pub allowed_roles: Vec<RoleId>,
     pub registered_by: String,
@@ -217,10 +221,10 @@ impl RegisterAppRequest {
 /// Pedido de transição de estado de uma app registada.
 #[derive(Debug, Clone)]
 pub struct TransitionStateRequest {
-    pub app_id:          AppId,
-    pub to_state:        AppState,
+    pub app_id: AppId,
+    pub to_state: AppState,
     pub transitioned_by: String,
-    pub reason:          Option<String>,
+    pub reason: Option<String>,
 }
 
 impl TransitionStateRequest {
@@ -236,14 +240,14 @@ impl TransitionStateRequest {
 /// Apenas os campos `Some(...)` são actualizados; `None` = sem alteração.
 #[derive(Debug, Clone)]
 pub struct UpdateAppMetadataRequest {
-    pub app_id:       AppId,
-    pub version:      Option<String>,
+    pub app_id: AppId,
+    pub version: Option<String>,
     /// `Some(None)` limpa o campo; `Some(Some(s))` actualiza.
-    pub description:  Option<Option<String>>,
+    pub description: Option<Option<String>>,
     pub capabilities: Option<Vec<String>>,
-    pub visibility:   Option<AppVisibility>,
-    pub owner:        Option<String>,
-    pub updated_by:   String,
+    pub visibility: Option<AppVisibility>,
+    pub owner: Option<String>,
+    pub updated_by: String,
 }
 
 impl UpdateAppMetadataRequest {
@@ -268,10 +272,10 @@ impl UpdateAppMetadataRequest {
 /// Filtro para listagem de apps registadas. Campos `None` não aplicam filtro.
 #[derive(Debug, Clone, Default)]
 pub struct AppRegistryFilter {
-    pub state:         Option<AppState>,
-    pub domain:        Option<String>,
-    pub owner:         Option<String>,
-    pub visibility:    Option<AppVisibility>,
+    pub state: Option<AppState>,
+    pub domain: Option<String>,
+    pub owner: Option<String>,
+    pub visibility: Option<AppVisibility>,
     /// Filtra por substring do nome (case-insensitive).
     pub name_contains: Option<String>,
 }

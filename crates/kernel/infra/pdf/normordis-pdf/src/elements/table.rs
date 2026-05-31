@@ -2,10 +2,7 @@ use serde::{Deserialize, Serialize};
 
 use super::{fixed_text::VerticalAlign, Element, RenderContext, RenderResult};
 use crate::{
-    compliance::ua::StructTag,
-    layout::TextAlign,
-    richtext::marks::AppliedStyle,
-    styles::RgbColor,
+    compliance::ua::StructTag, layout::TextAlign, richtext::marks::AppliedStyle, styles::RgbColor,
 };
 
 // ── RowHeight ─────────────────────────────────────────────────────────────────
@@ -36,8 +33,7 @@ pub struct CellBorders {
 
 impl CellBorders {
     pub fn is_empty(&self) -> bool {
-        self.top.is_none() && self.bottom.is_none()
-            && self.left.is_none() && self.right.is_none()
+        self.top.is_none() && self.bottom.is_none() && self.left.is_none() && self.right.is_none()
     }
 }
 
@@ -53,7 +49,11 @@ impl Default for CellBorder {
     fn default() -> Self {
         Self {
             width_mm: 0.3,
-            color: RgbColor { r: 0.8, g: 0.8, b: 0.8 },
+            color: RgbColor {
+                r: 0.8,
+                g: 0.8,
+                b: 0.8,
+            },
             style: BorderLineStyle::Solid,
         }
     }
@@ -83,17 +83,32 @@ pub struct CellPadding {
 
 impl Default for CellPadding {
     fn default() -> Self {
-        Self { top_mm: 1.0, bottom_mm: 1.0, left_mm: 2.0, right_mm: 2.0 }
+        Self {
+            top_mm: 1.0,
+            bottom_mm: 1.0,
+            left_mm: 2.0,
+            right_mm: 2.0,
+        }
     }
 }
 
 impl CellPadding {
     pub fn uniform(mm: f64) -> Self {
-        Self { top_mm: mm, bottom_mm: mm, left_mm: mm, right_mm: mm }
+        Self {
+            top_mm: mm,
+            bottom_mm: mm,
+            left_mm: mm,
+            right_mm: mm,
+        }
     }
 
     pub fn horizontal_vertical(h_mm: f64, v_mm: f64) -> Self {
-        Self { top_mm: v_mm, bottom_mm: v_mm, left_mm: h_mm, right_mm: h_mm }
+        Self {
+            top_mm: v_mm,
+            bottom_mm: v_mm,
+            left_mm: h_mm,
+            right_mm: h_mm,
+        }
     }
 }
 
@@ -118,7 +133,11 @@ impl TableStyle {
         Self {
             outer_border: Some(CellBorder::default()),
             inner_border: Some(CellBorder::default()),
-            header_background: Some(RgbColor { r: 0.85, g: 0.88, b: 0.95 }),
+            header_background: Some(RgbColor {
+                r: 0.85,
+                g: 0.88,
+                b: 0.95,
+            }),
             stripe_color: None,
         }
     }
@@ -126,10 +145,21 @@ impl TableStyle {
     /// Bordered style — outer border only, header background, stripes.
     pub fn bordered() -> Self {
         Self {
-            outer_border: Some(CellBorder { width_mm: 0.5, ..CellBorder::default() }),
+            outer_border: Some(CellBorder {
+                width_mm: 0.5,
+                ..CellBorder::default()
+            }),
             inner_border: None,
-            header_background: Some(RgbColor { r: 0.85, g: 0.88, b: 0.95 }),
-            stripe_color: Some(RgbColor { r: 0.96, g: 0.96, b: 0.96 }),
+            header_background: Some(RgbColor {
+                r: 0.85,
+                g: 0.88,
+                b: 0.95,
+            }),
+            stripe_color: Some(RgbColor {
+                r: 0.96,
+                g: 0.96,
+                b: 0.96,
+            }),
         }
     }
 
@@ -138,8 +168,16 @@ impl TableStyle {
         Self {
             outer_border: None,
             inner_border: None,
-            header_background: Some(RgbColor { r: 0.85, g: 0.88, b: 0.95 }),
-            stripe_color: Some(RgbColor { r: 0.96, g: 0.96, b: 0.96 }),
+            header_background: Some(RgbColor {
+                r: 0.85,
+                g: 0.88,
+                b: 0.95,
+            }),
+            stripe_color: Some(RgbColor {
+                r: 0.96,
+                g: 0.96,
+                b: 0.96,
+            }),
         }
     }
 
@@ -189,7 +227,9 @@ pub struct TableCell {
     pub nested_table: Option<Box<Table>>,
 }
 
-fn default_span() -> u16 { 1 }
+fn default_span() -> u16 {
+    1
+}
 
 impl TableCell {
     pub fn new(text: impl Into<String>) -> Self {
@@ -246,11 +286,15 @@ impl TableCell {
 }
 
 impl From<String> for TableCell {
-    fn from(s: String) -> Self { Self::new(s) }
+    fn from(s: String) -> Self {
+        Self::new(s)
+    }
 }
 
 impl From<&str> for TableCell {
-    fn from(s: &str) -> Self { Self::new(s) }
+    fn from(s: &str) -> Self {
+        Self::new(s)
+    }
 }
 
 // ── TableRow ──────────────────────────────────────────────────────────────────
@@ -265,7 +309,11 @@ pub struct TableRow {
 
 impl TableRow {
     pub fn new(cells: Vec<TableCell>) -> Self {
-        Self { cells, height: RowHeight::Auto, is_header: false }
+        Self {
+            cells,
+            height: RowHeight::Auto,
+            is_header: false,
+        }
     }
 
     /// Constructs a row from plain strings — convenience for simple tables.
@@ -403,7 +451,9 @@ impl Table {
         self
     }
 
-    fn min_row_height_mm() -> f64 { 6.5 }
+    fn min_row_height_mm() -> f64 {
+        6.5
+    }
 
     fn effective_row_height(row: &TableRow, measured: f64) -> f64 {
         match row.height {
@@ -415,7 +465,9 @@ impl Table {
 
     /// Computes column widths from percentages or equal distribution.
     fn col_widths_mm(&self, usable_width: f64, col_count: usize) -> Vec<f64> {
-        if col_count == 0 { return Vec::new(); }
+        if col_count == 0 {
+            return Vec::new();
+        }
         match &self.col_widths {
             Some(pcts) => pcts.iter().map(|p| p / 100.0 * usable_width).collect(),
             None => vec![usable_width / col_count as f64; col_count],
@@ -437,12 +489,7 @@ impl Table {
     }
 
     /// Measures the text height of a row and returns the effective row height in mm.
-    fn measure_row_height(
-        &self,
-        row: &TableRow,
-        col_widths: &[f64],
-        ctx: &RenderContext,
-    ) -> f64 {
+    fn measure_row_height(&self, row: &TableRow, col_widths: &[f64], ctx: &RenderContext) -> f64 {
         let fs = ctx.style.font_size_body;
         let mut measured = Self::min_row_height_mm();
         let col_count = col_widths.len();
@@ -450,13 +497,19 @@ impl Table {
 
         for cell in &row.cells {
             let span = (cell.col_span as usize).min(col_count.saturating_sub(col_idx));
-            if span == 0 { break; }
+            if span == 0 {
+                break;
+            }
             let w: f64 = col_widths[col_idx..col_idx + span].iter().sum();
             let h_pad = cell.padding.left_mm + cell.padding.right_mm;
             let v_pad = cell.padding.top_mm + cell.padding.bottom_mm;
             let inner_w = (w - h_pad).max(1.0);
             let r = ctx.layout_engine.layout_plain(
-                &ctx.fonts, &cell.text, inner_w, cell.alignment, fs,
+                &ctx.fonts,
+                &cell.text,
+                inner_w,
+                cell.alignment,
+                fs,
                 AppliedStyle::default(),
             );
             measured = measured.max(r.total_height_mm + v_pad);
@@ -501,15 +554,25 @@ impl Table {
                 b: pc.b * 0.85 + 0.15,
             })
         } else if !is_header && self.stripe_rows && body_row_idx % 2 == 1 {
-            Some(RgbColor { r: 0.96, g: 0.96, b: 0.96 })
+            Some(RgbColor {
+                r: 0.96,
+                g: 0.96,
+                b: 0.96,
+            })
         } else {
             None
         };
 
         if let Some(bg_col) = bg {
-            if ctx.ua_config.enabled { ctx.backend.begin_artifact_content(); }
-            let _ = ctx.backend.draw_rect(x_base, y_bottom, total_w, row_h, &bg_col);
-            if ctx.ua_config.enabled { ctx.backend.end_tagged_content(); }
+            if ctx.ua_config.enabled {
+                ctx.backend.begin_artifact_content();
+            }
+            let _ = ctx
+                .backend
+                .draw_rect(x_base, y_bottom, total_w, row_h, &bg_col);
+            if ctx.ua_config.enabled {
+                ctx.backend.end_tagged_content();
+            }
         }
 
         let fs = ctx.style.font_size_body;
@@ -518,14 +581,22 @@ impl Table {
 
         for cell in &row.cells {
             let span = (cell.col_span as usize).min(col_count.saturating_sub(col_idx));
-            if span == 0 { break; }
+            if span == 0 {
+                break;
+            }
             let cell_w: f64 = col_widths[col_idx..col_idx + span].iter().sum();
 
             // Per-cell background override (Artifact)
             if let Some(ref cell_bg) = cell.background {
-                if ctx.ua_config.enabled { ctx.backend.begin_artifact_content(); }
-                let _ = ctx.backend.draw_rect(col_x, y_bottom, cell_w, row_h, cell_bg);
-                if ctx.ua_config.enabled { ctx.backend.end_tagged_content(); }
+                if ctx.ua_config.enabled {
+                    ctx.backend.begin_artifact_content();
+                }
+                let _ = ctx
+                    .backend
+                    .draw_rect(col_x, y_bottom, cell_w, row_h, cell_bg);
+                if ctx.ua_config.enabled {
+                    ctx.backend.end_tagged_content();
+                }
             }
 
             let h_pad = cell.padding.left_mm + cell.padding.right_mm;
@@ -548,7 +619,11 @@ impl Table {
                 ctx.flow.cursor_y_mm = saved_cursor;
             } else {
                 let result = ctx.layout_engine.layout_plain(
-                    &ctx.fonts, &cell.text, inner_w, cell.alignment, fs,
+                    &ctx.fonts,
+                    &cell.text,
+                    inner_w,
+                    cell.alignment,
+                    fs,
                     AppliedStyle::default(),
                 );
 
@@ -568,8 +643,13 @@ impl Table {
                         break;
                     }
                     for seg in &line.segments {
-                        if seg.text.is_empty() { continue; }
-                        let Some(font_ref) = ctx.get_font_ref(seg.style.bold, seg.style.italic) else { continue };
+                        if seg.text.is_empty() {
+                            continue;
+                        }
+                        let Some(font_ref) = ctx.get_font_ref(seg.style.bold, seg.style.italic)
+                        else {
+                            continue;
+                        };
                         let x = col_x + cell.padding.left_mm + seg.x_offset_mm;
                         let _ = ctx.draw_text(&seg.text, x, line_y, fs, font_ref, &tc);
                     }
@@ -589,15 +669,29 @@ impl Table {
         // Row bottom border — only when the table style defines inner_border,
         // or when no table_style is set (legacy default: light separator).
         let row_border: Option<(f32, RgbColor)> = match &self.table_style {
-            Some(ts) => ts.inner_border.as_ref().map(|b| {
-                ((b.width_mm * 72.0 / 25.4) as f32, b.color.clone())
-            }),
-            None => Some((0.3_f32, RgbColor { r: 0.75, g: 0.75, b: 0.75 })),
+            Some(ts) => ts
+                .inner_border
+                .as_ref()
+                .map(|b| ((b.width_mm * 72.0 / 25.4) as f32, b.color.clone())),
+            None => Some((
+                0.3_f32,
+                RgbColor {
+                    r: 0.75,
+                    g: 0.75,
+                    b: 0.75,
+                },
+            )),
         };
         if let Some((pt, color)) = row_border {
-            if ctx.ua_config.enabled { ctx.backend.begin_artifact_content(); }
-            let _ = ctx.backend.draw_line(x_base, y_bottom, x_base + total_w, y_bottom, pt, &color);
-            if ctx.ua_config.enabled { ctx.backend.end_tagged_content(); }
+            if ctx.ua_config.enabled {
+                ctx.backend.begin_artifact_content();
+            }
+            let _ = ctx
+                .backend
+                .draw_line(x_base, y_bottom, x_base + total_w, y_bottom, pt, &color);
+            if ctx.ua_config.enabled {
+                ctx.backend.end_tagged_content();
+            }
         }
     }
 }
@@ -607,30 +701,53 @@ impl Table {
 fn draw_cell_borders(
     ctx: &mut RenderContext,
     borders: &CellBorders,
-    x: f64, y: f64, w: f64, h: f64,
+    x: f64,
+    y: f64,
+    w: f64,
+    h: f64,
 ) {
     let ua = ctx.ua_config.enabled;
-    if ua { ctx.backend.begin_artifact_content(); }
+    if ua {
+        ctx.backend.begin_artifact_content();
+    }
     let draw_h = |ctx: &mut RenderContext, border: &CellBorder, bx: f64, by: f64, len: f64| {
         let pt = (border.width_mm * 72.0 / 25.4) as f32;
-        let _ = ctx.backend.draw_line(bx, by, bx + len, by, pt, &border.color);
+        let _ = ctx
+            .backend
+            .draw_line(bx, by, bx + len, by, pt, &border.color);
     };
     let draw_v = |ctx: &mut RenderContext, border: &CellBorder, bx: f64, by: f64, len: f64| {
         let pt = (border.width_mm * 72.0 / 25.4) as f32;
-        let _ = ctx.backend.draw_line(bx, by, bx, by + len, pt, &border.color);
+        let _ = ctx
+            .backend
+            .draw_line(bx, by, bx, by + len, pt, &border.color);
     };
-    if let Some(ref b) = borders.top    { draw_h(ctx, b, x,     y + h, w); }
-    if let Some(ref b) = borders.bottom { draw_h(ctx, b, x,     y,     w); }
-    if let Some(ref b) = borders.left   { draw_v(ctx, b, x,     y,     h); }
-    if let Some(ref b) = borders.right  { draw_v(ctx, b, x + w, y,     h); }
-    if ua { ctx.backend.end_tagged_content(); }
+    if let Some(ref b) = borders.top {
+        draw_h(ctx, b, x, y + h, w);
+    }
+    if let Some(ref b) = borders.bottom {
+        draw_h(ctx, b, x, y, w);
+    }
+    if let Some(ref b) = borders.left {
+        draw_v(ctx, b, x, y, h);
+    }
+    if let Some(ref b) = borders.right {
+        draw_v(ctx, b, x + w, y, h);
+    }
+    if ua {
+        ctx.backend.end_tagged_content();
+    }
 }
 
 // ── UA helpers ────────────────────────────────────────────────────────────────
 
 fn ua_tag_row(ctx: &mut RenderContext, is_header: bool) {
     let mcid = ctx.next_mcid();
-    let cell_tag = if is_header { StructTag::TH } else { StructTag::TD };
+    let cell_tag = if is_header {
+        StructTag::TH
+    } else {
+        StructTag::TD
+    };
     ctx.ua_begin_group(StructTag::TR, None);
     ctx.ua_begin_group(cell_tag, None);
     ctx.ua_content_ref(mcid);
@@ -648,11 +765,15 @@ impl Element for Table {
         } else {
             Self::min_row_height_mm()
         };
-        let rows_h: f64 = self.rows.iter().map(|r| match r.height {
-            RowHeight::Exact(h) => h,
-            RowHeight::AtLeast(h) => h.max(Self::min_row_height_mm()),
-            RowHeight::Auto => Self::min_row_height_mm(),
-        }).sum();
+        let rows_h: f64 = self
+            .rows
+            .iter()
+            .map(|r| match r.height {
+                RowHeight::Exact(h) => h,
+                RowHeight::AtLeast(h) => h.max(Self::min_row_height_mm()),
+                RowHeight::Auto => Self::min_row_height_mm(),
+            })
+            .sum();
         header_h + rows_h
     }
 
@@ -680,7 +801,9 @@ impl Element for Table {
 
         if ua && start == 0 {
             ctx.ua_begin_group(StructTag::Table, None);
-            if has_headers { ctx.ua_begin_group(StructTag::THead, None); }
+            if has_headers {
+                ctx.ua_begin_group(StructTag::THead, None);
+            }
         }
 
         // On continuation pages: re-render headers
@@ -692,16 +815,24 @@ impl Element for Table {
                     is_header: true,
                 };
                 let row_h = self.measure_row_height(&hdr_row, &col_widths, ctx);
-                if ua { ua_tag_row(ctx, true); }
+                if ua {
+                    ua_tag_row(ctx, true);
+                }
                 self.render_row(&hdr_row, &col_widths, x_base, row_h, 0, true, ctx);
-                if ua { ctx.backend.end_tagged_content(); }
+                if ua {
+                    ctx.backend.end_tagged_content();
+                }
                 ctx.flow.advance(row_h);
             } else {
                 for hdr in &header_rows {
                     let row_h = self.measure_row_height(hdr, &col_widths, ctx);
-                    if ua { ua_tag_row(ctx, true); }
+                    if ua {
+                        ua_tag_row(ctx, true);
+                    }
                     self.render_row(hdr, &col_widths, x_base, row_h, 0, true, ctx);
-                    if ua { ctx.backend.end_tagged_content(); }
+                    if ua {
+                        ctx.backend.end_tagged_content();
+                    }
                     ctx.flow.advance(row_h);
                 }
             }
@@ -716,23 +847,33 @@ impl Element for Table {
                     is_header: true,
                 };
                 let row_h = self.measure_row_height(&hdr_row, &col_widths, ctx);
-                if ua { ua_tag_row(ctx, true); }
+                if ua {
+                    ua_tag_row(ctx, true);
+                }
                 self.render_row(&hdr_row, &col_widths, x_base, row_h, 0, true, ctx);
-                if ua { ctx.backend.end_tagged_content(); }
+                if ua {
+                    ctx.backend.end_tagged_content();
+                }
                 ctx.flow.advance(row_h);
             } else {
                 for hdr in &header_rows {
                     let row_h = self.measure_row_height(hdr, &col_widths, ctx);
-                    if ua { ua_tag_row(ctx, true); }
+                    if ua {
+                        ua_tag_row(ctx, true);
+                    }
                     self.render_row(hdr, &col_widths, x_base, row_h, 0, true, ctx);
-                    if ua { ctx.backend.end_tagged_content(); }
+                    if ua {
+                        ctx.backend.end_tagged_content();
+                    }
                     ctx.flow.advance(row_h);
                 }
             }
         }
 
         if ua && start == 0 {
-            if has_headers { ctx.ua_end_group(); } // THead
+            if has_headers {
+                ctx.ua_end_group();
+            } // THead
             ctx.ua_begin_group(StructTag::TBody, None);
         }
 
@@ -751,9 +892,13 @@ impl Element for Table {
                 return Ok(RenderResult::more());
             }
 
-            if ua { ua_tag_row(ctx, false); }
+            if ua {
+                ua_tag_row(ctx, false);
+            }
             self.render_row(row, &col_widths, x_base, row_h, i, false, ctx);
-            if ua { ctx.backend.end_tagged_content(); }
+            if ua {
+                ctx.backend.end_tagged_content();
+            }
             ctx.flow.advance(row_h);
         }
 

@@ -1,8 +1,7 @@
-use normordis_pdf::{
-    CompressionLevel, DocumentBuilder, PageBreakElement, Paragraph, Section,
-    Table, TableCell,
-};
 use lopdf::Document as LopdfDoc;
+use normordis_pdf::{
+    CompressionLevel, DocumentBuilder, PageBreakElement, Paragraph, Section, Table, TableCell,
+};
 use std::io::Cursor;
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -11,8 +10,12 @@ fn simple_doc(compression: CompressionLevel) -> Vec<u8> {
     DocumentBuilder::new("Size Test")
         .compression(compression)
         .push(Section::new("Introduction", 1))
-        .push(Paragraph::new("First paragraph of body text for size testing."))
-        .push(Paragraph::new("Second paragraph with some additional content."))
+        .push(Paragraph::new(
+            "First paragraph of body text for size testing.",
+        ))
+        .push(Paragraph::new(
+            "Second paragraph with some additional content.",
+        ))
         .render_to_bytes()
         .expect("render failed")
 }
@@ -41,46 +44,57 @@ fn size_03_font_data_present_in_pdf() {
     // We verify by checking the raw bytes contain a font reference.
     let bytes = simple_doc(CompressionLevel::None);
     let text = String::from_utf8_lossy(&bytes);
-    assert!(text.contains("/Font") || bytes.len() > 100_000,
-        "Expected font data in PDF (Liberation Sans should be embedded)");
+    assert!(
+        text.contains("/Font") || bytes.len() > 100_000,
+        "Expected font data in PDF (Liberation Sans should be embedded)"
+    );
 }
 
 #[test]
 fn size_04_pdf_bytes_less_than_2mb() {
     // Eixo B: font subsetting active — simple doc is ~113 KB. Limit set to 500 KB.
     let bytes = simple_doc(CompressionLevel::Default);
-    assert!(bytes.len() < 500_000,
-        "PDF unexpectedly large: {} bytes", bytes.len());
+    assert!(
+        bytes.len() < 500_000,
+        "PDF unexpectedly large: {} bytes",
+        bytes.len()
+    );
 }
 
 #[test]
 fn size_05_lopdf_can_load_generated_pdf() {
     let bytes = simple_doc(CompressionLevel::Default);
     let result = LopdfDoc::load_from(Cursor::new(&bytes));
-    assert!(result.is_ok(), "lopdf failed to load generated PDF: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "lopdf failed to load generated PDF: {:?}",
+        result.err()
+    );
 }
 
 // ── Compressão (06–10) ────────────────────────────────────────────────────────
 
 #[test]
 fn size_06_default_smaller_than_none() {
-    let none_bytes    = simple_doc(CompressionLevel::None);
+    let none_bytes = simple_doc(CompressionLevel::None);
     let default_bytes = simple_doc(CompressionLevel::Default);
     assert!(
         default_bytes.len() < none_bytes.len(),
         "Default ({}) should be smaller than None ({})",
-        default_bytes.len(), none_bytes.len()
+        default_bytes.len(),
+        none_bytes.len()
     );
 }
 
 #[test]
 fn size_07_best_le_default() {
     let default_bytes = simple_doc(CompressionLevel::Default);
-    let best_bytes    = simple_doc(CompressionLevel::Best);
+    let best_bytes = simple_doc(CompressionLevel::Best);
     assert!(
         best_bytes.len() <= default_bytes.len() + 1024,
         "Best ({}) should be <= Default ({}) (allow 1KB tolerance)",
-        best_bytes.len(), default_bytes.len()
+        best_bytes.len(),
+        default_bytes.len()
     );
 }
 
@@ -96,7 +110,10 @@ fn size_08_none_produces_valid_pdf() {
 fn size_09_compressed_pdf_is_valid() {
     let bytes = simple_doc(CompressionLevel::Default);
     let doc = load_lopdf(&bytes);
-    assert!(!doc.objects.is_empty(), "lopdf must parse a non-empty document");
+    assert!(
+        !doc.objects.is_empty(),
+        "lopdf must parse a non-empty document"
+    );
 }
 
 #[test]
@@ -106,7 +123,8 @@ fn size_10_fast_smaller_than_none() {
     assert!(
         fast_bytes.len() < none_bytes.len(),
         "Fast ({}) should be smaller than None ({})",
-        fast_bytes.len(), none_bytes.len()
+        fast_bytes.len(),
+        none_bytes.len()
     );
 }
 
@@ -118,15 +136,23 @@ fn size_11_object_count_reasonable() {
     let doc = load_lopdf(&bytes);
     // After prune_objects(), should have far fewer objects than an unoptimized PDF
     assert!(doc.objects.len() > 0, "must have some objects");
-    assert!(doc.objects.len() < 10_000, "unexpectedly many objects: {}", doc.objects.len());
+    assert!(
+        doc.objects.len() < 10_000,
+        "unexpectedly many objects: {}",
+        doc.objects.len()
+    );
 }
 
 #[test]
 fn size_12_compressed_not_larger_than_raw() {
-    let none_size    = simple_doc(CompressionLevel::None).len();
+    let none_size = simple_doc(CompressionLevel::None).len();
     let default_size = simple_doc(CompressionLevel::Default).len();
-    assert!(default_size < none_size,
-        "compression must reduce size: Default={} None={}", default_size, none_size);
+    assert!(
+        default_size < none_size,
+        "compression must reduce size: Default={} None={}",
+        default_size,
+        none_size
+    );
 }
 
 #[test]
@@ -134,7 +160,10 @@ fn size_13_lopdf_parses_after_prune() {
     // Verify that the optimize + prune pipeline doesn't corrupt the PDF.
     let bytes = simple_doc(CompressionLevel::Best);
     let doc = load_lopdf(&bytes);
-    assert!(doc.objects.len() > 5, "expected several objects after optimization");
+    assert!(
+        doc.objects.len() > 5,
+        "expected several objects after optimization"
+    );
 }
 
 // ── Metadados (14–16) ─────────────────────────────────────────────────────────
@@ -143,15 +172,20 @@ fn size_13_lopdf_parses_after_prune() {
 fn size_14_producer_is_normordis_pdf() {
     let bytes = simple_doc(CompressionLevel::None);
     let raw = String::from_utf8_lossy(&bytes);
-    assert!(raw.contains("normordis-pdf"),
-        "Producer should be 'normordis-pdf' in the PDF");
+    assert!(
+        raw.contains("normordis-pdf"),
+        "Producer should be 'normordis-pdf' in the PDF"
+    );
 }
 
 #[test]
 fn size_15_creation_date_present() {
     let bytes = simple_doc(CompressionLevel::None);
     let raw = String::from_utf8_lossy(&bytes);
-    assert!(raw.contains("CreationDate"), "PDF should contain CreationDate");
+    assert!(
+        raw.contains("CreationDate"),
+        "PDF should contain CreationDate"
+    );
 }
 
 #[test]
@@ -189,13 +223,15 @@ fn size_21_subsetting_reduces_file_size() {
 fn size_22_ratio_default_over_none_under_065() {
     // Subsetted font data is binary and doesn't compress much further with zlib.
     // Ratio stays near 1.0; just verify compression doesn't inflate the file.
-    let none_size    = simple_doc(CompressionLevel::None).len();
+    let none_size = simple_doc(CompressionLevel::None).len();
     let default_size = simple_doc(CompressionLevel::Default).len();
     let ratio = default_size as f64 / none_size as f64;
     assert!(
         ratio < 1.05,
         "Compression must not significantly inflate size (ratio={:.2}), Default={} None={}",
-        ratio, default_size, none_size
+        ratio,
+        default_size,
+        none_size
     );
 }
 
@@ -277,7 +313,9 @@ fn overflow_table(rows: usize) -> Table {
     for i in 1..=rows {
         b = b.row(vec![
             TableCell::new(format!("{i}")),
-            TableCell::new(format!("Linha de dados {i} com texto suficiente para ocupar espaço.")),
+            TableCell::new(format!(
+                "Linha de dados {i} com texto suficiente para ocupar espaço."
+            )),
         ]);
     }
     b.build()
@@ -289,7 +327,10 @@ fn size_29_table_with_many_rows_overflows_to_second_page() {
         .push(overflow_table(60))
         .render_to_bytes()
         .unwrap();
-    assert!(page_count(&bytes) >= 2, "tabela com 60 linhas devia ter >= 2 páginas");
+    assert!(
+        page_count(&bytes) >= 2,
+        "tabela com 60 linhas devia ter >= 2 páginas"
+    );
 }
 
 #[test]
@@ -300,7 +341,11 @@ fn size_30_table_header_repeats_on_continuation_page() {
         .render_to_bytes()
         .unwrap();
     let result = LopdfDoc::load_from(Cursor::new(&bytes));
-    assert!(result.is_ok(), "lopdf falhou numa tabela multi-página: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "lopdf falhou numa tabela multi-página: {:?}",
+        result.err()
+    );
 }
 
 #[test]
@@ -314,7 +359,10 @@ fn size_31_table_after_content_overflows_correctly() {
     }
     builder = builder.push(overflow_table(20));
     let bytes = builder.render_to_bytes().unwrap();
-    assert!(page_count(&bytes) >= 2, "tabela após conteúdo devia ter >= 2 páginas");
+    assert!(
+        page_count(&bytes) >= 2,
+        "tabela após conteúdo devia ter >= 2 páginas"
+    );
 }
 
 #[test]
@@ -323,5 +371,9 @@ fn size_32_single_page_table_stays_on_one_page() {
         .push(overflow_table(5))
         .render_to_bytes()
         .unwrap();
-    assert_eq!(page_count(&bytes), 1, "tabela pequena devia caber numa página");
+    assert_eq!(
+        page_count(&bytes),
+        1,
+        "tabela pequena devia caber numa página"
+    );
 }

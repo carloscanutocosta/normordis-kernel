@@ -110,7 +110,9 @@ pub trait PdfBackend {
     fn begin_artifact_content(&mut self) {}
 
     /// Return the 0-based index of the current page. Used for structure tree refs.
-    fn current_page_idx(&self) -> usize { 0 }
+    fn current_page_idx(&self) -> usize {
+        0
+    }
 
     /// Write the structure tree (called after rendering, before finish()).
     ///
@@ -119,7 +121,8 @@ pub trait PdfBackend {
         &mut self,
         _events: &[crate::compliance::ua::StructEvent],
         _lang: &str,
-    ) {}
+    ) {
+    }
 
     /// Record a section heading for the PDF outline (bookmarks panel).
     ///
@@ -141,7 +144,8 @@ pub trait PdfBackend {
         _y2_mm: f64,
         _dest_title: &str,
         _dest_page_estimate: u32,
-    ) {}
+    ) {
+    }
 }
 
 /// Opaque reference to an embedded font variant.

@@ -95,7 +95,9 @@ pub struct InMemoryRoleMembership {
 
 impl InMemoryRoleMembership {
     pub fn new() -> Self {
-        Self { memberships: RwLock::new(HashMap::new()) }
+        Self {
+            memberships: RwLock::new(HashMap::new()),
+        }
     }
 
     /// Atribui `role` ao `principal`. Idempotente se o role já existir.

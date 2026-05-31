@@ -66,7 +66,11 @@ impl SecurityPolicyRepository for InMemorySecurityPolicyRepository {
 
         guard.policies.insert(
             policy.policy_id.clone(),
-            StoredPolicy { policy: policy.clone(), revoked: false, revoked_by: None },
+            StoredPolicy {
+                policy: policy.clone(),
+                revoked: false,
+                revoked_by: None,
+            },
         );
         Ok(())
     }
@@ -87,8 +91,12 @@ impl SecurityPolicyRepository for InMemorySecurityPolicyRepository {
             .inner
             .read()
             .map_err(|_| SecurityError::RepoUnavailable("lock poisoned".into()))?;
-        let mut all: Vec<Policy> =
-            guard.policies.values().filter(|s| !s.revoked).map(|s| s.policy.clone()).collect();
+        let mut all: Vec<Policy> = guard
+            .policies
+            .values()
+            .filter(|s| !s.revoked)
+            .map(|s| s.policy.clone())
+            .collect();
         all.sort_by(|a, b| a.policy_id.cmp(&b.policy_id));
         Ok(apply_page(all, opts))
     }
@@ -172,9 +180,15 @@ impl SecurityPolicyRepository for InMemorySecurityPolicyRepository {
 
         // Verificar que a delegação existe e não está já revogada
         match guard.delegations.get(delegation_id.as_str()) {
-            None => return Err(SecurityError::DelegationNotFound(delegation_id.as_str().into())),
+            None => {
+                return Err(SecurityError::DelegationNotFound(
+                    delegation_id.as_str().into(),
+                ))
+            }
             Some(d) if d.revoked => {
-                return Err(SecurityError::DelegationNotFound(delegation_id.as_str().into()))
+                return Err(SecurityError::DelegationNotFound(
+                    delegation_id.as_str().into(),
+                ))
             }
             _ => {}
         }

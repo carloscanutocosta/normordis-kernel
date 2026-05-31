@@ -152,17 +152,30 @@ impl Element for FormField {
         let name = self.name().to_string();
 
         let (fill_r, fill_g, fill_b) = match self {
-            FormField::TextField(_) | FormField::ComboBox(_) | FormField::ListBox(_) =>
-                (0.93_f64, 0.96_f64, 1.0_f64),
-            FormField::CheckBox(_) | FormField::RadioButton(_) =>
-                (1.0_f64, 1.0_f64, 1.0_f64),
+            FormField::TextField(_) | FormField::ComboBox(_) | FormField::ListBox(_) => {
+                (0.93_f64, 0.96_f64, 1.0_f64)
+            }
+            FormField::CheckBox(_) | FormField::RadioButton(_) => (1.0_f64, 1.0_f64, 1.0_f64),
         };
 
-        let fill = RgbColor { r: fill_r, g: fill_g, b: fill_b };
-        let stroke = RgbColor { r: 0.4, g: 0.4, b: 0.8 };
+        let fill = RgbColor {
+            r: fill_r,
+            g: fill_g,
+            b: fill_b,
+        };
+        let stroke = RgbColor {
+            r: 0.4,
+            g: 0.4,
+            b: 0.8,
+        };
         ctx.backend.draw_rect_stroked(
-            r.x_mm, r.y_mm, r.width_mm, r.height_mm,
-            &fill, &stroke, 0.5,
+            r.x_mm,
+            r.y_mm,
+            r.width_mm,
+            r.height_mm,
+            &fill,
+            &stroke,
+            0.5,
         )?;
 
         match self {
@@ -178,7 +191,11 @@ impl Element for FormField {
         // Render field name label inside the box.
         if let Some(font_ref) = ctx.get_font_ref(false, false) {
             let label_fs = 7.0_f64;
-            let label_color = RgbColor { r: 0.3, g: 0.3, b: 0.6 };
+            let label_color = RgbColor {
+                r: 0.3,
+                g: 0.3,
+                b: 0.6,
+            };
             let text_x = r.x_mm + 1.5 * 25.4 / 72.0;
             let text_y = r.y_mm + r.height_mm / 2.0 - label_fs * 25.4 / 72.0 / 2.0;
             ctx.draw_text(&name, text_x, text_y, label_fs, font_ref, &label_color)?;
@@ -192,11 +209,17 @@ fn render_checkmark(ctx: &mut RenderContext, r: &FieldRect) -> crate::Result<()>
     let cx = r.x_mm + r.width_mm * 0.25;
     let cy = r.y_mm + r.height_mm * 0.5;
     let cr = r.width_mm.min(r.height_mm) * 0.3;
-    let color = RgbColor { r: 0.0, g: 0.5, b: 0.0 };
+    let color = RgbColor {
+        r: 0.0,
+        g: 0.5,
+        b: 0.0,
+    };
     let width_pt = 1.0_f32;
     // Two-segment tick mark
-    ctx.backend.draw_line(cx - cr * 0.3, cy, cx, cy - cr * 0.5, width_pt, &color)?;
-    ctx.backend.draw_line(cx, cy - cr * 0.5, cx + cr, cy + cr * 0.8, width_pt, &color)?;
+    ctx.backend
+        .draw_line(cx - cr * 0.3, cy, cx, cy - cr * 0.5, width_pt, &color)?;
+    ctx.backend
+        .draw_line(cx, cy - cr * 0.5, cx + cr, cy + cr * 0.8, width_pt, &color)?;
     Ok(())
 }
 
@@ -204,7 +227,11 @@ fn render_radio_dot(ctx: &mut RenderContext, r: &FieldRect) -> crate::Result<()>
     let dot_size = r.width_mm.min(r.height_mm) * 0.4;
     let dx = r.x_mm + r.width_mm / 2.0 - r.width_mm * 0.2;
     let dy = r.y_mm + r.height_mm / 2.0 - r.height_mm * 0.2;
-    let color = RgbColor { r: 0.2, g: 0.2, b: 0.8 };
+    let color = RgbColor {
+        r: 0.2,
+        g: 0.2,
+        b: 0.8,
+    };
     ctx.backend.draw_rect(dx, dy, dot_size, dot_size, &color)?;
     Ok(())
 }

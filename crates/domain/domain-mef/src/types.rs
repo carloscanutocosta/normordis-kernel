@@ -45,7 +45,10 @@ impl DiplomaRef {
         if reference.is_empty() {
             return Err(MefError::EmptyDiplomaRef);
         }
-        Ok(Self { reference, date: None })
+        Ok(Self {
+            reference,
+            date: None,
+        })
     }
 
     pub fn with_date(mut self, date: impl Into<String>) -> Self {

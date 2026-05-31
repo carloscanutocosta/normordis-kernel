@@ -36,7 +36,9 @@ use chrono::{DateTime, Utc};
 use rusqlite::{params, Connection, OptionalExtension};
 use thiserror::Error;
 
-use adapter_sqlite::{open_relational_connection, run_relational_migrations, SqliteRelationalConfig};
+use adapter_sqlite::{
+    open_relational_connection, run_relational_migrations, SqliteRelationalConfig,
+};
 use core_audit::{
     compute_manifest_hash, compute_record_hash, AuditActor, AuditChainReport, AuditError,
     AuditEvent, AuditExportManifest, AuditStore, AuditTarget,
@@ -194,8 +196,7 @@ impl<E: DetailsEncryptor> AuditSqliteStore<E> {
 
 // ─── Helpers internos ─────────────────────────────────────────────────────────
 
-const EVENT_COLUMNS: &str =
-    "event_id, event_type, actor_id, actor_name, actor_type, \
+const EVENT_COLUMNS: &str = "event_id, event_type, actor_id, actor_name, actor_type, \
      target_type, target_id, occurred_at, details_json, \
      sequence, prev_record_hash, record_hash";
 
@@ -239,7 +240,10 @@ fn decode_datetime(s: &str) -> Result<DateTime<Utc>, AuditError> {
 
 /// Constrói AuditEvent a partir de uma linha sem verificar o hash.
 /// Usado nos loops de verify_chain onde o hash é calculado separadamente.
-fn build_event_from_raw(raw: &RawEventRow, plaintext_details: Option<String>) -> Result<AuditEvent, AuditError> {
+fn build_event_from_raw(
+    raw: &RawEventRow,
+    plaintext_details: Option<String>,
+) -> Result<AuditEvent, AuditError> {
     let occurred_at_utc = decode_datetime(&raw.occurred_at)?;
     let details_json = plaintext_details
         .map(|s| serde_json::from_str::<serde_json::Value>(&s))
@@ -343,7 +347,8 @@ fn verify_chain_from<E: DetailsEncryptor>(
         }
 
         let record_hash = raw.record_hash.clone();
-        let plaintext = decrypt_details(encryptor, raw.details_json_stored.as_deref(), &raw.event_id)?;
+        let plaintext =
+            decrypt_details(encryptor, raw.details_json_stored.as_deref(), &raw.event_id)?;
         let event = build_event_from_raw(&raw, plaintext)?;
         event.validate()?;
 
@@ -484,7 +489,9 @@ impl<E: DetailsEncryptor> AuditStore for AuditSqliteStore<E> {
             )
             .optional()
             .map_err(|_| AuditError::StoreFailed)?;
-        maybe.map(|raw| parse_and_verify(raw, &self.encryptor)).transpose()
+        maybe
+            .map(|raw| parse_and_verify(raw, &self.encryptor))
+            .transpose()
     }
 
     fn list_by_actor(
@@ -528,7 +535,12 @@ impl<E: DetailsEncryptor> AuditStore for AuditSqliteStore<E> {
             .map_err(|_| AuditError::StoreFailed)?;
         let rows = stmt
             .query_map(
-                params![&target.target_type, &target.target_id, limit as i64, offset as i64],
+                params![
+                    &target.target_type,
+                    &target.target_id,
+                    limit as i64,
+                    offset as i64
+                ],
                 map_row,
             )
             .map_err(|_| AuditError::StoreFailed)?;
@@ -713,7 +725,10 @@ mod tests {
         let (store, _f) = tmp_store();
         store.record(&event()).unwrap();
         let stored = store.get("event-1").unwrap().unwrap();
-        assert_eq!(stored.details_json, Some(json!({"ip": "127.0.0.1", "ok": true})));
+        assert_eq!(
+            stored.details_json,
+            Some(json!({"ip": "127.0.0.1", "ok": true}))
+        );
     }
 
     #[test]
@@ -726,7 +741,10 @@ mod tests {
     fn duplicate_event_is_rejected() {
         let (store, _f) = tmp_store();
         store.record(&event()).unwrap();
-        assert_eq!(store.record(&event()).unwrap_err(), AuditError::DuplicateEvent);
+        assert_eq!(
+            store.record(&event()).unwrap_err(),
+            AuditError::DuplicateEvent
+        );
     }
 
     // ── Append-only ao nível da BD (triggers) ─────────────────────────────────
@@ -762,7 +780,10 @@ mod tests {
     struct TestEncryptor;
     impl DetailsEncryptor for TestEncryptor {
         fn encrypt(&self, plaintext: &str, aad: &[u8]) -> Result<String, AuditError> {
-            Ok(format!("enc_test:{}:{plaintext}", String::from_utf8_lossy(aad)))
+            Ok(format!(
+                "enc_test:{}:{plaintext}",
+                String::from_utf8_lossy(aad)
+            ))
         }
         fn decrypt(&self, stored: &str, aad: &[u8]) -> Result<String, AuditError> {
             let prefix = format!("enc_test:{}:", String::from_utf8_lossy(aad));
@@ -802,7 +823,10 @@ mod tests {
             .unwrap()
         };
         // Verifica que o encriptador foi invocado (prefixo presente)
-        assert!(raw.starts_with("enc_test:"), "encriptador não foi chamado: {raw}");
+        assert!(
+            raw.starts_with("enc_test:"),
+            "encriptador não foi chamado: {raw}"
+        );
 
         // Verifica que o get() desencripta correctamente
         let retrieved = store.get("ev-enc-1").unwrap().unwrap();
@@ -830,7 +854,9 @@ mod tests {
         // Na realidade o CryptoDetailsEncryptor falharia na desencriptação
         let wrong_aad_data = {
             let encryptor = TestEncryptor;
-            encryptor.encrypt("{\"campo\":\"valor\"}", b"outro-event-id").unwrap()
+            encryptor
+                .encrypt("{\"campo\":\"valor\"}", b"outro-event-id")
+                .unwrap()
         };
         {
             let conn = store.conn.lock().unwrap();
@@ -888,7 +914,11 @@ mod tests {
         let page2 = store.list_by_actor("user-1", 2, 2).unwrap();
         assert_eq!(page1.len(), 2);
         assert_eq!(page2.len(), 2);
-        let ids: Vec<_> = [page1, page2].concat().into_iter().map(|e| e.event_id).collect();
+        let ids: Vec<_> = [page1, page2]
+            .concat()
+            .into_iter()
+            .map(|e| e.event_id)
+            .collect();
         let unique: std::collections::HashSet<_> = ids.iter().collect();
         assert_eq!(unique.len(), 4);
     }
@@ -938,8 +968,14 @@ mod tests {
     #[test]
     fn list_by_actor_rejects_invalid_actor_id() {
         let (store, _f) = tmp_store();
-        assert_eq!(store.list_by_actor("", 10, 0).unwrap_err(), AuditError::InvalidActor);
-        assert_eq!(store.list_by_actor(" user-1", 10, 0).unwrap_err(), AuditError::InvalidActor);
+        assert_eq!(
+            store.list_by_actor("", 10, 0).unwrap_err(),
+            AuditError::InvalidActor
+        );
+        assert_eq!(
+            store.list_by_actor(" user-1", 10, 0).unwrap_err(),
+            AuditError::InvalidActor
+        );
     }
 
     // ── list_by_date_range ────────────────────────────────────────────────────

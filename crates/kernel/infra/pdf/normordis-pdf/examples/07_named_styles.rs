@@ -29,25 +29,31 @@ fn build_pdf() -> normordis_pdf::Result<Vec<u8>> {
     let mut user_styles = HashMap::new();
 
     // "intro" — extends "normal", italic, extra spacing
-    user_styles.insert("intro".into(), NamedStyle {
-        extends: Some("normal".into()),
-        font_size: Some(12.0),
-        italic: Some(true),
-        space_before_mm: Some(4.0),
-        space_after_mm: Some(6.0),
-        ..Default::default()
-    });
+    user_styles.insert(
+        "intro".into(),
+        NamedStyle {
+            extends: Some("normal".into()),
+            font_size: Some(12.0),
+            italic: Some(true),
+            space_before_mm: Some(4.0),
+            space_after_mm: Some(6.0),
+            ..Default::default()
+        },
+    );
 
     // "sidebar" — extends "normal", smaller, right-aligned, institutional blue
-    user_styles.insert("sidebar".into(), NamedStyle {
-        extends: Some("normal".into()),
-        font_size: Some(9.5),
-        alignment: Some(TextAlign::Right),
-        color: Some(RgbColor::new(0.0, 0.2, 0.6)),
-        space_before_mm: Some(2.0),
-        space_after_mm: Some(2.0),
-        ..Default::default()
-    });
+    user_styles.insert(
+        "sidebar".into(),
+        NamedStyle {
+            extends: Some("normal".into()),
+            font_size: Some(9.5),
+            alignment: Some(TextAlign::Right),
+            color: Some(RgbColor::new(0.0, 0.2, 0.6)),
+            space_before_mm: Some(2.0),
+            space_after_mm: Some(2.0),
+            ..Default::default()
+        },
+    );
 
     let doc_style = DocumentStyle {
         margin_top_mm: 20.0,
@@ -65,9 +71,8 @@ fn build_pdf() -> normordis_pdf::Result<Vec<u8>> {
     )
     .style("intro");
 
-    let sidebar_p =
-        Paragraph::new("Nota: os estilos são resolvidos em tempo de renderização.")
-            .style("sidebar");
+    let sidebar_p = Paragraph::new("Nota: os estilos são resolvidos em tempo de renderização.")
+        .style("sidebar");
 
     let caption_p =
         Paragraph::new("Quadro 1 — Resultado dos testes de estilo v1.3.0.").style("caption");
@@ -111,7 +116,9 @@ fn build_pdf() -> normordis_pdf::Result<Vec<u8>> {
     // ── Bullet list ───────────────────────────────────────────────────────────
     let features = BulletList::new(vec![
         ListItemElement::plain("NamedStyle — herança via extends, propriedades opcionais"),
-        ListItemElement::plain("StyleResolver — resolução em tempo de renderização, deteção de ciclos"),
+        ListItemElement::plain(
+            "StyleResolver — resolução em tempo de renderização, deteção de ciclos",
+        ),
         ListItemElement::plain("TabStop — left / right / center / decimal com leader char"),
         ListItemElement::plain("CellPadding — insets por célula (top/bottom/left/right)"),
         ListItemElement::plain("TableStyle — grid / bordered / striped / plain"),
@@ -121,12 +128,36 @@ fn build_pdf() -> normordis_pdf::Result<Vec<u8>> {
     let grid_table = Table::new(
         vec!["Estilo".into(), "Descrição".into(), "Desde".into()],
         vec![
-            TableRow::plain(vec!["heading_1".into(), "Título principal".into(), "v1.3.0".into()]),
-            TableRow::plain(vec!["heading_2".into(), "Subtítulo".into(), "v1.3.0".into()]),
-            TableRow::plain(vec!["caption".into(), "Legenda de figura/tabela".into(), "v1.3.0".into()]),
-            TableRow::plain(vec!["normal".into(), "Corpo de texto".into(), "v1.3.0".into()]),
-            TableRow::plain(vec!["table_header".into(), "Cabeçalho de tabela".into(), "v1.3.0".into()]),
-            TableRow::plain(vec!["table_body".into(), "Célula de tabela".into(), "v1.3.0".into()]),
+            TableRow::plain(vec![
+                "heading_1".into(),
+                "Título principal".into(),
+                "v1.3.0".into(),
+            ]),
+            TableRow::plain(vec![
+                "heading_2".into(),
+                "Subtítulo".into(),
+                "v1.3.0".into(),
+            ]),
+            TableRow::plain(vec![
+                "caption".into(),
+                "Legenda de figura/tabela".into(),
+                "v1.3.0".into(),
+            ]),
+            TableRow::plain(vec![
+                "normal".into(),
+                "Corpo de texto".into(),
+                "v1.3.0".into(),
+            ]),
+            TableRow::plain(vec![
+                "table_header".into(),
+                "Cabeçalho de tabela".into(),
+                "v1.3.0".into(),
+            ]),
+            TableRow::plain(vec![
+                "table_body".into(),
+                "Célula de tabela".into(),
+                "v1.3.0".into(),
+            ]),
         ],
     )
     .with_table_style(TableStyle::grid())
@@ -135,12 +166,9 @@ fn build_pdf() -> normordis_pdf::Result<Vec<u8>> {
     // ── Bordered table with generous CellPadding ──────────────────────────────
     let bordered_table = Table::builder()
         .header_row(vec![
-            TableCell::new("Propriedade")
-                .padding(CellPadding::horizontal_vertical(4.0, 3.0)),
-            TableCell::new("Tipo")
-                .padding(CellPadding::horizontal_vertical(4.0, 3.0)),
-            TableCell::new("Descrição")
-                .padding(CellPadding::horizontal_vertical(4.0, 3.0)),
+            TableCell::new("Propriedade").padding(CellPadding::horizontal_vertical(4.0, 3.0)),
+            TableCell::new("Tipo").padding(CellPadding::horizontal_vertical(4.0, 3.0)),
+            TableCell::new("Descrição").padding(CellPadding::horizontal_vertical(4.0, 3.0)),
         ])
         .row(vec![
             TableCell::new("space_before_mm").padding(CellPadding::uniform(3.0)),
@@ -165,10 +193,12 @@ fn build_pdf() -> normordis_pdf::Result<Vec<u8>> {
     let striped_table = Table::new(
         vec!["#".into(), "Conteúdo".into()],
         (1..=6_u32)
-            .map(|i| TableRow::plain(vec![
-                format!("{}", i),
-                format!("Linha de exemplo número {}", i),
-            ]))
+            .map(|i| {
+                TableRow::plain(vec![
+                    format!("{}", i),
+                    format!("Linha de exemplo número {}", i),
+                ])
+            })
             .collect(),
     )
     .with_table_style(TableStyle::striped())

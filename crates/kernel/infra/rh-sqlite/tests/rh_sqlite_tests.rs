@@ -88,7 +88,15 @@ fn rid(s: &str) -> RoleId {
 fn role_upsert_and_get() {
     let store = store();
     store
-        .upsert(&Role::new("gestor_rh", "Gestor de RH", Some("Gere pessoal".into()), true).unwrap())
+        .upsert(
+            &Role::new(
+                "gestor_rh",
+                "Gestor de RH",
+                Some("Gere pessoal".into()),
+                true,
+            )
+            .unwrap(),
+        )
         .unwrap();
 
     let role = store.get(&rid("gestor_rh")).unwrap().unwrap();
@@ -107,8 +115,12 @@ fn role_get_unknown_returns_none() {
 #[test]
 fn role_upsert_is_idempotent_update() {
     let store = store();
-    store.upsert(&Role::new("admin", "Admin", None, true).unwrap()).unwrap();
-    store.upsert(&Role::new("admin", "Administrador", None, true).unwrap()).unwrap();
+    store
+        .upsert(&Role::new("admin", "Admin", None, true).unwrap())
+        .unwrap();
+    store
+        .upsert(&Role::new("admin", "Administrador", None, true).unwrap())
+        .unwrap();
 
     let role = store.get(&rid("admin")).unwrap().unwrap();
     assert_eq!(role.name, "Administrador");
@@ -118,8 +130,12 @@ fn role_upsert_is_idempotent_update() {
 #[test]
 fn role_exists_and_active() {
     let store = store();
-    store.upsert(&Role::new("ativo", "Ativo", None, true).unwrap()).unwrap();
-    store.upsert(&Role::new("inativo", "Inativo", None, false).unwrap()).unwrap();
+    store
+        .upsert(&Role::new("ativo", "Ativo", None, true).unwrap())
+        .unwrap();
+    store
+        .upsert(&Role::new("inativo", "Inativo", None, false).unwrap())
+        .unwrap();
 
     assert!(store.exists_and_active(&rid("ativo")).unwrap());
     assert!(!store.exists_and_active(&rid("inativo")).unwrap());
@@ -129,9 +145,15 @@ fn role_exists_and_active() {
 #[test]
 fn role_list_active_excludes_inactive() {
     let store = store();
-    store.upsert(&Role::new("a", "Role A", None, true).unwrap()).unwrap();
-    store.upsert(&Role::new("b", "Role B", None, true).unwrap()).unwrap();
-    store.upsert(&Role::new("c", "Role C", None, false).unwrap()).unwrap();
+    store
+        .upsert(&Role::new("a", "Role A", None, true).unwrap())
+        .unwrap();
+    store
+        .upsert(&Role::new("b", "Role B", None, true).unwrap())
+        .unwrap();
+    store
+        .upsert(&Role::new("c", "Role C", None, false).unwrap())
+        .unwrap();
 
     let active = store.list_active().unwrap();
     assert_eq!(active.len(), 2);
@@ -141,7 +163,9 @@ fn role_list_active_excludes_inactive() {
 #[test]
 fn role_deactivate_marks_inactive() {
     let store = store();
-    store.upsert(&Role::new("temp", "Temporário", None, true).unwrap()).unwrap();
+    store
+        .upsert(&Role::new("temp", "Temporário", None, true).unwrap())
+        .unwrap();
 
     store.deactivate(&rid("temp")).unwrap();
 

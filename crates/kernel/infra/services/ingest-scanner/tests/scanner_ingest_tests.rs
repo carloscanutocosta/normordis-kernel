@@ -3,8 +3,8 @@ use chrono::{TimeZone, Utc};
 use core_ingest::{IngestConfig, IngestError, MemoryRouter, DECISION_ACCEPTED, INVALID_REQUEST};
 use ingest_scanner::ScanIngestError;
 use ingest_scanner::{
-    ingest_scanned_document, scanned_document_ingest_config, AlwaysCleanScanner,
-    ScanIngestRequest, SCANNED_DOCUMENT_KIND,
+    ingest_scanned_document, scanned_document_ingest_config, AlwaysCleanScanner, ScanIngestRequest,
+    SCANNED_DOCUMENT_KIND,
 };
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
@@ -65,7 +65,10 @@ fn evidence_contem_hash_do_documento() {
 
     assert!(outcome.evidence.hash.verified);
     assert!(outcome.evidence.hash.actual_hash.starts_with("sha256:"));
-    assert_eq!(outcome.evidence.hash.expected_hash, outcome.evidence.hash.actual_hash);
+    assert_eq!(
+        outcome.evidence.hash.expected_hash,
+        outcome.evidence.hash.actual_hash
+    );
 }
 
 #[test]
@@ -124,7 +127,10 @@ fn ingest_rejeita_subject_id_vazio() {
     match result {
         Err(_) => {} // bridge-level failure (snapshot build)
         Ok(outcome) => {
-            assert!(outcome.error().is_some(), "pipeline deve rejeitar subject_id vazio");
+            assert!(
+                outcome.error().is_some(),
+                "pipeline deve rejeitar subject_id vazio"
+            );
         }
     }
 }
@@ -185,23 +191,54 @@ fn config_helper_inclui_always_clean_scanner() {
         correlation_id: "c".into(),
         bundle_hash: "sha256:abc".into(),
         bundle: {
-            use core_exports::{build_export_receipt, BuildSnapshotConfig, SourceRef};
             use core_documental::{Artefact, DocumentPackage, EngineRef, HashResult, TemplateRef};
+            use core_exports::{build_export_receipt, BuildSnapshotConfig, SourceRef};
             let ts = fixed_now();
             let pkg = DocumentPackage {
                 document_id: "doc:test:sub:1".into(),
                 created_at: ts,
-                template: TemplateRef { template_id: "t".into(), template_version: "v1".into(), valid_at: None },
-                engine: EngineRef { engine_id: "e".into(), engine_version: "v1".into() },
+                template: TemplateRef {
+                    template_id: "t".into(),
+                    template_version: "v1".into(),
+                    valid_at: None,
+                },
+                engine: EngineRef {
+                    engine_id: "e".into(),
+                    engine_version: "v1".into(),
+                },
                 artefacts: vec![Artefact {
-                    kind: "k".into(), artefact_ref: "r".into(),
-                    hash_result: HashResult { algorithm: "SHA-256".into(), hash: "sha256:abc".into(), timestamp: ts, input_kind: None, input_ref: None, meta: None },
-                    mime: None, size_bytes: None,
+                    kind: "k".into(),
+                    artefact_ref: "r".into(),
+                    hash_result: HashResult {
+                        algorithm: "SHA-256".into(),
+                        hash: "sha256:abc".into(),
+                        timestamp: ts,
+                        input_kind: None,
+                        input_ref: None,
+                        meta: None,
+                    },
+                    mime: None,
+                    size_bytes: None,
                 }],
-                subject: None, meta: None,
+                subject: None,
+                meta: None,
             };
-            build_export_receipt(pkg, SourceRef { kind: "scanned_document".into(), subject_id: "sub".into(), version: "1".into() },
-                BuildSnapshotConfig { exported_at: Some(ts), actor: "a".into(), correlation_id: "c".into(), transport: None }).unwrap().snapshot
+            build_export_receipt(
+                pkg,
+                SourceRef {
+                    kind: "scanned_document".into(),
+                    subject_id: "sub".into(),
+                    version: "1".into(),
+                },
+                BuildSnapshotConfig {
+                    exported_at: Some(ts),
+                    actor: "a".into(),
+                    correlation_id: "c".into(),
+                    transport: None,
+                },
+            )
+            .unwrap()
+            .snapshot
         },
         payload: vec![],
     };

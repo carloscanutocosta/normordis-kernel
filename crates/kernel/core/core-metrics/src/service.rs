@@ -26,8 +26,8 @@ use crate::error::MetricError;
 use crate::event::MetricEvent;
 use crate::formula::FormulaEngine;
 use crate::governance::{
-    EvaluationCycleStore, IndicatorInstanceStore, MeasurementResultStore,
-    MetricDefinitionStore, MetricVersionStore, TargetDefinitionStore,
+    EvaluationCycleStore, IndicatorInstanceStore, MeasurementResultStore, MetricDefinitionStore,
+    MetricVersionStore, TargetDefinitionStore,
 };
 use crate::instance::IndicatorInstance;
 use crate::pagination::ListOptions;
@@ -64,7 +64,16 @@ impl MetricServiceBuilder {
         results: Arc<dyn MeasurementResultStore>,
         emitter: Arc<dyn MetricEmitter>,
     ) -> Self {
-        Self { definitions, versions, targets, cycles, instances, results, emitter, changelog: None }
+        Self {
+            definitions,
+            versions,
+            targets,
+            cycles,
+            instances,
+            results,
+            emitter,
+            changelog: None,
+        }
     }
 
     /// Regista o changelog de governação (opcional mas recomendado em produção).
@@ -161,7 +170,9 @@ impl MetricService {
     /// `MetricDefinition` activa.
     pub fn emit_event(&self, event: MetricEvent) -> Result<(), MetricError> {
         event.validate()?;
-        let def = self.definitions.get_definition_by_code(&event.metric_code)?;
+        let def = self
+            .definitions
+            .get_definition_by_code(&event.metric_code)?;
         if def.status != MetricDefinitionStatus::Active {
             return Err(MetricError::InvalidCriteria);
         }
@@ -176,11 +187,7 @@ impl MetricService {
     /// - A versão está em `Draft`.
     /// - Nenhuma outra versão `Published` da mesma definição tem vigência
     ///   sobreposta (temporal overlap).
-    pub fn publish_version(
-        &self,
-        version_id: &str,
-        published_by: &str,
-    ) -> Result<(), MetricError> {
+    pub fn publish_version(&self, version_id: &str, published_by: &str) -> Result<(), MetricError> {
         let version = self.versions.get_version(version_id)?;
         if !matches!(version.status, MetricVersionStatus::Draft) {
             return Err(MetricError::InvalidCriteria);
@@ -197,7 +204,12 @@ impl MetricService {
             if !matches!(v.status, MetricVersionStatus::Published) {
                 continue;
             }
-            if versions_overlap(v.valid_from, v.valid_to, version.valid_from, version.valid_to) {
+            if versions_overlap(
+                v.valid_from,
+                v.valid_to,
+                version.valid_from,
+                version.valid_to,
+            ) {
                 return Err(MetricError::Conflict);
             }
         }
@@ -246,7 +258,8 @@ impl MetricService {
             }
         }
 
-        self.cycles.update_cycle_status(cycle_id, &CycleStatus::Closed)?;
+        self.cycles
+            .update_cycle_status(cycle_id, &CycleStatus::Closed)?;
         self.log(
             "evaluation_cycle",
             cycle_id,
@@ -341,8 +354,9 @@ impl MetricService {
 
         if !mandatory.is_empty() {
             for req in &mandatory {
-                let satisfied =
-                    evidence.iter().any(|l| l.evidence_type.as_str() == req.source_type);
+                let satisfied = evidence
+                    .iter()
+                    .any(|l| l.evidence_type.as_str() == req.source_type);
                 if !satisfied {
                     return Err(MetricError::MissingField);
                 }
@@ -368,10 +382,7 @@ impl MetricService {
     ///
     /// Evidências devem ser persistidas separadamente via `save_evidence_link`
     /// ou numa chamada subsequente.
-    pub fn save_results_batch(
-        &self,
-        results: &[MeasurementResult],
-    ) -> Result<(), MetricError> {
+    pub fn save_results_batch(&self, results: &[MeasurementResult]) -> Result<(), MetricError> {
         for r in results {
             r.validate()?;
         }
@@ -398,11 +409,7 @@ impl MetricService {
     }
 
     /// Invalida um resultado calculado (`Calculated` → `Invalid`).
-    pub fn invalidate_result(
-        &self,
-        id: &str,
-        invalidated_by: &str,
-    ) -> Result<(), MetricError> {
+    pub fn invalidate_result(&self, id: &str, invalidated_by: &str) -> Result<(), MetricError> {
         let result = self.results.get_result(id)?;
         if !matches!(result.status, MeasurementStatus::Calculated) {
             return Err(MetricError::InvalidCriteria);
@@ -446,8 +453,11 @@ impl MetricService {
         for link in evidence {
             self.results.save_evidence_link(link)?;
         }
-        self.results
-            .update_result_status(original_id, &MeasurementStatus::Rectified, rectified_by)?;
+        self.results.update_result_status(
+            original_id,
+            &MeasurementStatus::Rectified,
+            rectified_by,
+        )?;
         self.log(
             "measurement_result",
             original_id,
@@ -557,10 +567,10 @@ fn versions_overlap(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::cycle::{CycleStatus, CycleType, EvaluationCycle};
     use crate::definition::{MetricDefinition, MetricDefinitionStatus};
     use crate::emitter::InMemoryMetricRegistry;
     use crate::event::new_event;
-    use crate::cycle::{CycleStatus, CycleType, EvaluationCycle};
     use crate::instance::{IndicatorInstance, InstanceStatus};
     use crate::pagination::ListOptions;
     use crate::result::{MeasurementResult, MeasurementStatus};
@@ -818,8 +828,7 @@ mod tests {
                 .unwrap()
                 .iter()
                 .filter(|i| {
-                    i.evaluation_cycle_id == cid
-                        && status.map(|s| &i.status == s).unwrap_or(true)
+                    i.evaluation_cycle_id == cid && status.map(|s| &i.status == s).unwrap_or(true)
                 })
                 .cloned()
                 .collect())
@@ -839,11 +848,7 @@ mod tests {
                 .cloned()
                 .collect())
         }
-        fn update_instance_status(
-            &self,
-            id: &str,
-            s: &InstanceStatus,
-        ) -> Result<(), MetricError> {
+        fn update_instance_status(&self, id: &str, s: &InstanceStatus) -> Result<(), MetricError> {
             let mut v = self.0.lock().unwrap();
             v.iter_mut()
                 .find(|i| i.id == id)
@@ -886,19 +891,13 @@ mod tests {
                 .cloned()
                 .collect())
         }
-        fn get_official_result(
-            &self,
-            id: &str,
-        ) -> Result<Option<MeasurementResult>, MetricError> {
+        fn get_official_result(&self, id: &str) -> Result<Option<MeasurementResult>, MetricError> {
             Ok(self
                 .0
                 .lock()
                 .unwrap()
                 .iter()
-                .find(|r| {
-                    r.indicator_instance_id == id
-                        && r.status == MeasurementStatus::Validated
-                })
+                .find(|r| r.indicator_instance_id == id && r.status == MeasurementStatus::Validated)
                 .cloned())
         }
         fn update_result_status(
@@ -1089,26 +1088,31 @@ mod tests {
 
     #[test]
     fn create_instance_for_planned_cycle_returns_error() {
-        let (svc, _, _, _) =
-            make_service(vec![], vec![published_version()], vec![planned_cycle()]);
+        let (svc, _, _, _) = make_service(vec![], vec![published_version()], vec![planned_cycle()]);
         let mut inst = make_instance("i-001");
         inst.evaluation_cycle_id = "c-002".to_string();
-        assert_eq!(svc.create_instance(&inst), Err(MetricError::InvalidCriteria));
+        assert_eq!(
+            svc.create_instance(&inst),
+            Err(MetricError::InvalidCriteria)
+        );
     }
 
     #[test]
     fn open_instances_for_cycle_batch_succeeds() {
         let (svc, _, instances, _) =
             make_service(vec![], vec![published_version()], vec![open_cycle()]);
-        let batch = vec![make_instance("i-001"), make_instance("i-002"), make_instance("i-003")];
+        let batch = vec![
+            make_instance("i-001"),
+            make_instance("i-002"),
+            make_instance("i-003"),
+        ];
         svc.open_instances_for_cycle("c-001", &batch).unwrap();
         assert_eq!(instances.0.lock().unwrap().len(), 3);
     }
 
     #[test]
     fn open_instances_rejects_wrong_cycle() {
-        let (svc, _, _, _) =
-            make_service(vec![], vec![published_version()], vec![open_cycle()]);
+        let (svc, _, _, _) = make_service(vec![], vec![published_version()], vec![open_cycle()]);
         let mut inst = make_instance("i-001");
         inst.evaluation_cycle_id = "c-other".to_string();
         assert_eq!(
@@ -1155,7 +1159,10 @@ mod tests {
         )
         .build();
         // v-A published with no end → v-B overlaps
-        assert_eq!(svc.publish_version("v-B", "admin"), Err(MetricError::Conflict));
+        assert_eq!(
+            svc.publish_version("v-B", "admin"),
+            Err(MetricError::Conflict)
+        );
     }
 
     #[test]
@@ -1168,7 +1175,7 @@ mod tests {
             version: "1.0".to_string(),
             status: MetricVersionStatus::Published,
             valid_from: now - Duration::days(365),
-            valid_to: Some(now),  // ends exactly now (adjacent)
+            valid_to: Some(now), // ends exactly now (adjacent)
             formula_ref: "f:v1".to_string(),
             calculation_binding: None,
             evidence_requirements: vec![],
@@ -1179,7 +1186,7 @@ mod tests {
         };
         let draft = MetricVersion {
             id: "v-B".to_string(),
-            valid_from: now,  // starts where A ends → adjacent, no overlap
+            valid_from: now, // starts where A ends → adjacent, no overlap
             valid_to: None,
             status: MetricVersionStatus::Draft,
             version: "2.0".to_string(),
@@ -1206,21 +1213,36 @@ mod tests {
         // seed two instances, only one with official result
         instances.0.lock().unwrap().push(make_instance("i-001"));
         instances.0.lock().unwrap().push(make_instance("i-002"));
-        results.0.lock().unwrap().push(make_result("r-001", "i-001", MeasurementStatus::Validated));
+        results
+            .0
+            .lock()
+            .unwrap()
+            .push(make_result("r-001", "i-001", MeasurementStatus::Validated));
         // i-002 has no official result → close_cycle must fail
-        assert_eq!(svc.close_cycle("c-001", "director"), Err(MetricError::InvalidCriteria));
+        assert_eq!(
+            svc.close_cycle("c-001", "director"),
+            Err(MetricError::InvalidCriteria)
+        );
         // add official result for i-002
-        results.0.lock().unwrap().push(make_result("r-002", "i-002", MeasurementStatus::Validated));
+        results
+            .0
+            .lock()
+            .unwrap()
+            .push(make_result("r-002", "i-002", MeasurementStatus::Validated));
         assert!(svc.close_cycle("c-001", "director").is_ok());
     }
 
     #[test]
     fn rectify_result_creates_chain() {
-        let (svc, results, _, _) =
-            make_service(vec![], vec![published_version()], vec![]);
-        results.0.lock().unwrap().push(make_result("r-001", "i-001", MeasurementStatus::Validated));
+        let (svc, results, _, _) = make_service(vec![], vec![published_version()], vec![]);
+        results
+            .0
+            .lock()
+            .unwrap()
+            .push(make_result("r-001", "i-001", MeasurementStatus::Validated));
         let new_result = make_result("r-002", "i-001", MeasurementStatus::Calculated);
-        svc.rectify_result("r-001", new_result, &[], "director").unwrap();
+        svc.rectify_result("r-001", new_result, &[], "director")
+            .unwrap();
         let store = results.0.lock().unwrap();
         let r001 = store.iter().find(|r| r.id == "r-001").unwrap();
         let r002 = store.iter().find(|r| r.id == "r-002").unwrap();
@@ -1231,10 +1253,21 @@ mod tests {
     #[test]
     fn validate_result_only_from_calculated() {
         let (svc, results, _, _) = make_service(vec![], vec![], vec![]);
-        results.0.lock().unwrap().push(make_result("r-001", "i-001", MeasurementStatus::Validated));
-        assert_eq!(svc.validate_result("r-001", "director"), Err(MetricError::InvalidCriteria));
+        results
+            .0
+            .lock()
+            .unwrap()
+            .push(make_result("r-001", "i-001", MeasurementStatus::Validated));
+        assert_eq!(
+            svc.validate_result("r-001", "director"),
+            Err(MetricError::InvalidCriteria)
+        );
 
-        results.0.lock().unwrap().push(make_result("r-002", "i-001", MeasurementStatus::Calculated));
+        results.0.lock().unwrap().push(make_result(
+            "r-002",
+            "i-001",
+            MeasurementStatus::Calculated,
+        ));
         assert!(svc.validate_result("r-002", "director").is_ok());
     }
 

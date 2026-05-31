@@ -18,7 +18,7 @@ use std::time::{Duration, Instant};
 use adapter_sqlite::SqliteRelationalConfig;
 use chrono::{NaiveDate, Utc};
 use domain_numerador::{
-    ActorRef, AssignmentMetadata, AssignNumberRequest, FormatPart, NumberFormat, NumberingKind,
+    ActorRef, AssignNumberRequest, AssignmentMetadata, FormatPart, NumberFormat, NumberingKind,
     NumberingSequence, NumberingSequenceRepository, NumberingStore, ResetPolicy, TargetRef,
 };
 use numerador_sqlite::NumeradorDb;

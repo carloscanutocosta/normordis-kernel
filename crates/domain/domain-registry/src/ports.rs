@@ -1,9 +1,8 @@
 use chrono::{DateTime, Utc};
 
 use crate::{
-    AppId, AppRegistration, AppRegistryFilter, AppStateTransition,
-    RegisterAppRequest, RegistryError, RoleId, TransitionStateRequest,
-    UpdateAppMetadataRequest,
+    AppId, AppRegistration, AppRegistryFilter, AppStateTransition, RegisterAppRequest,
+    RegistryError, RoleId, TransitionStateRequest, UpdateAppMetadataRequest,
 };
 
 pub trait AppRegistryRepository {
@@ -61,10 +60,7 @@ pub trait AppRegistryRepository {
     ) -> Result<Vec<AppRegistration>, Self::Error>;
 
     /// Devolve o histórico de estados, ordenado por `transitioned_at` ASC.
-    fn state_history(
-        &self,
-        id: &AppId,
-    ) -> Result<Vec<AppStateTransition>, Self::Error>;
+    fn state_history(&self, id: &AppId) -> Result<Vec<AppStateTransition>, Self::Error>;
 
     /// Verifica se uma app com o dado `id` já existe no catálogo.
     fn exists(&self, id: &AppId) -> Result<bool, Self::Error>;

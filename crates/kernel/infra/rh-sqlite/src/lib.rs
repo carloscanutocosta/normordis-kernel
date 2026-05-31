@@ -1,7 +1,10 @@
 use adapter_sqlite::{
     open_relational_connection, run_relational_migrations, SqliteRelationalConfig,
 };
-use core_rh::{resolve_current_user, RhError, Role, RoleId, RoleRepository, UserContext, UserIdentity, UserRole};
+use core_rh::{
+    resolve_current_user, RhError, Role, RoleId, RoleRepository, UserContext, UserIdentity,
+    UserRole,
+};
 use rusqlite::{params, Connection, OptionalExtension};
 use thiserror::Error;
 
@@ -332,7 +335,9 @@ impl RoleRepository for UsersSqliteStore {
              FROM platform_roles WHERE is_active = 1 ORDER BY name ASC",
         )?;
         let raw: Vec<(String, String, Option<String>, i64)> = stmt
-            .query_map([], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)))?
+            .query_map([], |row| {
+                Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?))
+            })?
             .collect::<Result<Vec<_>, _>>()?;
         raw.into_iter()
             .map(|(id, name, desc, active)| {
@@ -376,7 +381,9 @@ impl RoleRepository for UsersSqliteStore {
             params![id.as_str()],
         )?;
         if changed == 0 {
-            return Err(UsersSqliteError::Rh(RhError::RoleNotFound(id.as_str().to_owned())));
+            return Err(UsersSqliteError::Rh(RhError::RoleNotFound(
+                id.as_str().to_owned(),
+            )));
         }
         Ok(())
     }

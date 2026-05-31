@@ -84,7 +84,10 @@ where
         self.store.export_manifest()
     }
 
-    pub fn verify_chain_since(&self, from_sequence: u64) -> Result<crate::AuditChainReport, AuditError> {
+    pub fn verify_chain_since(
+        &self,
+        from_sequence: u64,
+    ) -> Result<crate::AuditChainReport, AuditError> {
         self.store.verify_chain_since(from_sequence)
     }
 
@@ -93,7 +96,8 @@ where
         checkpoint_sequence: u64,
         checkpoint_hash: &str,
     ) -> Result<crate::AuditChainReport, AuditError> {
-        self.store.verify_chain_from_checkpoint(checkpoint_sequence, checkpoint_hash)
+        self.store
+            .verify_chain_from_checkpoint(checkpoint_sequence, checkpoint_hash)
     }
 
     pub fn sign_and_export(
@@ -210,7 +214,10 @@ mod tests {
             })
         }
 
-        fn verify_chain_since(&self, from_sequence: u64) -> Result<crate::AuditChainReport, AuditError> {
+        fn verify_chain_since(
+            &self,
+            from_sequence: u64,
+        ) -> Result<crate::AuditChainReport, AuditError> {
             let total = self.events.lock().unwrap().len();
             let start = (from_sequence as usize).saturating_sub(1).min(total);
             Ok(crate::AuditChainReport {
@@ -314,7 +321,9 @@ mod tests {
             .unwrap();
 
         let key = AuditSigningKey::from_bytes([42; 32]);
-        let signed = service.sign_and_export(&key, Some("key-1".to_string())).unwrap();
+        let signed = service
+            .sign_and_export(&key, Some("key-1".to_string()))
+            .unwrap();
 
         assert_eq!(signed.manifest.events_count, 1);
         verify_signed_manifest(&signed).unwrap();

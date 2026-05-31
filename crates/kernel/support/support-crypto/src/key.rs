@@ -41,10 +41,12 @@ impl std::fmt::Debug for SecretKey {
     }
 }
 
+#[allow(clippy::result_large_err)]
 pub trait KeyProvider {
     fn current_key(&self) -> Result<SecretKey, MiniError>;
 }
 
+#[allow(clippy::result_large_err)]
 pub trait KeyResolver {
     fn key_for_id(&self, key_id: Option<&str>) -> Result<SecretKey, MiniError>;
 }

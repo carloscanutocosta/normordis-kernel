@@ -48,8 +48,9 @@ impl MetricDefinitionStore for MetricsSqliteStore {
         status: Option<&MetricDefinitionStatus>,
     ) -> Result<Vec<MetricDefinition>, MetricError> {
         let lo = limit_offset(&opts);
-        let filter = status
-            .map_or(String::new(), |s| format!(" WHERE status = '{}'", s.as_str()));
+        let filter = status.map_or(String::new(), |s| {
+            format!(" WHERE status = '{}'", s.as_str())
+        });
         let conn = self.db();
         let mut stmt = conn
             .prepare(&format!(
@@ -72,7 +73,8 @@ impl MetricDefinitionStore for MetricsSqliteStore {
         status: &MetricDefinitionStatus,
         updated_by: &str,
     ) -> Result<(), MetricError> {
-        let n = self.db()
+        let n = self
+            .db()
             .execute(
                 "UPDATE metric_definitions SET status = ?1, updated_at = ?2, updated_by = ?3
                  WHERE id = ?4",
@@ -114,8 +116,8 @@ fn row_to_definition(r: &rusqlite::Row<'_>) -> rusqlite::Result<MetricDefinition
     let created_s: String = r.get(8)?;
     let updated_s: Option<String> = r.get(10)?;
 
-    let status = MetricDefinitionStatus::from_str(&status_s)
-        .unwrap_or(MetricDefinitionStatus::Draft);
+    let status =
+        MetricDefinitionStatus::from_str(&status_s).unwrap_or(MetricDefinitionStatus::Draft);
     let created_at = crate::util::str_to_dt(&created_s).unwrap_or_else(|_| chrono::Utc::now());
     let updated_at = updated_s
         .as_deref()
@@ -169,7 +171,8 @@ mod tests {
     #[test]
     fn save_and_get_by_code() {
         let s = store();
-        s.save_definition(&def("d-001", "process.duration")).unwrap();
+        s.save_definition(&def("d-001", "process.duration"))
+            .unwrap();
         let got = s.get_definition_by_code("process.duration").unwrap();
         assert_eq!(got.id, "d-001");
         assert_eq!(got.name, "Duração de processo");
@@ -178,7 +181,8 @@ mod tests {
     #[test]
     fn duplicate_code_returns_conflict() {
         let s = store();
-        s.save_definition(&def("d-001", "process.duration")).unwrap();
+        s.save_definition(&def("d-001", "process.duration"))
+            .unwrap();
         let err = s.save_definition(&def("d-002", "process.duration"));
         assert!(matches!(err, Err(MetricError::Conflict)));
     }
@@ -186,7 +190,8 @@ mod tests {
     #[test]
     fn update_status() {
         let s = store();
-        s.save_definition(&def("d-001", "process.duration")).unwrap();
+        s.save_definition(&def("d-001", "process.duration"))
+            .unwrap();
         s.update_definition_status("d-001", &MetricDefinitionStatus::Active, "admin")
             .unwrap();
         let got = s.get_definition("d-001").unwrap();
@@ -197,7 +202,8 @@ mod tests {
     #[test]
     fn list_definitions() {
         let s = store();
-        s.save_definition(&def("d-001", "process.duration")).unwrap();
+        s.save_definition(&def("d-001", "process.duration"))
+            .unwrap();
         s.save_definition(&def("d-002", "document.count")).unwrap();
         let list = s.list_definitions(ListOptions::default(), None).unwrap();
         assert_eq!(list.len(), 2);

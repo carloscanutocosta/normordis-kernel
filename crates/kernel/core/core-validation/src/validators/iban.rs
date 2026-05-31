@@ -28,8 +28,7 @@ pub fn validate_iban(field: impl Into<String>, value: &str) -> ValidationReport 
 
 fn has_minimum_iban_shape(value: &str) -> bool {
     let len = value.len();
-    len >= 15
-        && len <= 34
+    (15..=34).contains(&len)
         && value[..2].chars().all(|ch| ch.is_ascii_uppercase())
         && value[2..4].chars().all(|ch| ch.is_ascii_digit())
         && value[4..].chars().all(|ch| ch.is_ascii_alphanumeric())

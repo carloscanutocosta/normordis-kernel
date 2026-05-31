@@ -75,7 +75,11 @@ impl KnuthPlassOptimizer {
                     continue;
                 }
                 let words_in_line = j - i;
-                let spaces = if words_in_line > 1 { (words_in_line - 1) as f64 } else { 0.0 };
+                let spaces = if words_in_line > 1 {
+                    (words_in_line - 1) as f64
+                } else {
+                    0.0
+                };
                 let natural_words: f64 = boxes[i..j].iter().map(|b| b.width).sum();
                 let natural = natural_words + spaces * self.space_width;
 
@@ -85,7 +89,9 @@ impl KnuthPlassOptimizer {
                     if natural > self.line_width {
                         // Last line is too tight — still infeasible.
                         let r = self.adjustment_ratio(natural, spaces.max(1.0));
-                        if r < -1.0 { break; }
+                        if r < -1.0 {
+                            break;
+                        }
                         r
                     } else {
                         0.0
@@ -117,7 +123,11 @@ impl KnuthPlassOptimizer {
                 };
 
                 // Widow penalty: single-word last line.
-                let widow = if is_last_line && words_in_line == 1 { DEMERITS_WIDOW } else { 0.0 };
+                let widow = if is_last_line && words_in_line == 1 {
+                    DEMERITS_WIDOW
+                } else {
+                    0.0
+                };
 
                 let total = dp[i] + d + consec + widow;
                 if total < dp[j] {
@@ -151,12 +161,16 @@ impl KnuthPlassOptimizer {
         if diff > 0.0 {
             // Needs to stretch.
             let max_stretch = spaces * self.space_width * self.space_stretch;
-            if max_stretch <= 0.0 { return f64::INFINITY; }
+            if max_stretch <= 0.0 {
+                return f64::INFINITY;
+            }
             diff / max_stretch
         } else {
             // Needs to shrink.
             let max_shrink = spaces * self.space_width * self.space_shrink;
-            if max_shrink <= 0.0 { return -f64::INFINITY; }
+            if max_shrink <= 0.0 {
+                return -f64::INFINITY;
+            }
             diff / max_shrink
         }
     }
@@ -203,7 +217,11 @@ mod tests {
         // 4 words × 20mm + 3 spaces × 2.5mm = 87.5mm > 60mm → needs 2 lines
         let boxes: Vec<WordBox> = (0..4).map(|_| WordBox { width: 20.0 }).collect();
         let breaks = opt.optimize(&boxes);
-        assert_eq!(breaks.len(), 2, "should produce exactly two lines: {breaks:?}");
+        assert_eq!(
+            breaks.len(),
+            2,
+            "should produce exactly two lines: {breaks:?}"
+        );
         assert_eq!(*breaks.last().unwrap(), 3);
     }
 

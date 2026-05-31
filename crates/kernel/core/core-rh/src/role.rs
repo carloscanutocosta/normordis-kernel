@@ -18,8 +18,8 @@ pub enum UserRole {
 impl UserRole {
     pub fn as_str(&self) -> &'static str {
         match self {
-            Self::Utilizador    => "utilizador",
-            Self::Auditor       => "auditor",
+            Self::Utilizador => "utilizador",
+            Self::Auditor => "auditor",
             Self::Administrator => "administrator",
         }
     }
@@ -27,8 +27,8 @@ impl UserRole {
     /// Desserializa a partir do valor canónico exacto.
     pub fn from_str(s: &str) -> Option<Self> {
         match s {
-            "utilizador"    => Some(Self::Utilizador),
-            "auditor"       => Some(Self::Auditor),
+            "utilizador" => Some(Self::Utilizador),
+            "auditor" => Some(Self::Auditor),
             "administrator" => Some(Self::Administrator),
             _ => None,
         }
@@ -37,9 +37,9 @@ impl UserRole {
     /// Aceita aliases: "standard" → Utilizador, "supervisor" → Auditor.
     pub fn parse(value: &str) -> Result<Self, RhError> {
         match value.trim().to_lowercase().as_str() {
-            "utilizador" | "standard"  => Ok(Self::Utilizador),
-            "auditor"    | "supervisor" => Ok(Self::Auditor),
-            "administrator"             => Ok(Self::Administrator),
+            "utilizador" | "standard" => Ok(Self::Utilizador),
+            "auditor" | "supervisor" => Ok(Self::Auditor),
+            "administrator" => Ok(Self::Administrator),
             _ => Err(RhError::InvalidRole),
         }
     }
@@ -85,21 +85,21 @@ impl std::fmt::Display for RoleId {
 /// um utilizador tem acesso no workspace. Distintos de `UserRole` (sistema).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Role {
-    pub id:          RoleId,
-    pub name:        String,
+    pub id: RoleId,
+    pub name: String,
     pub description: Option<String>,
-    pub is_active:   bool,
+    pub is_active: bool,
 }
 
 impl Role {
     pub fn new(
-        id:          impl Into<String>,
-        name:        impl Into<String>,
+        id: impl Into<String>,
+        name: impl Into<String>,
         description: Option<String>,
-        is_active:   bool,
+        is_active: bool,
     ) -> Result<Self, RhError> {
         let role = Self {
-            id:   RoleId::new(id)?,
+            id: RoleId::new(id)?,
             name: name.into(),
             description,
             is_active,

@@ -101,8 +101,8 @@ impl FormulaEngine for BasicFormulaEngine {
 // ── helpers internos ──────────────────────────────────────────────────────────
 
 fn aggregate(binding: &CalculationBinding, events: &[MetricEvent]) -> Result<f64, MetricError> {
-    let kind = AggregationKind::from_str(&binding.expression)
-        .ok_or(MetricError::InvalidCriteria)?;
+    let kind =
+        AggregationKind::from_str(&binding.expression).ok_or(MetricError::InvalidCriteria)?;
 
     let filtered: Vec<&MetricEvent> = filter_events(events, binding);
 
@@ -126,7 +126,11 @@ fn aggregate(binding: &CalculationBinding, events: &[MetricEvent]) -> Result<f64
             // is stored in the `value` field itself (self-weighted)
             let sum: f64 = filtered.iter().map(|e| e.value * e.value).sum();
             let total: f64 = filtered.iter().map(|e| e.value).sum();
-            if total == 0.0 { 0.0 } else { sum / total }
+            if total == 0.0 {
+                0.0
+            } else {
+                sum / total
+            }
         }
         AggregationKind::Ratio => {
             let filter_state = binding
@@ -201,7 +205,10 @@ fn threshold(
     Ok(if met { 1.0 } else { 0.0 })
 }
 
-fn filter_events<'a>(events: &'a [MetricEvent], binding: &CalculationBinding) -> Vec<&'a MetricEvent> {
+fn filter_events<'a>(
+    events: &'a [MetricEvent],
+    binding: &CalculationBinding,
+) -> Vec<&'a MetricEvent> {
     let filter_state = binding
         .parameters
         .as_ref()
@@ -275,7 +282,9 @@ mod tests {
     fn sum() {
         let engine = BasicFormulaEngine;
         let events = vec![ev("1", 10.0), ev("2", 20.0), ev("3", 30.0)];
-        let result = engine.calculate(&binding("aggregate", "sum"), &events, None).unwrap();
+        let result = engine
+            .calculate(&binding("aggregate", "sum"), &events, None)
+            .unwrap();
         assert_eq!(result, 60.0);
     }
 
@@ -283,7 +292,9 @@ mod tests {
     fn average() {
         let engine = BasicFormulaEngine;
         let events = vec![ev("1", 10.0), ev("2", 30.0)];
-        let result = engine.calculate(&binding("aggregate", "avg"), &events, None).unwrap();
+        let result = engine
+            .calculate(&binding("aggregate", "avg"), &events, None)
+            .unwrap();
         assert_eq!(result, 20.0);
     }
 
@@ -291,7 +302,9 @@ mod tests {
     fn count() {
         let engine = BasicFormulaEngine;
         let events = vec![ev("1", 0.0), ev("2", 0.0), ev("3", 0.0)];
-        let result = engine.calculate(&binding("aggregate", "count"), &events, None).unwrap();
+        let result = engine
+            .calculate(&binding("aggregate", "count"), &events, None)
+            .unwrap();
         assert_eq!(result, 3.0);
     }
 
@@ -361,20 +374,34 @@ mod tests {
     fn min_max() {
         let engine = BasicFormulaEngine;
         let events = vec![ev("1", 5.0), ev("2", 15.0), ev("3", 10.0)];
-        assert_eq!(engine.calculate(&binding("aggregate", "min"), &events, None).unwrap(), 5.0);
-        assert_eq!(engine.calculate(&binding("aggregate", "max"), &events, None).unwrap(), 15.0);
+        assert_eq!(
+            engine
+                .calculate(&binding("aggregate", "min"), &events, None)
+                .unwrap(),
+            5.0
+        );
+        assert_eq!(
+            engine
+                .calculate(&binding("aggregate", "max"), &events, None)
+                .unwrap(),
+            15.0
+        );
     }
 
     #[test]
     fn empty_events_returns_zero() {
         let engine = BasicFormulaEngine;
-        let result = engine.calculate(&binding("aggregate", "sum"), &[], None).unwrap();
+        let result = engine
+            .calculate(&binding("aggregate", "sum"), &[], None)
+            .unwrap();
         assert_eq!(result, 0.0);
     }
 
     #[test]
     fn unknown_kind_returns_error() {
         let engine = BasicFormulaEngine;
-        assert!(engine.calculate(&binding("unknown", "sum"), &[], None).is_err());
+        assert!(engine
+            .calculate(&binding("unknown", "sum"), &[], None)
+            .is_err());
     }
 }

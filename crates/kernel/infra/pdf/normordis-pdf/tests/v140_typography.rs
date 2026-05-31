@@ -25,7 +25,11 @@ fn font_data_shape_returns_glyphs() {
     let fd: &FontData = fam.get(false, false);
     let glyphs: Vec<ShapedGlyph> = fd.shape("Hello", &[]);
     assert!(!glyphs.is_empty(), "shaping 'Hello' should produce glyphs");
-    assert_eq!(glyphs.len(), 5, "5 input chars → 5 output glyphs (no ligatures by default)");
+    assert_eq!(
+        glyphs.len(),
+        5,
+        "5 input chars → 5 output glyphs (no ligatures by default)"
+    );
 }
 
 #[test]
@@ -41,7 +45,10 @@ fn font_data_measure_text_consistent_with_registry() {
     let fd: &FontData = reg.get_default().get(false, false);
     let w_fd = fd.measure_text_mm("Test", 12.0);
     let w_reg = reg.measure_text_mm("Test", "LiberationSans", 12.0, false, false);
-    assert!((w_fd - w_reg).abs() < 0.001, "FontData and FontRegistry must agree: {w_fd:.3} vs {w_reg:.3}");
+    assert!(
+        (w_fd - w_reg).abs() < 0.001,
+        "FontData and FontRegistry must agree: {w_fd:.3} vs {w_reg:.3}"
+    );
 }
 
 #[test]
@@ -49,7 +56,11 @@ fn shaped_glyphs_have_positive_advance() {
     let reg = FontRegistry::default();
     let fd: &FontData = reg.get_default().get(false, false);
     for glyph in fd.shape("ABC", &[]) {
-        assert!(glyph.x_advance > 0, "glyph_id={} should have positive advance", glyph.glyph_id);
+        assert!(
+            glyph.x_advance > 0,
+            "glyph_id={} should have positive advance",
+            glyph.glyph_id
+        );
     }
 }
 
@@ -90,20 +101,35 @@ fn opentype_features_to_rustybuzz_empty_when_all_false() {
 
 #[test]
 fn opentype_features_to_rustybuzz_returns_enabled_features() {
-    let f = OpenTypeFeatures { kern: true, liga: true, ..Default::default() };
+    let f = OpenTypeFeatures {
+        kern: true,
+        liga: true,
+        ..Default::default()
+    };
     let feats = f.to_rustybuzz_features();
     assert_eq!(feats.len(), 2);
 }
 
 #[test]
 fn opentype_features_all_enabled_returns_six() {
-    let f = OpenTypeFeatures { kern: true, liga: true, tnum: true, smcp: true, sups: true, subs: true };
+    let f = OpenTypeFeatures {
+        kern: true,
+        liga: true,
+        tnum: true,
+        smcp: true,
+        sups: true,
+        subs: true,
+    };
     assert_eq!(f.to_rustybuzz_features().len(), 6);
 }
 
 #[test]
 fn opentype_features_serde_round_trip() {
-    let f = OpenTypeFeatures { smcp: true, tnum: true, ..Default::default() };
+    let f = OpenTypeFeatures {
+        smcp: true,
+        tnum: true,
+        ..Default::default()
+    };
     let json = serde_json::to_string(&f).unwrap();
     let f2: OpenTypeFeatures = serde_json::from_str(&json).unwrap();
     assert!(f2.smcp && f2.tnum && !f2.kern);
@@ -150,9 +176,22 @@ fn highlight_color_yellow_to_rgb() {
 fn highlight_color_all_variants_have_valid_rgb() {
     use HighlightColor::*;
     let colors = [
-        Black, Blue, Cyan, DarkBlue, DarkCyan, DarkGray, DarkGreen,
-        DarkMagenta, DarkRed, DarkYellow, Green, LightGray, Magenta,
-        Red, White, Yellow,
+        Black,
+        Blue,
+        Cyan,
+        DarkBlue,
+        DarkCyan,
+        DarkGray,
+        DarkGreen,
+        DarkMagenta,
+        DarkRed,
+        DarkYellow,
+        Green,
+        LightGray,
+        Magenta,
+        Red,
+        White,
+        Yellow,
     ];
     for c in colors {
         let rgb = c.to_rgb();
@@ -171,7 +210,11 @@ fn decoration_line_default_thickness() {
 
 #[test]
 fn decoration_line_with_color() {
-    let red = RgbColor { r: 1.0, g: 0.0, b: 0.0 };
+    let red = RgbColor {
+        r: 1.0,
+        g: 0.0,
+        b: 0.0,
+    };
     let dl = DecorationLine::with_color(red.clone());
     assert!(dl.color.is_some());
 }
@@ -250,7 +293,7 @@ fn paragraph_border_box_renders_without_panic() {
     DocumentBuilder::new("ParagraphBorder test")
         .push(
             Paragraph::new("Bordered paragraph.")
-                .border(ParagraphBorder::box_border(DecorationLine::simple()))
+                .border(ParagraphBorder::box_border(DecorationLine::simple())),
         )
         .render_to_bytes()
         .expect("bordered paragraph should render");
@@ -259,10 +302,7 @@ fn paragraph_border_box_renders_without_panic() {
 #[test]
 fn paragraph_background_renders_without_panic() {
     DocumentBuilder::new("Background test")
-        .push(
-            Paragraph::new("Yellow background.")
-                .background(HighlightColor::Yellow.to_rgb())
-        )
+        .push(Paragraph::new("Yellow background.").background(HighlightColor::Yellow.to_rgb()))
         .render_to_bytes()
         .expect("background paragraph should render");
 }
@@ -273,7 +313,11 @@ fn paragraph_border_and_background_combined() {
         .push(
             Paragraph::new("Bordered and highlighted.")
                 .border(ParagraphBorder::box_border(DecorationLine::simple()))
-                .background(RgbColor { r: 0.9, g: 0.9, b: 1.0 })
+                .background(RgbColor {
+                    r: 0.9,
+                    g: 0.9,
+                    b: 1.0,
+                }),
         )
         .render_to_bytes()
         .expect("border+bg should render");
@@ -313,8 +357,14 @@ fn section_break_with_margins_renders_without_panic() {
 
 #[test]
 fn section_break_orientation_fields() {
-    assert_eq!(SectionBreak::portrait().orientation, SectionOrientation::Portrait);
-    assert_eq!(SectionBreak::landscape().orientation, SectionOrientation::Landscape);
+    assert_eq!(
+        SectionBreak::portrait().orientation,
+        SectionOrientation::Portrait
+    );
+    assert_eq!(
+        SectionBreak::landscape().orientation,
+        SectionOrientation::Landscape
+    );
 }
 
 #[test]

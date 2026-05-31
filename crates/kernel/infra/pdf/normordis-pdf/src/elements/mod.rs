@@ -2,8 +2,8 @@ pub mod fixed;
 pub mod fixed_image;
 pub mod fixed_line;
 pub mod fixed_text;
-pub mod footnote;
 pub mod footer;
+pub mod footnote;
 pub mod form;
 pub mod header;
 pub mod image;
@@ -43,8 +43,12 @@ pub struct RenderResult {
 }
 
 impl RenderResult {
-    pub fn done() -> Self { Self { has_more: false } }
-    pub fn more() -> Self { Self { has_more: true } }
+    pub fn done() -> Self {
+        Self { has_more: false }
+    }
+    pub fn more() -> Self {
+        Self { has_more: true }
+    }
 }
 
 /// Context passed to every element during rendering.
@@ -141,17 +145,20 @@ impl RenderContext {
     /// Returns the `FontRef` for a specific family with the given style.
     pub fn get_font_ref_for(&self, family: &str, bold: bool, italic: bool) -> Option<FontRef> {
         if bold && italic {
-            self.font_map.get(&format!("{family}::bold_italic"))
+            self.font_map
+                .get(&format!("{family}::bold_italic"))
                 .or_else(|| self.font_map.get(&format!("{family}::bold")))
                 .or_else(|| self.font_map.get(&format!("{family}::italic")))
                 .or_else(|| self.font_map.get(&format!("{family}::regular")))
                 .copied()
         } else if bold {
-            self.font_map.get(&format!("{family}::bold"))
+            self.font_map
+                .get(&format!("{family}::bold"))
                 .or_else(|| self.font_map.get(&format!("{family}::regular")))
                 .copied()
         } else if italic {
-            self.font_map.get(&format!("{family}::italic"))
+            self.font_map
+                .get(&format!("{family}::italic"))
                 .or_else(|| self.font_map.get(&format!("{family}::regular")))
                 .copied()
         } else {
@@ -169,7 +176,8 @@ impl RenderContext {
         font_ref: FontRef,
         color: &RgbColor,
     ) -> crate::Result<()> {
-        self.backend.draw_text(text, x_mm, y_mm, font_size_pt, font_ref, color, 0.0)
+        self.backend
+            .draw_text(text, x_mm, y_mm, font_size_pt, font_ref, color, 0.0)
     }
 
     /// Convenience: draw text with letter spacing.
@@ -183,7 +191,15 @@ impl RenderContext {
         color: &RgbColor,
         letter_spacing_pt: f32,
     ) -> crate::Result<()> {
-        self.backend.draw_text(text, x_mm, y_mm, font_size_pt, font_ref, color, letter_spacing_pt)
+        self.backend.draw_text(
+            text,
+            x_mm,
+            y_mm,
+            font_size_pt,
+            font_ref,
+            color,
+            letter_spacing_pt,
+        )
     }
 
     /// Convenience: draw a horizontal line.
@@ -195,7 +211,8 @@ impl RenderContext {
         width_pt: f32,
         color: &RgbColor,
     ) -> crate::Result<()> {
-        self.backend.draw_line(x0_mm, y_mm, x1_mm, y_mm, width_pt, color)
+        self.backend
+            .draw_line(x0_mm, y_mm, x1_mm, y_mm, width_pt, color)
     }
 
     /// Convenience: draw a vertical line.
@@ -207,7 +224,8 @@ impl RenderContext {
         width_pt: f32,
         color: &RgbColor,
     ) -> crate::Result<()> {
-        self.backend.draw_line(x_mm, y0_mm, x_mm, y1_mm, width_pt, color)
+        self.backend
+            .draw_line(x_mm, y0_mm, x_mm, y1_mm, width_pt, color)
     }
 }
 

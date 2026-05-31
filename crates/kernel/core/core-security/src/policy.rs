@@ -56,7 +56,11 @@ mod tests {
             policy_id: "pol-1".into(),
             version: "1.0.0".into(),
             mode: PolicyMode::Baseline,
-            rules: vec![Rule { code: "MIN-AUTH".into(), enabled: true, description: None }],
+            rules: vec![Rule {
+                code: "MIN-AUTH".into(),
+                enabled: true,
+                description: None,
+            }],
         }
     }
 
@@ -69,14 +73,20 @@ mod tests {
     fn missing_policy_id() {
         let mut p = baseline_policy();
         p.policy_id = "".into();
-        assert!(matches!(validate_policy(&p), Err(SecurityError::MissingField(_))));
+        assert!(matches!(
+            validate_policy(&p),
+            Err(SecurityError::MissingField(_))
+        ));
     }
 
     #[test]
     fn empty_rules() {
         let mut p = baseline_policy();
         p.rules = vec![];
-        assert!(matches!(validate_policy(&p), Err(SecurityError::InvalidPolicy(_))));
+        assert!(matches!(
+            validate_policy(&p),
+            Err(SecurityError::InvalidPolicy(_))
+        ));
     }
 
     #[test]
@@ -86,8 +96,16 @@ mod tests {
             version: "1.0.0".into(),
             mode: PolicyMode::Strict,
             rules: vec![
-                Rule { code: "RULE-A".into(), enabled: true, description: None },
-                Rule { code: "RULE-B".into(), enabled: true, description: None },
+                Rule {
+                    code: "RULE-A".into(),
+                    enabled: true,
+                    description: None,
+                },
+                Rule {
+                    code: "RULE-B".into(),
+                    enabled: true,
+                    description: None,
+                },
             ],
         };
         assert!(validate_policy(&p).is_ok());
@@ -102,8 +120,16 @@ mod tests {
             version: "1.0.0".into(),
             mode: PolicyMode::Strict,
             rules: vec![
-                Rule { code: "AUTH".into(), enabled: true, description: None },
-                Rule { code: "audit.read".into(), enabled: false, description: None },
+                Rule {
+                    code: "AUTH".into(),
+                    enabled: true,
+                    description: None,
+                },
+                Rule {
+                    code: "audit.read".into(),
+                    enabled: false,
+                    description: None,
+                },
             ],
         };
         assert!(validate_policy(&p).is_ok());

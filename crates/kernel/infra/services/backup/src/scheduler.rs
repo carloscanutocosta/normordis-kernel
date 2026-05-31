@@ -45,9 +45,7 @@ fn scheduled_time_passed_today(service: &MaintenanceService) -> bool {
 }
 
 fn next_run_delay(service: &MaintenanceService) -> Duration {
-    let (hour, minute) = service
-        .config()
-        .schedule_hour_minute();
+    let (hour, minute) = service.config().schedule_hour_minute();
 
     let now = Local::now();
     let today_target = now

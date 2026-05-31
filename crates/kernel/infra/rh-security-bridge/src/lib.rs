@@ -28,7 +28,9 @@
 
 use std::sync::{Arc, Mutex};
 
-use adapter_sqlite::{open_relational_connection, run_relational_migrations, SqliteRelationalConfig};
+use adapter_sqlite::{
+    open_relational_connection, run_relational_migrations, SqliteRelationalConfig,
+};
 use chrono::{DateTime, Utc};
 use core_security::{RoleId, RoleMembershipRepository, SecurityError};
 use rusqlite::params;
@@ -108,13 +110,17 @@ pub struct RhSecurityBridgeStore {
 impl RhSecurityBridgeStore {
     pub fn open(config: &SqliteRelationalConfig) -> Result<Self, RhSecurityBridgeError> {
         let conn = open_relational_connection(config)?;
-        let store = Self { conn: Arc::new(Mutex::new(conn)) };
+        let store = Self {
+            conn: Arc::new(Mutex::new(conn)),
+        };
         store.migrate()?;
         Ok(store)
     }
 
     pub fn from_connection(conn: Connection) -> Result<Self, RhSecurityBridgeError> {
-        let store = Self { conn: Arc::new(Mutex::new(conn)) };
+        let store = Self {
+            conn: Arc::new(Mutex::new(conn)),
+        };
         store.migrate()?;
         Ok(store)
     }
@@ -184,7 +190,9 @@ impl RhSecurityBridgeStore {
             params![dt_to_str(now), revoked_by, member_id.as_str()],
         )?;
         if affected == 0 {
-            return Err(RhSecurityBridgeError::MemberNotFound(member_id.as_str().into()));
+            return Err(RhSecurityBridgeError::MemberNotFound(
+                member_id.as_str().into(),
+            ));
         }
         Ok(())
     }
@@ -248,7 +256,8 @@ impl RoleMembershipRepository for RhSecurityBridgeStore {
         principal_id: &str,
         now: DateTime<Utc>,
     ) -> Result<Vec<RoleId>, SecurityError> {
-        self.list_principal_roles(principal_id, now).map_err(SecurityError::from)
+        self.list_principal_roles(principal_id, now)
+            .map_err(SecurityError::from)
     }
 }
 
@@ -292,7 +301,10 @@ mod tests {
         store
             .assign_principal_to_role("user:alice", &role("role:editor"), "admin", n, None, n)
             .unwrap();
-        let roles = store.get_roles_for_principal("user:alice", n).await.unwrap();
+        let roles = store
+            .get_roles_for_principal("user:alice", n)
+            .await
+            .unwrap();
         assert_eq!(roles.len(), 1);
         assert_eq!(roles[0].as_str(), "role:editor");
     }
@@ -317,7 +329,10 @@ mod tests {
         assert_eq!(roles_before.len(), 1);
 
         let after = Utc.with_ymd_and_hms(2026, 9, 1, 0, 0, 0).unwrap();
-        let roles_after = store.get_roles_for_principal("user:bob", after).await.unwrap();
+        let roles_after = store
+            .get_roles_for_principal("user:bob", after)
+            .await
+            .unwrap();
         assert!(roles_after.is_empty());
     }
 
@@ -337,11 +352,16 @@ mod tests {
             )
             .unwrap();
 
-        let roles = store.get_roles_for_principal("user:carol", n).await.unwrap();
+        let roles = store
+            .get_roles_for_principal("user:carol", n)
+            .await
+            .unwrap();
         assert!(roles.is_empty());
 
-        let roles_later =
-            store.get_roles_for_principal("user:carol", future).await.unwrap();
+        let roles_later = store
+            .get_roles_for_principal("user:carol", future)
+            .await
+            .unwrap();
         assert_eq!(roles_later.len(), 1);
     }
 
@@ -394,7 +414,10 @@ mod tests {
             .assign_principal_to_role("user:alice", &role("role:auditor"), "admin", n, None, n)
             .unwrap();
 
-        let roles = store.get_roles_for_principal("user:alice", n).await.unwrap();
+        let roles = store
+            .get_roles_for_principal("user:alice", n)
+            .await
+            .unwrap();
         assert_eq!(roles.len(), 2);
     }
 
@@ -449,13 +472,13 @@ mod tests {
         let tmp_security = NamedTempFile::new().unwrap();
         let tmp_roles = NamedTempFile::new().unwrap();
 
-        let security_store = SecuritySqliteStore::open(
-            &SqliteRelationalConfig::read_write_create(tmp_security.path()),
-        )
+        let security_store = SecuritySqliteStore::open(&SqliteRelationalConfig::read_write_create(
+            tmp_security.path(),
+        ))
         .unwrap();
-        let role_store = RhSecurityBridgeStore::open(
-            &SqliteRelationalConfig::read_write_create(tmp_roles.path()),
-        )
+        let role_store = RhSecurityBridgeStore::open(&SqliteRelationalConfig::read_write_create(
+            tmp_roles.path(),
+        ))
         .unwrap();
 
         let n = now();
@@ -466,7 +489,11 @@ mod tests {
                     policy_id: "pol-s".into(),
                     version: "1.0.0".into(),
                     mode: PolicyMode::Strict,
-                    rules: vec![Rule { code: "AUTH".into(), enabled: true, description: None }],
+                    rules: vec![Rule {
+                        code: "AUTH".into(),
+                        enabled: true,
+                        description: None,
+                    }],
                 },
                 n,
             )

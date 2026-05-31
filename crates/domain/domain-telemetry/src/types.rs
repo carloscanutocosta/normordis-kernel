@@ -76,24 +76,26 @@ pub enum UsageEventType {
 impl UsageEventType {
     pub fn as_str(&self) -> &str {
         match self {
-            UsageEventType::AppOpened        => "AppOpened",
-            UsageEventType::AppClosed        => "AppClosed",
-            UsageEventType::AppFailed        => "AppFailed",
-            UsageEventType::ActionCompleted  => "ActionCompleted",
-            UsageEventType::ActionFailed     => "ActionFailed",
+            UsageEventType::AppOpened => "AppOpened",
+            UsageEventType::AppClosed => "AppClosed",
+            UsageEventType::AppFailed => "AppFailed",
+            UsageEventType::ActionCompleted => "ActionCompleted",
+            UsageEventType::ActionFailed => "ActionFailed",
             UsageEventType::PermissionDenied => "PermissionDenied",
         }
     }
 
     pub fn from_str(s: &str) -> Result<Self, TelemetryError> {
         match s {
-            "AppOpened"        => Ok(UsageEventType::AppOpened),
-            "AppClosed"        => Ok(UsageEventType::AppClosed),
-            "AppFailed"        => Ok(UsageEventType::AppFailed),
-            "ActionCompleted"  => Ok(UsageEventType::ActionCompleted),
-            "ActionFailed"     => Ok(UsageEventType::ActionFailed),
+            "AppOpened" => Ok(UsageEventType::AppOpened),
+            "AppClosed" => Ok(UsageEventType::AppClosed),
+            "AppFailed" => Ok(UsageEventType::AppFailed),
+            "ActionCompleted" => Ok(UsageEventType::ActionCompleted),
+            "ActionFailed" => Ok(UsageEventType::ActionFailed),
             "PermissionDenied" => Ok(UsageEventType::PermissionDenied),
-            other => Err(TelemetryError::Storage(format!("tipo de evento desconhecido: {other}"))),
+            other => Err(TelemetryError::Storage(format!(
+                "tipo de evento desconhecido: {other}"
+            ))),
         }
     }
 }
@@ -111,14 +113,14 @@ impl std::fmt::Display for UsageEventType {
 /// `metadata` transporta contexto adicional (ex: `"action" → "criar_documento"`).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AppUsageEvent {
-    pub event_id:    UsageEventId,
-    pub app_id:      String,
-    pub session_id:  SessionId,
-    pub user_id:     String,
+    pub event_id: UsageEventId,
+    pub app_id: String,
+    pub session_id: SessionId,
+    pub user_id: String,
     pub org_unit_id: Option<String>,
-    pub event_type:  UsageEventType,
+    pub event_type: UsageEventType,
     pub occurred_at: DateTime<Utc>,
-    pub metadata:    HashMap<String, String>,
+    pub metadata: HashMap<String, String>,
 }
 
 impl AppUsageEvent {
@@ -148,7 +150,9 @@ impl UsagePeriod {
     pub fn validate(&self) -> Result<(), TelemetryError> {
         if let UsagePeriod::Month { month, .. } = self {
             if *month == 0 || *month > 12 {
-                return Err(TelemetryError::InvalidPeriod(format!("mês inválido: {month}")));
+                return Err(TelemetryError::InvalidPeriod(format!(
+                    "mês inválido: {month}"
+                )));
             }
         }
         Ok(())
@@ -158,9 +162,9 @@ impl UsagePeriod {
 impl std::fmt::Display for UsagePeriod {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            UsagePeriod::Day(d)                 => write!(f, "{d}"),
-            UsagePeriod::Month { year, month }  => write!(f, "{year}-{month:02}"),
-            UsagePeriod::Year(y)                => write!(f, "{y}"),
+            UsagePeriod::Day(d) => write!(f, "{d}"),
+            UsagePeriod::Month { year, month } => write!(f, "{year}-{month:02}"),
+            UsagePeriod::Year(y) => write!(f, "{y}"),
         }
     }
 }
@@ -171,18 +175,18 @@ impl std::fmt::Display for UsagePeriod {
 /// (pares AppOpened + AppClosed com o mesmo `session_id`) no período.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AppUsageStats {
-    pub app_id:                    String,
-    pub period:                    UsagePeriod,
+    pub app_id: String,
+    pub period: UsagePeriod,
     /// Número de eventos AppOpened no período.
-    pub opened_count:              u64,
+    pub opened_count: u64,
     /// Número de eventos AppClosed no período.
-    pub closed_count:              u64,
+    pub closed_count: u64,
     /// Número de eventos AppFailed no período.
-    pub failure_count:             u64,
+    pub failure_count: u64,
     /// Sessões únicas iniciadas no período (AppOpened distintos por session_id).
-    pub session_count:             u64,
+    pub session_count: u64,
     /// Utilizadores únicos que abriram a app no período.
-    pub unique_users:              u64,
+    pub unique_users: u64,
     /// Duração média de sessão em segundos para sessões completas (open+close).
     /// `None` se não existirem sessões com AppClosed correspondente.
     pub avg_session_duration_secs: Option<f64>,
@@ -191,11 +195,11 @@ pub struct AppUsageStats {
 /// Filtro para pesquisa de eventos brutos. Campos `None` não aplicam filtro.
 #[derive(Debug, Clone, Default)]
 pub struct UsageEventFilter {
-    pub app_id:          Option<String>,
-    pub session_id:      Option<String>,
-    pub user_id:         Option<String>,
-    pub org_unit_id:     Option<String>,
-    pub event_type:      Option<UsageEventType>,
-    pub occurred_after:  Option<DateTime<Utc>>,
+    pub app_id: Option<String>,
+    pub session_id: Option<String>,
+    pub user_id: Option<String>,
+    pub org_unit_id: Option<String>,
+    pub event_type: Option<UsageEventType>,
+    pub occurred_after: Option<DateTime<Utc>>,
     pub occurred_before: Option<DateTime<Utc>>,
 }

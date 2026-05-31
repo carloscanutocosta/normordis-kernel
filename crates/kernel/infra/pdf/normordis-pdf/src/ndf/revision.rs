@@ -38,13 +38,11 @@ impl NdfRevision {
 
         let meta_val = serde_json::to_value(&original.meta)
             .map_err(|e| NormaxisPdfError::SerdeError(e.to_string()))?;
-        let integrity =
-            NdfIntegrity::compute(&new_content, &original.styles, &meta_val)?;
+        let integrity = NdfIntegrity::compute(&new_content, &original.styles, &meta_val)?;
 
         let now = chrono::Utc::now().to_rfc3339();
-        let doc_id = document_id.unwrap_or_else(|| {
-            format!("{}-rev{}", original.audit.document_id, revision_seq)
-        });
+        let doc_id = document_id
+            .unwrap_or_else(|| format!("{}-rev{}", original.audit.document_id, revision_seq));
 
         let first_event = AuditEvent {
             seq: 1,
