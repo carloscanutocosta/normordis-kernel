@@ -82,6 +82,7 @@ fn resolve_audit_db_path(storage: &StorageProfile) -> Result<PathBuf, RuntimeErr
             .clone()
             .ok_or(RuntimeError::InvalidStorageProfile),
         StorageBackend::Memory => Ok(PathBuf::from(":memory:")),
+        _ => Err(RuntimeError::UnsupportedStorageBackend),
     }
 }
 

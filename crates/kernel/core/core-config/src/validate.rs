@@ -4,6 +4,13 @@ use crate::{
 };
 use std::collections::HashSet;
 
+const MAX_APP_ID_LEN: usize = 128;
+const MAX_DISPLAY_NAME_LEN: usize = 255;
+const MAX_PROFILE_NAME_LEN: usize = 64;
+const MAX_KEY_ID_LEN: usize = 128;
+const MAX_STORAGE_PROFILE_NAME_LEN: usize = 64;
+const MAX_NAMESPACE_LEN: usize = 128;
+
 pub fn validate_profile(profile: &MiniKernelProfile) -> Result<(), ConfigError> {
     validate_app_profile(&profile.app)?;
     validate_runtime_profile(&profile.runtime)?;
@@ -34,6 +41,12 @@ pub fn validate_app_profile(profile: &AppProfile) -> Result<(), ConfigError> {
         });
     }
 
+    if profile.app_id.len() > MAX_APP_ID_LEN {
+        return Err(ConfigError::InvalidAppProfile {
+            reason: format!("app_id exceeds maximum length of {MAX_APP_ID_LEN}"),
+        });
+    }
+
     if !profile
         .app_id
         .chars()
@@ -50,6 +63,12 @@ pub fn validate_app_profile(profile: &AppProfile) -> Result<(), ConfigError> {
         });
     }
 
+    if profile.display_name.len() > MAX_DISPLAY_NAME_LEN {
+        return Err(ConfigError::InvalidAppProfile {
+            reason: format!("display_name exceeds maximum length of {MAX_DISPLAY_NAME_LEN}"),
+        });
+    }
+
     Ok(())
 }
 
@@ -63,6 +82,12 @@ pub fn validate_runtime_profile(profile: &RuntimeProfile) -> Result<(), ConfigEr
     if contains_whitespace(&profile.profile_name) {
         return Err(ConfigError::InvalidRuntimeProfile {
             reason: "profile_name cannot contain spaces".to_owned(),
+        });
+    }
+
+    if profile.profile_name.len() > MAX_PROFILE_NAME_LEN {
+        return Err(ConfigError::InvalidRuntimeProfile {
+            reason: format!("profile_name exceeds maximum length of {MAX_PROFILE_NAME_LEN}"),
         });
     }
 
@@ -114,6 +139,18 @@ pub fn validate_storage_profile(profile: &StorageProfile) -> Result<(), ConfigEr
         });
     }
 
+    if profile.name.len() > MAX_STORAGE_PROFILE_NAME_LEN {
+        return Err(ConfigError::InvalidStorageProfile {
+            reason: format!("name exceeds maximum length of {MAX_STORAGE_PROFILE_NAME_LEN}"),
+        });
+    }
+
+    if profile.backend == StorageBackend::Memory && profile.encrypted {
+        return Err(ConfigError::InvalidStorageProfile {
+            reason: "memory storage cannot be encrypted".to_owned(),
+        });
+    }
+
     match profile.backend {
         StorageBackend::Sqlite => {
             let path = profile.database_path.as_ref().ok_or_else(|| {
@@ -154,26 +191,34 @@ pub fn validate_crypto_profile(profile: &CryptoProfile) -> Result<(), ConfigErro
                 reason: "key_id cannot be empty or contain spaces or ':'".to_owned(),
             });
         }
+
+        if key_id.len() > MAX_KEY_ID_LEN {
+            return Err(ConfigError::InvalidCryptoProfile {
+                reason: format!("key_id exceeds maximum length of {MAX_KEY_ID_LEN}"),
+            });
+        }
     }
 
     Ok(())
 }
 
 pub fn validate_logging_profile(profile: &LoggingProfile) -> Result<(), ConfigError> {
-    if profile.enabled {
-        let log_dir =
-            profile
-                .log_dir
-                .as_ref()
-                .ok_or_else(|| ConfigError::InvalidLoggingProfile {
-                    reason: "log_dir is required when logging is enabled".to_owned(),
-                })?;
+    if !profile.enabled {
+        return Ok(());
+    }
 
-        if log_dir.as_os_str().is_empty() {
-            return Err(ConfigError::InvalidLoggingProfile {
-                reason: "log_dir cannot be empty when logging is enabled".to_owned(),
-            });
-        }
+    let log_dir =
+        profile
+            .log_dir
+            .as_ref()
+            .ok_or_else(|| ConfigError::InvalidLoggingProfile {
+                reason: "log_dir is required when logging is enabled".to_owned(),
+            })?;
+
+    if log_dir.as_os_str().is_empty() {
+        return Err(ConfigError::InvalidLoggingProfile {
+            reason: "log_dir cannot be empty when logging is enabled".to_owned(),
+        });
     }
 
     if is_blank(&profile.file_name)
@@ -210,12 +255,22 @@ pub fn validate_audit_profile(
     profile: &AuditProfile,
     storage: &StorageProfiles,
 ) -> Result<(), ConfigError> {
+    if !profile.enabled {
+        return Ok(());
+    }
+
     if is_blank(&profile.namespace)
         || contains_whitespace(&profile.namespace)
         || profile.namespace.contains(':')
     {
         return Err(ConfigError::InvalidAuditProfile {
             reason: "namespace is required and cannot contain spaces or ':'".to_owned(),
+        });
+    }
+
+    if profile.namespace.len() > MAX_NAMESPACE_LEN {
+        return Err(ConfigError::InvalidAuditProfile {
+            reason: format!("namespace exceeds maximum length of {MAX_NAMESPACE_LEN}"),
         });
     }
 
@@ -231,9 +286,15 @@ pub fn validate_audit_profile(
         });
     }
 
-    if storage.profile(&profile.storage_profile).is_none() {
-        return Err(ConfigError::MissingStorageProfile {
+    let audit_storage = storage
+        .profile(&profile.storage_profile)
+        .ok_or_else(|| ConfigError::MissingStorageProfile {
             name: profile.storage_profile.clone(),
+        })?;
+
+    if audit_storage.purpose != StoragePurpose::Audit {
+        return Err(ConfigError::InvalidAuditProfile {
+            reason: "audit storage_profile must have StoragePurpose::Audit".to_owned(),
         });
     }
 

@@ -20,6 +20,15 @@ impl MiniKernelProfile {
         crate::validate::validate_profile(self)
     }
 
+    pub fn load_validated_from_json_str(json: &str) -> Result<Self, ConfigError> {
+        let profile =
+            serde_json::from_str::<Self>(json).map_err(|err| ConfigError::MalformedJson {
+                reason: format!("invalid profile json: {err}"),
+            })?;
+        profile.validate()?;
+        Ok(profile)
+    }
+
     pub fn dev_default(base_dir: impl Into<PathBuf>) -> Self {
         let base_dir = base_dir.into();
         let sqlite_profile = |name: &str, file_name: &str, purpose| StorageProfile {
@@ -52,6 +61,48 @@ impl MiniKernelProfile {
             crypto: CryptoProfile {
                 enabled: true,
                 key_id: Some("dev-local-key".to_owned()),
+            },
+            logging: LoggingProfile {
+                enabled: true,
+                log_dir: Some(base_dir.join("logs")),
+                ..LoggingProfile::default()
+            },
+            audit: AuditProfile::default(),
+        }
+    }
+
+    pub fn prod(base_dir: impl Into<PathBuf>, key_id: impl Into<String>) -> Self {
+        let base_dir = base_dir.into();
+        let sqlite_profile = |name: &str, file_name: &str, purpose| StorageProfile {
+            name: name.to_owned(),
+            backend: StorageBackend::Sqlite,
+            database_path: Some(base_dir.join(file_name)),
+            encrypted: true,
+            purpose,
+        };
+
+        Self {
+            app: AppProfile {
+                app_id: "normordis.miniapps.prod".to_owned(),
+                display_name: "Normordis Miniapps".to_owned(),
+                environment: Environment::Prod,
+            },
+            runtime: RuntimeProfile {
+                profile_name: "prod".to_owned(),
+                offline_mode: false,
+            },
+            storage: StorageProfiles {
+                default_profile: "main".to_owned(),
+                profiles: vec![
+                    sqlite_profile("main", "main.sqlite", StoragePurpose::Main),
+                    sqlite_profile("audit", "audit.sqlite", StoragePurpose::Audit),
+                    sqlite_profile("documents", "documents.sqlite", StoragePurpose::Documents),
+                    sqlite_profile("cache", "cache.sqlite", StoragePurpose::Cache),
+                ],
+            },
+            crypto: CryptoProfile {
+                enabled: true,
+                key_id: Some(key_id.into()),
             },
             logging: LoggingProfile {
                 enabled: true,
