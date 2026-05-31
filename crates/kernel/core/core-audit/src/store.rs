@@ -913,7 +913,10 @@ mod tests {
             handle.join().unwrap();
         }
 
-        assert_eq!(store.list_by_actor("user-concurrent", 64, 0).unwrap().len(), 32);
+        assert_eq!(
+            store.list_by_actor("user-concurrent", 64, 0).unwrap().len(),
+            32
+        );
     }
 
     #[derive(Debug)]
@@ -1324,10 +1327,15 @@ mod tests {
             .unwrap();
             let key = audit_event_key(&ev2).unwrap();
             let value = store.storage().get_raw(ns, &key).unwrap();
-            value["chain_link"]["record_hash"].as_str().unwrap().to_string()
+            value["chain_link"]["record_hash"]
+                .as_str()
+                .unwrap()
+                .to_string()
         };
 
-        let report = store.verify_chain_from_checkpoint(2, &checkpoint_2).unwrap();
+        let report = store
+            .verify_chain_from_checkpoint(2, &checkpoint_2)
+            .unwrap();
         assert_eq!(report.checked_events, 3); // eventos 3, 4, 5
         assert_eq!(report.head_record_hash, full.head_record_hash);
     }

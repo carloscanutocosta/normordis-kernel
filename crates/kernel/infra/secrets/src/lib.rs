@@ -18,3 +18,6 @@ pub use store::{
 
 #[cfg(windows)]
 pub use store::DpapiSecretProtector;
+
+#[cfg(not(windows))]
+pub use store::UnsupportedSecretProtector;

@@ -97,8 +97,7 @@ pub fn extract_archive(
     let tar_gz = support_backup::unpack(data, passphrase)
         .map_err(|e| BackupServiceError::ArchiveFailed(e.to_string()))?;
 
-    std::fs::create_dir_all(dest_dir)
-        .map_err(|e| BackupServiceError::IoFailed(e.to_string()))?;
+    std::fs::create_dir_all(dest_dir).map_err(|e| BackupServiceError::IoFailed(e.to_string()))?;
 
     let mut archive = Archive::new(GzDecoder::new(tar_gz.as_slice()));
     let mut restored = Vec::new();

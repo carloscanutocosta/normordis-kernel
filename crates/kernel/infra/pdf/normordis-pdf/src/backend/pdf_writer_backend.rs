@@ -39,14 +39,14 @@ end\n";
 // (after glyph usage is fully collected) but are merged into the PDF buffer
 // BEFORE the pages chunk so readers see fonts before page content.
 struct FontEntry {
-    name: String,       // PDF resource name ("F0", "F1", ...)
-    pdf_ref: Ref,       // Type0 font — referenced from page resources
-    stream_ref: Ref,    // Font program stream
-    desc_ref: Ref,      // FontDescriptor
-    cmap_ref: Ref,      // ToUnicode CMap
-    cid_ref: Ref,       // CIDFont (descendant)
+    name: String,    // PDF resource name ("F0", "F1", ...)
+    pdf_ref: Ref,    // Type0 font — referenced from page resources
+    stream_ref: Ref, // Font program stream
+    desc_ref: Ref,   // FontDescriptor
+    cmap_ref: Ref,   // ToUnicode CMap
+    cid_ref: Ref,    // CIDFont (descendant)
     family_name: String,
-    bytes: Vec<u8>,     // Full TTF bytes; subsetted in finish()
+    bytes: Vec<u8>, // Full TTF bytes; subsetted in finish()
     bold: bool,
     italic: bool,
     // Metrics from the full font (stable across subsetting)
@@ -58,17 +58,17 @@ struct FontEntry {
 
 /// A heading recorded for inclusion in the PDF /Outlines (bookmarks) tree.
 struct OutlineEntry {
-    title:    String,
-    level:    u8,       // 1 = H1, 2 = H2, 3 = H3
-    page_idx: usize,    // 0-based page index
-    y_pt:     f32,      // baseline y in PDF points (bottom-origin)
+    title: String,
+    level: u8,       // 1 = H1, 2 = H2, 3 = H3
+    page_idx: usize, // 0-based page index
+    y_pt: f32,       // baseline y in PDF points (bottom-origin)
 }
 
 /// Flat node used when building the outline tree hierarchy.
 struct OutlineNode {
     entry_idx: usize,
-    parent:    Option<usize>,
-    children:  Vec<usize>,
+    parent: Option<usize>,
+    children: Vec<usize>,
 }
 
 fn count_outline_descendants(nodes: &[OutlineNode], ni: usize) -> usize {
@@ -81,26 +81,26 @@ fn count_outline_descendants(nodes: &[OutlineNode], ni: usize) -> usize {
 
 /// A link annotation pending on the current page (collected during rendering).
 struct PendingLink {
-    rect_pt:             (f32, f32, f32, f32), // (x1, y1, x2, y2) in PDF points
-    dest_title:          String,
-    dest_page_estimate:  u32, // 1-based, from TocEntry
+    rect_pt: (f32, f32, f32, f32), // (x1, y1, x2, y2) in PDF points
+    dest_title: String,
+    dest_page_estimate: u32, // 1-based, from TocEntry
 }
 
 /// A link annotation whose dict must be written in finish() once all page refs
 /// are known.
 struct DeferredLinkAnnot {
-    annot_ref:           Ref,
-    rect_pt:             (f32, f32, f32, f32),
-    dest_title:          String,
-    dest_page_estimate:  u32,
+    annot_ref: Ref,
+    rect_pt: (f32, f32, f32, f32),
+    dest_title: String,
+    dest_page_estimate: u32,
 }
 
 struct InternalSignatureConfig {
-    reason:         String,
-    location:       String,
+    reason: String,
+    location: String,
     reserved_bytes: usize,
-    widget_ref:     Ref,   // Form widget annotation (on page 1)
-    sig_val_ref:    Ref,   // Signature value dict (ByteRange + Contents)
+    widget_ref: Ref,  // Form widget annotation (on page 1)
+    sig_val_ref: Ref, // Signature value dict (ByteRange + Contents)
 }
 
 pub struct PdfWriterBackend {
@@ -202,9 +202,9 @@ fn build_xmp_pdfu2(title: &str) -> String {
 
 fn xml_escape(s: &str) -> String {
     s.replace('&', "&amp;")
-     .replace('<', "&lt;")
-     .replace('>', "&gt;")
-     .replace('"', "&quot;")
+        .replace('<', "&lt;")
+        .replace('>', "&gt;")
+        .replace('"', "&quot;")
 }
 
 /// Deterministic 16-byte file identifier for the PDF trailer /ID array.
@@ -281,11 +281,11 @@ impl PdfWriterBackend {
     /// `signing::extract_prepared()` on the raw bytes to obtain a
     /// `PreparedPdf` with patched `ByteRange` and the `Contents` offset.
     pub fn set_signature(&mut self, reason: &str, location: &str, reserved_bytes: usize) {
-        let widget_ref  = self.alloc.bump();
+        let widget_ref = self.alloc.bump();
         let sig_val_ref = self.alloc.bump();
         self.signature = Some(InternalSignatureConfig {
-            reason:         reason.to_string(),
-            location:       location.to_string(),
+            reason: reason.to_string(),
+            location: location.to_string(),
             reserved_bytes,
             widget_ref,
             sig_val_ref,
@@ -305,29 +305,41 @@ impl PdfWriterBackend {
         let font_idx = self.fonts.len() as u32;
         let font_name = format!("F{font_idx}");
 
-        let face = Face::parse(bytes, 0).map_err(|e| {
-            NormaxisPdfError::FontLoadError(format!("ttf-parser: {e}"))
-        })?;
+        let face = Face::parse(bytes, 0)
+            .map_err(|e| NormaxisPdfError::FontLoadError(format!("ttf-parser: {e}")))?;
 
-        let ascent     = face.ascender() as f32;
-        let descent    = face.descender() as f32;
+        let ascent = face.ascender() as f32;
+        let descent = face.descender() as f32;
         let cap_height = face.capital_height().unwrap_or(face.ascender()) as f32;
-        let bb   = face.global_bounding_box();
-        let bbox = Rect::new(bb.x_min as f32, bb.y_min as f32, bb.x_max as f32, bb.y_max as f32);
+        let bb = face.global_bounding_box();
+        let bbox = Rect::new(
+            bb.x_min as f32,
+            bb.y_min as f32,
+            bb.x_max as f32,
+            bb.y_max as f32,
+        );
 
         let stream_ref = self.alloc.bump();
-        let desc_ref   = self.alloc.bump();
-        let cmap_ref   = self.alloc.bump();
-        let cid_ref    = self.alloc.bump();
-        let pdf_ref    = self.alloc.bump(); // Type0
+        let desc_ref = self.alloc.bump();
+        let cmap_ref = self.alloc.bump();
+        let cid_ref = self.alloc.bump();
+        let pdf_ref = self.alloc.bump(); // Type0
 
         self.fonts.push(FontEntry {
             name: font_name,
-            pdf_ref, stream_ref, desc_ref, cmap_ref, cid_ref,
+            pdf_ref,
+            stream_ref,
+            desc_ref,
+            cmap_ref,
+            cid_ref,
             family_name: family_name.to_string(),
             bytes: bytes.to_vec(),
-            bold, italic,
-            ascent, descent, cap_height, bbox,
+            bold,
+            italic,
+            ascent,
+            descent,
+            cap_height,
+            bbox,
         });
 
         Ok(FontRef(font_idx))
@@ -378,7 +390,6 @@ fn compress_bytes(data: &[u8], level: u32) -> Vec<u8> {
 }
 
 impl PdfWriterBackend {
-
     /// Flush the current page's content stream and page dict into `pages_chunk`
     /// (not directly into `pdf`). This allows `finish()` to write font objects
     /// first, then append pages — giving the correct object order.
@@ -419,7 +430,9 @@ impl PdfWriterBackend {
 
         // Write content stream → pages_chunk
         if self.compression > 0 {
-            self.pages_chunk.stream(content_ref, &data).filter(Filter::FlateDecode);
+            self.pages_chunk
+                .stream(content_ref, &data)
+                .filter(Filter::FlateDecode);
         } else {
             self.pages_chunk.stream(content_ref, &data);
         }
@@ -433,7 +446,9 @@ impl PdfWriterBackend {
         // Combined annotations: sig widget (page 1 only) + any link annotations.
         {
             let mut annot_refs: Vec<Ref> = Vec::new();
-            if let Some(wref) = sig_widget { annot_refs.push(wref); }
+            if let Some(wref) = sig_widget {
+                annot_refs.push(wref);
+            }
             annot_refs.extend_from_slice(&link_refs);
             if !annot_refs.is_empty() {
                 page.annotations(annot_refs);
@@ -481,8 +496,7 @@ impl PdfWriterBackend {
         for &gid in used {
             remapper.remap(gid);
         }
-        let subsetted = subsetter::subset(bytes, 0, &remapper)
-            .unwrap_or_else(|_| bytes.to_vec());
+        let subsetted = subsetter::subset(bytes, 0, &remapper).unwrap_or_else(|_| bytes.to_vec());
         (subsetted, remapper)
     }
 
@@ -496,9 +510,7 @@ impl PdfWriterBackend {
         let mut ws: Vec<(u16, f32)> = used
             .iter()
             .map(|&gid| {
-                let adv = face
-                    .glyph_hor_advance(GlyphId(gid))
-                    .unwrap_or(upem as u16) as f32;
+                let adv = face.glyph_hor_advance(GlyphId(gid)).unwrap_or(upem as u16) as f32;
                 (gid, adv / upem * 1000.0)
             })
             .collect();
@@ -520,7 +532,7 @@ impl PdfWriterBackend {
             if let Some(new_gid) = remapper.get(old_gid) {
                 let pos = old_gid as usize * 2;
                 if pos + 1 < map.len() {
-                    map[pos]     = (new_gid >> 8) as u8;
+                    map[pos] = (new_gid >> 8) as u8;
                     map[pos + 1] = (new_gid & 0xFF) as u8;
                 }
             }
@@ -558,7 +570,8 @@ impl PdfBackend for PdfWriterBackend {
 
         self.content.begin_text();
         self.content.set_font(Name(font_name.as_bytes()), fs);
-        self.content.set_text_matrix([1.0, 0.0, 0.0, 1.0, x_pt, y_pt]);
+        self.content
+            .set_text_matrix([1.0, 0.0, 0.0, 1.0, x_pt, y_pt]);
         self.content.show(Str(&gid_bytes));
         self.content.end_text();
 
@@ -599,7 +612,8 @@ impl PdfBackend for PdfWriterBackend {
             .set_fill_rgb(color.r as f32, color.g as f32, color.b as f32);
         self.content.begin_text();
         self.content.set_font(Name(font_name.as_bytes()), fs);
-        self.content.set_text_matrix([1.0, 0.0, 0.0, 1.0, x_pt, y_pt]);
+        self.content
+            .set_text_matrix([1.0, 0.0, 0.0, 1.0, x_pt, y_pt]);
         self.content.show(Str(&gid_bytes));
         self.content.end_text();
 
@@ -634,7 +648,12 @@ impl PdfBackend for PdfWriterBackend {
     ) -> crate::Result<()> {
         self.content
             .set_fill_rgb(fill.r as f32, fill.g as f32, fill.b as f32)
-            .rect(mm_to_pt(x_mm), mm_to_pt(y_mm), mm_to_pt(width_mm), mm_to_pt(height_mm))
+            .rect(
+                mm_to_pt(x_mm),
+                mm_to_pt(y_mm),
+                mm_to_pt(width_mm),
+                mm_to_pt(height_mm),
+            )
             .fill_nonzero();
         Ok(())
     }
@@ -653,7 +672,12 @@ impl PdfBackend for PdfWriterBackend {
             .set_fill_rgb(fill.r as f32, fill.g as f32, fill.b as f32)
             .set_stroke_rgb(stroke.r as f32, stroke.g as f32, stroke.b as f32)
             .set_line_width(stroke_pt)
-            .rect(mm_to_pt(x_mm), mm_to_pt(y_mm), mm_to_pt(width_mm), mm_to_pt(height_mm))
+            .rect(
+                mm_to_pt(x_mm),
+                mm_to_pt(y_mm),
+                mm_to_pt(width_mm),
+                mm_to_pt(height_mm),
+            )
             .fill_nonzero_and_stroke();
         Ok(())
     }
@@ -680,11 +704,14 @@ impl PdfBackend for PdfWriterBackend {
         let sin_a = angle_rad.sin() as f32;
 
         self.content.save_state();
-        self.content.transform([cos_a, sin_a, -sin_a, cos_a, cx_pt, cy_pt]);
-        self.content.set_fill_rgb(color.r as f32, color.g as f32, color.b as f32);
+        self.content
+            .transform([cos_a, sin_a, -sin_a, cos_a, cx_pt, cy_pt]);
+        self.content
+            .set_fill_rgb(color.r as f32, color.g as f32, color.b as f32);
         self.content.begin_text();
         self.content.set_font(Name(font_name.as_bytes()), fs);
-        self.content.set_text_matrix([1.0, 0.0, 0.0, 1.0, -hw_pt, 0.0]);
+        self.content
+            .set_text_matrix([1.0, 0.0, 0.0, 1.0, -hw_pt, 0.0]);
         self.content.show(Str(&gid_bytes));
         self.content.end_text();
         self.content.restore_state();
@@ -707,30 +734,35 @@ impl PdfBackend for PdfWriterBackend {
 
         // ── Prepare subsetted font data ────────────────────────────────────────
         struct PreparedFont {
-            stream_ref:  Ref,
-            desc_ref:    Ref,
-            cmap_ref:    Ref,
-            cid_ref:     Ref,
-            pdf_ref:     Ref,
+            stream_ref: Ref,
+            desc_ref: Ref,
+            cmap_ref: Ref,
+            cid_ref: Ref,
+            pdf_ref: Ref,
             family_name: String,
-            bold:        bool,
-            italic:      bool,
-            ascent:      f32,
-            descent:     f32,
-            cap_height:  f32,
-            bbox:        Rect,
-            subsetted:     Vec<u8>,
+            bold: bool,
+            italic: bool,
+            ascent: f32,
+            descent: f32,
+            cap_height: f32,
+            bbox: Rect,
+            subsetted: Vec<u8>,
             subsetted_len: i32,
-            cid_to_gid:    Vec<u8>,
-            tounicode:     Vec<u8>,
-            cid_widths:    Vec<(u16, f32)>,
+            cid_to_gid: Vec<u8>,
+            tounicode: Vec<u8>,
+            cid_widths: Vec<(u16, f32)>,
         }
 
         let empty_set: HashSet<u16> = HashSet::new();
         let compression = self.compression;
-        let prepared: Vec<PreparedFont> = self.fonts.iter().enumerate()
+        let prepared: Vec<PreparedFont> = self
+            .fonts
+            .iter()
+            .enumerate()
             .filter(|(idx, _)| {
-                self.used_glyphs.get(&(*idx as u32)).map_or(false, |s| !s.is_empty())
+                self.used_glyphs
+                    .get(&(*idx as u32))
+                    .map_or(false, |s| !s.is_empty())
             })
             .map(|(idx, e)| {
                 let used = self.used_glyphs.get(&(idx as u32)).unwrap_or(&empty_set);
@@ -749,25 +781,26 @@ impl PdfBackend for PdfWriterBackend {
                     (subsetted_raw, cid_to_gid_raw, tounicode_raw)
                 };
                 PreparedFont {
-                    stream_ref:  e.stream_ref,
-                    desc_ref:    e.desc_ref,
-                    cmap_ref:    e.cmap_ref,
-                    cid_ref:     e.cid_ref,
-                    pdf_ref:     e.pdf_ref,
+                    stream_ref: e.stream_ref,
+                    desc_ref: e.desc_ref,
+                    cmap_ref: e.cmap_ref,
+                    cid_ref: e.cid_ref,
+                    pdf_ref: e.pdf_ref,
                     family_name: e.family_name.clone(),
-                    bold:        e.bold,
-                    italic:      e.italic,
-                    ascent:      e.ascent,
-                    descent:     e.descent,
-                    cap_height:  e.cap_height,
-                    bbox:        e.bbox,
+                    bold: e.bold,
+                    italic: e.italic,
+                    ascent: e.ascent,
+                    descent: e.descent,
+                    cap_height: e.cap_height,
+                    bbox: e.bbox,
                     subsetted,
                     subsetted_len,
                     cid_to_gid,
                     tounicode,
                     cid_widths,
                 }
-            }).collect();
+            })
+            .collect();
 
         // Allocate CIDToGIDMap refs before any pdf borrows.
         let ctg_refs: Vec<Ref> = prepared.iter().map(|_| self.alloc.bump()).collect();
@@ -777,15 +810,21 @@ impl PdfBackend for PdfWriterBackend {
         for (prep, &ctg_ref) in prepared.iter().zip(ctg_refs.iter()) {
             let mut flags = FontFlags::empty();
             flags |= FontFlags::NON_SYMBOLIC;
-            if prep.italic { flags |= FontFlags::ITALIC; }
-            if prep.bold   { flags |= FontFlags::FORCE_BOLD; }
+            if prep.italic {
+                flags |= FontFlags::ITALIC;
+            }
+            if prep.bold {
+                flags |= FontFlags::FORCE_BOLD;
+            }
 
             let pdf = self.pdf.as_mut().expect("pdf not finished");
 
             {
                 let mut s = pdf.stream(prep.stream_ref, &prep.subsetted);
                 s.pair(Name(b"Length1"), prep.subsetted_len);
-                if compression > 0 { s.filter(Filter::FlateDecode); }
+                if compression > 0 {
+                    s.filter(Filter::FlateDecode);
+                }
             }
 
             pdf.font_descriptor(prep.desc_ref)
@@ -801,13 +840,17 @@ impl PdfBackend for PdfWriterBackend {
 
             {
                 let mut s = pdf.stream(prep.cmap_ref, &prep.tounicode);
-                if compression > 0 { s.filter(Filter::FlateDecode); }
+                if compression > 0 {
+                    s.filter(Filter::FlateDecode);
+                }
             }
 
             // CIDToGIDMap: old GID (= CID via Identity-H) → new GID in subsetted font.
             {
                 let mut s = pdf.stream(ctg_ref, &prep.cid_to_gid);
-                if compression > 0 { s.filter(Filter::FlateDecode); }
+                if compression > 0 {
+                    s.filter(Filter::FlateDecode);
+                }
             }
 
             {
@@ -862,18 +905,18 @@ impl PdfBackend for PdfWriterBackend {
         // ── Signature objects ─────────────────────────────────────────────────
         // Extract all sig data before taking another &mut pdf borrow.
         struct SigSnap {
-            widget_ref:     Ref,
-            sig_val_ref:    Ref,
+            widget_ref: Ref,
+            sig_val_ref: Ref,
             reserved_bytes: usize,
-            reason:         String,
-            location:       String,
+            reason: String,
+            location: String,
         }
         let sig_snap: Option<SigSnap> = self.signature.as_ref().map(|s| SigSnap {
-            widget_ref:     s.widget_ref,
-            sig_val_ref:    s.sig_val_ref,
+            widget_ref: s.widget_ref,
+            sig_val_ref: s.sig_val_ref,
             reserved_bytes: s.reserved_bytes,
-            reason:         s.reason.clone(),
-            location:       s.location.clone(),
+            reason: s.reason.clone(),
+            location: s.location.clone(),
         });
         let page1_ref = self.page1_ref;
 
@@ -884,14 +927,14 @@ impl PdfBackend for PdfWriterBackend {
             // Invisible signature widget annotation (rect [0 0 0 0] on page 1).
             {
                 let mut d = pdf.indirect(snap.widget_ref).dict();
-                d.pair(Name(b"Type"),    Name(b"Annot"));
+                d.pair(Name(b"Type"), Name(b"Annot"));
                 d.pair(Name(b"Subtype"), Name(b"Widget"));
-                d.pair(Name(b"FT"),      Name(b"Sig"));
-                d.pair(Name(b"T"),       TextStr("Sig1"));
-                d.pair(Name(b"Rect"),    Rect::new(0.0, 0.0, 0.0, 0.0));
-                d.pair(Name(b"P"),       p1);
-                d.pair(Name(b"V"),       snap.sig_val_ref);
-                d.pair(Name(b"F"),       4i32);
+                d.pair(Name(b"FT"), Name(b"Sig"));
+                d.pair(Name(b"T"), TextStr("Sig1"));
+                d.pair(Name(b"Rect"), Rect::new(0.0, 0.0, 0.0, 0.0));
+                d.pair(Name(b"P"), p1);
+                d.pair(Name(b"V"), snap.sig_val_ref);
+                d.pair(Name(b"F"), 4i32);
             }
 
             // Signature value dict with ByteRange + Contents placeholders.
@@ -900,8 +943,8 @@ impl PdfBackend for PdfWriterBackend {
             {
                 let contents_placeholder = vec![0x80u8; snap.reserved_bytes];
                 let mut d = pdf.indirect(snap.sig_val_ref).dict();
-                d.pair(Name(b"Type"),      Name(b"Sig"));
-                d.pair(Name(b"Filter"),    Name(b"Adobe.PPKLite"));
+                d.pair(Name(b"Type"), Name(b"Sig"));
+                d.pair(Name(b"Filter"), Name(b"Adobe.PPKLite"));
                 d.pair(Name(b"SubFilter"), Name(b"adbe.pkcs7.detached"));
                 d.insert(Name(b"ByteRange"))
                     .array()
@@ -909,10 +952,10 @@ impl PdfBackend for PdfWriterBackend {
                     .item(1_111_111_111i32)
                     .item(1_222_222_222i32)
                     .item(1_333_333_333i32);
-                d.pair(Name(b"Contents"),  Str(&contents_placeholder));
-                d.pair(Name(b"Reason"),    TextStr(&snap.reason));
-                d.pair(Name(b"Location"),  TextStr(&snap.location));
-                d.pair(Name(b"M"),         TextStr("D:20260101000000Z"));
+                d.pair(Name(b"Contents"), Str(&contents_placeholder));
+                d.pair(Name(b"Reason"), TextStr(&snap.reason));
+                d.pair(Name(b"Location"), TextStr(&snap.location));
+                d.pair(Name(b"M"), TextStr("D:20260101000000Z"));
             }
         }
 
@@ -928,7 +971,9 @@ impl PdfBackend for PdfWriterBackend {
         // ── PDF Outlines (bookmarks) ──────────────────────────────────────────
         // Build title → (page_idx, y_pt) lookup BEFORE taking outlines (used for
         // deferred link annotation resolution further below).
-        let heading_lookup: HashMap<String, (usize, f32)> = self.outlines.iter()
+        let heading_lookup: HashMap<String, (usize, f32)> = self
+            .outlines
+            .iter()
             .map(|e| (e.title.clone(), (e.page_idx, e.y_pt)))
             .collect();
 
@@ -945,13 +990,23 @@ impl PdfBackend for PdfWriterBackend {
                     let lv = (entry.level as usize).clamp(1, 3);
                     let parent = if lv == 1 { None } else { level_last[lv - 1] };
                     let ni = nodes.len();
-                    nodes.push(OutlineNode { entry_idx: ei, parent, children: vec![] });
-                    if let Some(p) = parent { nodes[p].children.push(ni); }
+                    nodes.push(OutlineNode {
+                        entry_idx: ei,
+                        parent,
+                        children: vec![],
+                    });
+                    if let Some(p) = parent {
+                        nodes[p].children.push(ni);
+                    }
                     level_last[lv] = Some(ni);
-                    for l in (lv + 1)..4 { level_last[l] = None; }
+                    for l in (lv + 1)..4 {
+                        level_last[l] = None;
+                    }
                 }
 
-                let root_children: Vec<usize> = nodes.iter().enumerate()
+                let root_children: Vec<usize> = nodes
+                    .iter()
+                    .enumerate()
                     .filter(|(_, n)| n.parent.is_none())
                     .map(|(i, _)| i)
                     .collect();
@@ -987,7 +1042,8 @@ impl PdfBackend for PdfWriterBackend {
                     };
                     let sib_pos = siblings.iter().position(|&i| i == ni).unwrap_or(0);
                     let parent_ref = node.parent.map(|p| node_refs[p]).unwrap_or(outline_root);
-                    let page_ref = page_refs_snap.get(entry.page_idx)
+                    let page_ref = page_refs_snap
+                        .get(entry.page_idx)
                         .copied()
                         .unwrap_or_else(|| *page_refs_snap.first().unwrap());
                     let desc_count = count_outline_descendants(&nodes, ni) as i32;
@@ -1007,7 +1063,8 @@ impl PdfBackend for PdfWriterBackend {
                         d.pair(Name(b"Count"), desc_count);
                     }
                     // [page /XYZ 0 y 0] — navigate to heading position (zoom = 0 = unchanged)
-                    d.insert(Name(b"Dest")).array()
+                    d.insert(Name(b"Dest"))
+                        .array()
                         .item(page_ref)
                         .item(Name(b"XYZ"))
                         .item(0.0f32)
@@ -1043,12 +1100,17 @@ impl PdfBackend for PdfWriterBackend {
                     annot.pair(Name(b"Type"), Name(b"Annot"));
                     annot.pair(Name(b"Subtype"), Name(b"Link"));
                     annot.pair(Name(b"Rect"), Rect::new(x1, y1, x2, y2));
-                    annot.insert(Name(b"Border")).array()
-                        .item(0.0f32).item(0.0f32).item(0.0f32);
+                    annot
+                        .insert(Name(b"Border"))
+                        .array()
+                        .item(0.0f32)
+                        .item(0.0f32)
+                        .item(0.0f32);
                     {
                         let mut act = annot.insert(Name(b"A")).dict();
                         act.pair(Name(b"S"), Name(b"GoTo"));
-                        act.insert(Name(b"D")).array()
+                        act.insert(Name(b"D"))
+                            .array()
                             .item(page_ref)
                             .item(Name(b"XYZ"))
                             .item(0.0f32)
@@ -1061,7 +1123,7 @@ impl PdfBackend for PdfWriterBackend {
 
         // ── Catalog (deferred so PDF/A metadata + AcroForm refs are available) ─
         {
-            let pdfa  = self.pdfa;
+            let pdfa = self.pdfa;
             let pdfu2 = self.pdfu2;
 
             // Allocate metadata refs before the catalog borrow.
@@ -1202,17 +1264,18 @@ impl PdfBackend for PdfWriterBackend {
         dest_page_estimate: u32,
     ) {
         self.current_page_links.push(PendingLink {
-            rect_pt: (mm_to_pt(x1_mm), mm_to_pt(y1_mm), mm_to_pt(x2_mm), mm_to_pt(y2_mm)),
+            rect_pt: (
+                mm_to_pt(x1_mm),
+                mm_to_pt(y1_mm),
+                mm_to_pt(x2_mm),
+                mm_to_pt(y2_mm),
+            ),
             dest_title: dest_title.to_string(),
             dest_page_estimate,
         });
     }
 
-    fn write_structure_tree(
-        &mut self,
-        events: &[crate::compliance::ua::StructEvent],
-        lang: &str,
-    ) {
+    fn write_structure_tree(&mut self, events: &[crate::compliance::ua::StructEvent], lang: &str) {
         use crate::compliance::ua::{StructEvent, StructTag};
 
         self.ua_lang = lang.to_string();
@@ -1222,7 +1285,13 @@ impl PdfBackend for PdfWriterBackend {
         let page_refs: Vec<Ref> = self.page_refs.clone();
 
         // Wrap in a Document root if the events don't already start with Document
-        let has_document_root = matches!(events.first(), Some(StructEvent::BeginGroup { tag: StructTag::Document, .. }));
+        let has_document_root = matches!(
+            events.first(),
+            Some(StructEvent::BeginGroup {
+                tag: StructTag::Document,
+                ..
+            })
+        );
 
         // Allocate root ref
         let root_ref = self.alloc.bump();
@@ -1261,12 +1330,16 @@ impl PdfBackend for PdfWriterBackend {
                         child_refs.push(child_ref);
                     }
                     StructEvent::ContentRef { mcid, page_idx } => {
-                        let pr = page_refs.get(*page_idx).copied()
+                        let pr = page_refs
+                            .get(*page_idx)
+                            .copied()
                             .unwrap_or_else(|| page_refs[0]);
                         mcid_children.push((*mcid, pr));
                         idx += 1;
                     }
-                    StructEvent::EndGroup => { idx += 1; }
+                    StructEvent::EndGroup => {
+                        idx += 1;
+                    }
                 }
             }
 
@@ -1317,17 +1390,23 @@ fn write_struct_element(
     let mut mcid_children: Vec<(u32, Ref)> = Vec::new();
 
     loop {
-        if *idx >= events.len() { break; }
+        if *idx >= events.len() {
+            break;
+        }
         match &events[*idx] {
-            StructEvent::EndGroup => { *idx += 1; break; }
+            StructEvent::EndGroup => {
+                *idx += 1;
+                break;
+            }
             StructEvent::BeginGroup { .. } => {
-                let child_ref = write_struct_element(
-                    events, idx, elem_ref, page_refs, alloc, chunk,
-                );
+                let child_ref =
+                    write_struct_element(events, idx, elem_ref, page_refs, alloc, chunk);
                 struct_children.push(child_ref);
             }
             StructEvent::ContentRef { mcid, page_idx } => {
-                let pr = page_refs.get(*page_idx).copied()
+                let pr = page_refs
+                    .get(*page_idx)
+                    .copied()
                     .unwrap_or_else(|| *page_refs.first().unwrap_or(&Ref::new(1)));
                 mcid_children.push((*mcid, pr));
                 *idx += 1;
@@ -1340,8 +1419,12 @@ fn write_struct_element(
 
     // Map our StructTag to pdf-writer's StructRole (or custom name)
     match tag_to_struct_role(&tag) {
-        Some(role) => { elem.kind(role); }
-        None => { elem.custom_kind(Name(tag.pdf_name().as_bytes())); }
+        Some(role) => {
+            elem.kind(role);
+        }
+        None => {
+            elem.custom_kind(Name(tag.pdf_name().as_bytes()));
+        }
     }
 
     elem.parent(parent_ref);
@@ -1369,45 +1452,45 @@ fn tag_to_struct_role(tag: &crate::compliance::ua::StructTag) -> Option<StructRo
     use crate::compliance::ua::StructTag;
     match tag {
         StructTag::Document => Some(StructRole::Document),
-        StructTag::Part     => Some(StructRole::Part),
-        StructTag::Sect     => Some(StructRole::Sect),
-        StructTag::Div      => Some(StructRole::Div),
+        StructTag::Part => Some(StructRole::Part),
+        StructTag::Sect => Some(StructRole::Sect),
+        StructTag::Div => Some(StructRole::Div),
         StructTag::BlockQuote => Some(StructRole::BlockQuote),
-        StructTag::Caption  => Some(StructRole::Caption),
-        StructTag::TOC      => Some(StructRole::TOC),
-        StructTag::TOCI     => Some(StructRole::TOCI),
-        StructTag::Index    => Some(StructRole::Index),
-        StructTag::P        => Some(StructRole::P),
-        StructTag::H1       => Some(StructRole::H1),
-        StructTag::H2       => Some(StructRole::H2),
-        StructTag::H3       => Some(StructRole::H3),
-        StructTag::H4       => Some(StructRole::H4),
-        StructTag::H5       => Some(StructRole::H5),
-        StructTag::H6       => Some(StructRole::H6),
-        StructTag::L        => Some(StructRole::L),
-        StructTag::LI       => Some(StructRole::LI),
-        StructTag::Lbl      => Some(StructRole::Lbl),
-        StructTag::LBody    => Some(StructRole::LBody),
-        StructTag::Table    => Some(StructRole::Table),
-        StructTag::TR       => Some(StructRole::TR),
-        StructTag::TH       => Some(StructRole::TH),
-        StructTag::TD       => Some(StructRole::TD),
-        StructTag::THead    => Some(StructRole::THead),
-        StructTag::TBody    => Some(StructRole::TBody),
-        StructTag::TFoot    => Some(StructRole::TFoot),
-        StructTag::Span     => Some(StructRole::Span),
-        StructTag::Code     => Some(StructRole::Code),
-        StructTag::Link     => Some(StructRole::Link),
-        StructTag::Annot    => Some(StructRole::Annot),
-        StructTag::Figure   => Some(StructRole::Figure),
-        StructTag::Formula  => Some(StructRole::Formula),
-        StructTag::Form     => Some(StructRole::Form),
-        StructTag::Note     => Some(StructRole::Note),
-        StructTag::Ruby     => Some(StructRole::Ruby),
-        StructTag::Warichu  => Some(StructRole::Warichu),
-        StructTag::RB       => Some(StructRole::RB),
-        StructTag::RT       => Some(StructRole::RT),
-        StructTag::RP       => Some(StructRole::RP),
+        StructTag::Caption => Some(StructRole::Caption),
+        StructTag::TOC => Some(StructRole::TOC),
+        StructTag::TOCI => Some(StructRole::TOCI),
+        StructTag::Index => Some(StructRole::Index),
+        StructTag::P => Some(StructRole::P),
+        StructTag::H1 => Some(StructRole::H1),
+        StructTag::H2 => Some(StructRole::H2),
+        StructTag::H3 => Some(StructRole::H3),
+        StructTag::H4 => Some(StructRole::H4),
+        StructTag::H5 => Some(StructRole::H5),
+        StructTag::H6 => Some(StructRole::H6),
+        StructTag::L => Some(StructRole::L),
+        StructTag::LI => Some(StructRole::LI),
+        StructTag::Lbl => Some(StructRole::Lbl),
+        StructTag::LBody => Some(StructRole::LBody),
+        StructTag::Table => Some(StructRole::Table),
+        StructTag::TR => Some(StructRole::TR),
+        StructTag::TH => Some(StructRole::TH),
+        StructTag::TD => Some(StructRole::TD),
+        StructTag::THead => Some(StructRole::THead),
+        StructTag::TBody => Some(StructRole::TBody),
+        StructTag::TFoot => Some(StructRole::TFoot),
+        StructTag::Span => Some(StructRole::Span),
+        StructTag::Code => Some(StructRole::Code),
+        StructTag::Link => Some(StructRole::Link),
+        StructTag::Annot => Some(StructRole::Annot),
+        StructTag::Figure => Some(StructRole::Figure),
+        StructTag::Formula => Some(StructRole::Formula),
+        StructTag::Form => Some(StructRole::Form),
+        StructTag::Note => Some(StructRole::Note),
+        StructTag::Ruby => Some(StructRole::Ruby),
+        StructTag::Warichu => Some(StructRole::Warichu),
+        StructTag::RB => Some(StructRole::RB),
+        StructTag::RT => Some(StructRole::RT),
+        StructTag::RP => Some(StructRole::RP),
         // PDF 2.0 tags not in pdf-writer 0.12 StructRole → custom_kind
         _ => None,
     }
@@ -1451,7 +1534,10 @@ pub fn to_cff_if_possible(font_bytes: &[u8]) -> Vec<u8> {
 /// `bfchar` CMap for only the glyphs in `used_glyphs`.
 ///
 /// Falls back to the identity CMap if the font cannot be parsed.
-pub fn generate_to_unicode_cmap(font_bytes: &[u8], used_glyphs: &std::collections::HashSet<u16>) -> Vec<u8> {
+pub fn generate_to_unicode_cmap(
+    font_bytes: &[u8],
+    used_glyphs: &std::collections::HashSet<u16>,
+) -> Vec<u8> {
     if used_glyphs.is_empty() {
         return IDENTITY_TOUNICODE.to_vec();
     }

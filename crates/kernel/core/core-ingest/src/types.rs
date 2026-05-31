@@ -152,7 +152,10 @@ pub struct Outcome {
 #[derive(Debug)]
 pub enum IngestOutcome {
     Accepted(Outcome),
-    Rejected { outcome: Outcome, error: IngestError },
+    Rejected {
+        outcome: Outcome,
+        error: IngestError,
+    },
 }
 
 impl IngestOutcome {

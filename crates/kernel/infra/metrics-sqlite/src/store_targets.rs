@@ -36,7 +36,8 @@ impl TargetDefinitionStore for MetricsSqliteStore {
     }
 
     fn get_target(&self, id: &str) -> Result<TargetDefinition, MetricError> {
-        let row = self.db()
+        let row = self
+            .db()
             .query_row(
                 "SELECT id, metric_version_id, scope_type, scope_id,
                         target_value, unit, thresholds_json,
@@ -201,7 +202,8 @@ mod tests {
     fn save_and_get() {
         let s = store();
         seed_version(&s);
-        s.save_target(&target("t-001", "v-001", "uo:porto")).unwrap();
+        s.save_target(&target("t-001", "v-001", "uo:porto"))
+            .unwrap();
         let got = s.get_target("t-001").unwrap();
         assert_eq!(got.target_value, 90.0);
         assert_eq!(got.scope_id, "uo:porto");
@@ -211,9 +213,13 @@ mod tests {
     fn list_for_version() {
         let s = store();
         seed_version(&s);
-        s.save_target(&target("t-001", "v-001", "uo:porto")).unwrap();
-        s.save_target(&target("t-002", "v-001", "uo:lisboa")).unwrap();
-        let list = s.list_targets_for_version("v-001", ListOptions::default()).unwrap();
+        s.save_target(&target("t-001", "v-001", "uo:porto"))
+            .unwrap();
+        s.save_target(&target("t-002", "v-001", "uo:lisboa"))
+            .unwrap();
+        let list = s
+            .list_targets_for_version("v-001", ListOptions::default())
+            .unwrap();
         assert_eq!(list.len(), 2);
     }
 
@@ -221,8 +227,10 @@ mod tests {
     fn list_for_version_and_scope() {
         let s = store();
         seed_version(&s);
-        s.save_target(&target("t-001", "v-001", "uo:porto")).unwrap();
-        s.save_target(&target("t-002", "v-001", "uo:lisboa")).unwrap();
+        s.save_target(&target("t-001", "v-001", "uo:porto"))
+            .unwrap();
+        s.save_target(&target("t-002", "v-001", "uo:lisboa"))
+            .unwrap();
         let list = s
             .list_targets_for_version_and_scope("v-001", "uo:porto", ListOptions::default())
             .unwrap();

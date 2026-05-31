@@ -5,9 +5,9 @@
 /// agregação de resultados entre níveis.
 use crate::error::MetricError;
 use crate::formula::AggregationKind;
-use crate::result::{MeasurementResult, MeasurementStatus};
 use crate::governance::{IndicatorInstanceStore, MeasurementResultStore};
 use crate::pagination::ListOptions;
+use crate::result::{MeasurementResult, MeasurementStatus};
 
 // ── OrgHierarchyProvider ──────────────────────────────────────────────────────
 
@@ -78,7 +78,11 @@ where
     R: MeasurementResultStore,
 {
     pub fn new(hierarchy: H, instances: I, results: R) -> Self {
-        Self { hierarchy, instances, results }
+        Self {
+            hierarchy,
+            instances,
+            results,
+        }
     }
 
     /// Agrega os resultados validados dos filhos directos de uma UO.
@@ -215,7 +219,9 @@ impl StaticOrgHierarchy {
     pub fn new(edges: Vec<(&str, &str)>) -> Self {
         let mut tree: std::collections::HashMap<String, Vec<String>> = Default::default();
         for (parent, child) in edges {
-            tree.entry(parent.to_string()).or_default().push(child.to_string());
+            tree.entry(parent.to_string())
+                .or_default()
+                .push(child.to_string());
         }
         Self { tree }
     }
@@ -254,31 +260,25 @@ mod tests {
 
     #[test]
     fn static_hierarchy_parent() {
-        let h = StaticOrgHierarchy::new(vec![
-            ("min:justica", "serv:dgaj"),
-        ]);
-        assert_eq!(h.parent_of("serv:dgaj").unwrap(), Some("min:justica".to_string()));
+        let h = StaticOrgHierarchy::new(vec![("min:justica", "serv:dgaj")]);
+        assert_eq!(
+            h.parent_of("serv:dgaj").unwrap(),
+            Some("min:justica".to_string())
+        );
         assert_eq!(h.parent_of("min:justica").unwrap(), None);
     }
 
     #[test]
     fn ancestors_traversal() {
-        let h = StaticOrgHierarchy::new(vec![
-            ("root", "mid"),
-            ("mid", "leaf"),
-        ]);
+        let h = StaticOrgHierarchy::new(vec![("root", "mid"), ("mid", "leaf")]);
         let anc = h.ancestors_of("leaf").unwrap();
         assert_eq!(anc, vec!["mid", "root"]);
     }
 
     #[test]
     fn all_descendants() {
-        let h = StaticOrgHierarchy::new(vec![
-            ("root", "a"),
-            ("root", "b"),
-            ("a", "a1"),
-            ("a", "a2"),
-        ]);
+        let h =
+            StaticOrgHierarchy::new(vec![("root", "a"), ("root", "b"), ("a", "a1"), ("a", "a2")]);
         let mut desc = h.all_descendants_of("root").unwrap();
         desc.sort();
         assert_eq!(desc, vec!["a", "a1", "a2", "b"]);

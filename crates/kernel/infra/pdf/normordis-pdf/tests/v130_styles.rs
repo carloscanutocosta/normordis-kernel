@@ -3,10 +3,9 @@
 use std::collections::HashMap;
 
 use normordis_pdf::{
-    BulletList, CellPadding, DocumentBuilder, DocumentStyle, ListItemElement, NamedStyle,
-    NormaxisPdfError, Paragraph, Section, Spacer, StyleResolver,
-    TabStop, TabStopAlign, Table, TableCell, TableRow, TableStyle, TextAlign, TextRun,
-    default_named_styles,
+    default_named_styles, BulletList, CellPadding, DocumentBuilder, DocumentStyle, ListItemElement,
+    NamedStyle, NormaxisPdfError, Paragraph, Section, Spacer, StyleResolver, TabStop, TabStopAlign,
+    Table, TableCell, TableRow, TableStyle, TextAlign, TextRun,
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -74,7 +73,10 @@ fn resolve_heading_3_inherits_chain_heading_1_via_heading_2() {
     let styles = empty_styles();
     let resolver = resolver_for(&styles, &doc);
     let r = resolver.resolve("heading_3").unwrap();
-    assert!(r.bold, "heading_3 should inherit bold via heading_2 → heading_1");
+    assert!(
+        r.bold,
+        "heading_3 should inherit bold via heading_2 → heading_1"
+    );
     assert_eq!(r.font_size, doc.font_size_body);
 }
 
@@ -114,11 +116,14 @@ fn resolve_table_body_not_bold() {
 #[test]
 fn user_style_overrides_builtin() {
     let mut styles = HashMap::new();
-    styles.insert("normal".into(), NamedStyle {
-        font_size: Some(14.0),
-        bold: Some(true),
-        ..Default::default()
-    });
+    styles.insert(
+        "normal".into(),
+        NamedStyle {
+            font_size: Some(14.0),
+            bold: Some(true),
+            ..Default::default()
+        },
+    );
     let doc = default_doc();
     let resolver = resolver_for(&styles, &doc);
     let r = resolver.resolve("normal").unwrap();
@@ -129,33 +134,46 @@ fn user_style_overrides_builtin() {
 #[test]
 fn user_style_inherits_from_builtin() {
     let mut styles = HashMap::new();
-    styles.insert("my_style".into(), NamedStyle {
-        extends: Some("caption".into()),
-        font_size: Some(8.0),
-        ..Default::default()
-    });
+    styles.insert(
+        "my_style".into(),
+        NamedStyle {
+            extends: Some("caption".into()),
+            font_size: Some(8.0),
+            ..Default::default()
+        },
+    );
     let doc = default_doc();
     let resolver = resolver_for(&styles, &doc);
     let r = resolver.resolve("my_style").unwrap();
     assert_eq!(r.font_size, 8.0);
     assert!(r.italic, "should inherit italic from caption");
-    assert_eq!(r.alignment, TextAlign::Center, "should inherit center alignment");
+    assert_eq!(
+        r.alignment,
+        TextAlign::Center,
+        "should inherit center alignment"
+    );
 }
 
 #[test]
 fn user_style_two_level_inheritance() {
     let mut styles = HashMap::new();
-    styles.insert("base".into(), NamedStyle {
-        font_size: Some(10.0),
-        bold: Some(true),
-        space_after_mm: Some(5.0),
-        ..Default::default()
-    });
-    styles.insert("derived".into(), NamedStyle {
-        extends: Some("base".into()),
-        italic: Some(true),
-        ..Default::default()
-    });
+    styles.insert(
+        "base".into(),
+        NamedStyle {
+            font_size: Some(10.0),
+            bold: Some(true),
+            space_after_mm: Some(5.0),
+            ..Default::default()
+        },
+    );
+    styles.insert(
+        "derived".into(),
+        NamedStyle {
+            extends: Some("base".into()),
+            italic: Some(true),
+            ..Default::default()
+        },
+    );
     let doc = default_doc();
     let resolver = resolver_for(&styles, &doc);
     let r = resolver.resolve("derived").unwrap();
@@ -168,8 +186,20 @@ fn user_style_two_level_inheritance() {
 #[test]
 fn cycle_detection_returns_error() {
     let mut styles = HashMap::new();
-    styles.insert("a".into(), NamedStyle { extends: Some("b".into()), ..Default::default() });
-    styles.insert("b".into(), NamedStyle { extends: Some("a".into()), ..Default::default() });
+    styles.insert(
+        "a".into(),
+        NamedStyle {
+            extends: Some("b".into()),
+            ..Default::default()
+        },
+    );
+    styles.insert(
+        "b".into(),
+        NamedStyle {
+            extends: Some("a".into()),
+            ..Default::default()
+        },
+    );
     let doc = default_doc();
     let resolver = resolver_for(&styles, &doc);
     let err = resolver.resolve("a").unwrap_err();
@@ -189,7 +219,19 @@ fn unknown_style_returns_error() {
 fn default_named_styles_has_builtin_entries() {
     let doc = default_doc();
     let styles = default_named_styles(&doc);
-    for name in &["normal", "heading_1", "heading_2", "heading_3", "caption", "table_header", "table_body", "footnote", "toc_1", "toc_2", "toc_3"] {
+    for name in &[
+        "normal",
+        "heading_1",
+        "heading_2",
+        "heading_3",
+        "caption",
+        "table_header",
+        "table_body",
+        "footnote",
+        "toc_1",
+        "toc_2",
+        "toc_3",
+    ] {
         assert!(styles.contains_key(*name), "missing builtin: {}", name);
     }
 }
@@ -198,39 +240,51 @@ fn default_named_styles_has_builtin_entries() {
 
 #[test]
 fn paragraph_with_style_caption_renders() {
-    renders_ok(DocumentBuilder::new("test")
-        .push(Paragraph::new("Figure caption.").style("caption")));
+    renders_ok(
+        DocumentBuilder::new("test").push(Paragraph::new("Figure caption.").style("caption")),
+    );
 }
 
 #[test]
 fn paragraph_with_user_style_renders() {
     let mut styles = HashMap::new();
-    styles.insert("intro".into(), NamedStyle {
-        extends: Some("normal".into()),
-        font_size: Some(13.0),
-        italic: Some(true),
-        space_before_mm: Some(6.0),
-        space_after_mm: Some(6.0),
-        ..Default::default()
-    });
-    let doc = DocumentStyle { named_styles: styles, ..default_doc() };
-    renders_ok(DocumentBuilder::new("test")
-        .style(doc)
-        .push(Paragraph::new("Intro paragraph.").style("intro")));
+    styles.insert(
+        "intro".into(),
+        NamedStyle {
+            extends: Some("normal".into()),
+            font_size: Some(13.0),
+            italic: Some(true),
+            space_before_mm: Some(6.0),
+            space_after_mm: Some(6.0),
+            ..Default::default()
+        },
+    );
+    let doc = DocumentStyle {
+        named_styles: styles,
+        ..default_doc()
+    };
+    renders_ok(
+        DocumentBuilder::new("test")
+            .style(doc)
+            .push(Paragraph::new("Intro paragraph.").style("intro")),
+    );
 }
 
 #[test]
 fn paragraph_space_before_suppressed_at_top_of_page() {
     // Should not panic or overflow — space_before suppressed at page top.
-    renders_ok(DocumentBuilder::new("test")
-        .push(Paragraph::new("First paragraph.").space_before(50.0)));
+    renders_ok(
+        DocumentBuilder::new("test").push(Paragraph::new("First paragraph.").space_before(50.0)),
+    );
 }
 
 #[test]
 fn paragraph_space_after_explicit_renders() {
-    renders_ok(DocumentBuilder::new("test")
-        .push(Paragraph::new("A").space_after(10.0))
-        .push(Paragraph::new("B")));
+    renders_ok(
+        DocumentBuilder::new("test")
+            .push(Paragraph::new("A").space_after(10.0))
+            .push(Paragraph::new("B")),
+    );
 }
 
 // ── Section style rendering ───────────────────────────────────────────────────
@@ -247,8 +301,9 @@ fn section_level_2_uses_heading_2_builtin() {
 
 #[test]
 fn section_with_explicit_style_ref_renders() {
-    renders_ok(DocumentBuilder::new("test")
-        .push(Section::new("Captioned Heading", 1).style("caption")));
+    renders_ok(
+        DocumentBuilder::new("test").push(Section::new("Captioned Heading", 1).style("caption")),
+    );
 }
 
 // ── Tab stops ─────────────────────────────────────────────────────────────────
@@ -271,23 +326,15 @@ fn tab_stop_right_with_leader() {
 
 #[test]
 fn paragraph_with_tab_stop_renders() {
-    let p = Paragraph::from_runs(
-        vec![TextRun::plain("Label\t42")],
-        TextAlign::Left,
-        None,
-    )
-    .tab_stop(TabStop::right(140.0).with_leader('.'));
+    let p = Paragraph::from_runs(vec![TextRun::plain("Label\t42")], TextAlign::Left, None)
+        .tab_stop(TabStop::right(140.0).with_leader('.'));
     renders_ok(DocumentBuilder::new("test").push(p));
 }
 
 #[test]
 fn paragraph_with_no_tab_stop_and_tab_char_renders() {
     // \t with no tab stops defined — should not panic, treated as space.
-    let p = Paragraph::from_runs(
-        vec![TextRun::plain("A\tB\tC")],
-        TextAlign::Left,
-        None,
-    );
+    let p = Paragraph::from_runs(vec![TextRun::plain("A\tB\tC")], TextAlign::Left, None);
     renders_ok(DocumentBuilder::new("test").push(p));
 }
 
@@ -349,11 +396,8 @@ fn table_style_grid_renders() {
 
 #[test]
 fn table_style_bordered_renders() {
-    let table = Table::new(
-        vec!["X".into()],
-        vec![TableRow::plain(vec!["Y".into()])],
-    )
-    .with_table_style(TableStyle::bordered());
+    let table = Table::new(vec!["X".into()], vec![TableRow::plain(vec!["Y".into()])])
+        .with_table_style(TableStyle::bordered());
     renders_ok(DocumentBuilder::new("test").push(table));
 }
 
@@ -362,18 +406,14 @@ fn table_style_striped_renders() {
     let rows: Vec<TableRow> = (1..=4)
         .map(|i| TableRow::plain(vec![format!("Row {}", i)]))
         .collect();
-    let table = Table::new(vec!["N".into()], rows)
-        .with_table_style(TableStyle::striped());
+    let table = Table::new(vec!["N".into()], rows).with_table_style(TableStyle::striped());
     renders_ok(DocumentBuilder::new("test").push(table));
 }
 
 #[test]
 fn table_style_plain_renders() {
-    let table = Table::new(
-        vec!["X".into()],
-        vec![TableRow::plain(vec!["Y".into()])],
-    )
-    .with_table_style(TableStyle::plain());
+    let table = Table::new(vec!["X".into()], vec![TableRow::plain(vec!["Y".into()])])
+        .with_table_style(TableStyle::plain());
     renders_ok(DocumentBuilder::new("test").push(table));
 }
 
@@ -382,14 +422,20 @@ fn table_style_plain_renders() {
 #[test]
 fn full_v130_document_renders() {
     let mut styles = HashMap::new();
-    styles.insert("intro".into(), NamedStyle {
-        extends: Some("normal".into()),
-        italic: Some(true),
-        space_before_mm: Some(4.0),
-        space_after_mm: Some(4.0),
-        ..Default::default()
-    });
-    let doc = DocumentStyle { named_styles: styles, ..default_doc() };
+    styles.insert(
+        "intro".into(),
+        NamedStyle {
+            extends: Some("normal".into()),
+            italic: Some(true),
+            space_before_mm: Some(4.0),
+            space_after_mm: Some(4.0),
+            ..Default::default()
+        },
+    );
+    let doc = DocumentStyle {
+        named_styles: styles,
+        ..default_doc()
+    };
 
     let table = Table::new(
         vec!["Estilo".into(), "Descrição".into()],
@@ -401,12 +447,8 @@ fn full_v130_document_renders() {
     .with_table_style(TableStyle::grid())
     .col_widths(vec![40.0, 60.0]);
 
-    let tab_p = Paragraph::from_runs(
-        vec![TextRun::plain("Item\t99")],
-        TextAlign::Left,
-        None,
-    )
-    .tab_stop(TabStop::right(130.0).with_leader('.'));
+    let tab_p = Paragraph::from_runs(vec![TextRun::plain("Item\t99")], TextAlign::Left, None)
+        .tab_stop(TabStop::right(130.0).with_leader('.'));
 
     renders_ok(
         DocumentBuilder::new("v1.3.0 Integration Test")

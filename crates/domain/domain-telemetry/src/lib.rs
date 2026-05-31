@@ -7,6 +7,6 @@ pub use error::TelemetryError;
 pub use ports::TelemetryRepository;
 pub use service::TelemetryService;
 pub use types::{
-    AppUsageEvent, AppUsageStats, SessionId, UsageEventFilter,
-    UsageEventId, UsageEventType, UsagePeriod,
+    AppUsageEvent, AppUsageStats, SessionId, UsageEventFilter, UsageEventId, UsageEventType,
+    UsagePeriod,
 };

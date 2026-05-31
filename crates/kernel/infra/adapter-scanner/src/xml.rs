@@ -82,7 +82,11 @@ pub fn parse_capabilities(xml: &[u8]) -> Result<ScanCapabilities, ScannerError> 
     let mut adf = InputCapabilities::default();
 
     #[derive(PartialEq)]
-    enum Section { Root, Platen, Adf }
+    enum Section {
+        Root,
+        Platen,
+        Adf,
+    }
     let mut section = Section::Root;
     let mut current_x_res: Option<u32> = None;
 
@@ -127,8 +131,8 @@ pub fn parse_capabilities(xml: &[u8]) -> Result<ScanCapabilities, ScannerError> 
                         if let Some(m) = ColorMode::from_escl(&t) {
                             match section {
                                 Section::Platen => platen.supported_color_modes.push(m),
-                                Section::Adf    => adf.supported_color_modes.push(m),
-                                Section::Root   => {}
+                                Section::Adf => adf.supported_color_modes.push(m),
+                                Section::Root => {}
                             }
                         }
                     }
@@ -155,9 +159,7 @@ pub fn parse_capabilities(xml: &[u8]) -> Result<ScanCapabilities, ScannerError> 
                                     {
                                         platen.supported_resolutions.push(x)
                                     }
-                                    Section::Adf
-                                        if !adf.supported_resolutions.contains(&x) =>
-                                    {
+                                    Section::Adf if !adf.supported_resolutions.contains(&x) => {
                                         adf.supported_resolutions.push(x)
                                     }
                                     _ => {}
@@ -170,8 +172,8 @@ pub fn parse_capabilities(xml: &[u8]) -> Result<ScanCapabilities, ScannerError> 
                         if let Some(i) = ScanIntent::from_escl(&t) {
                             match section {
                                 Section::Platen => platen.supported_intents.push(i),
-                                Section::Adf    => adf.supported_intents.push(i),
-                                Section::Root   => {}
+                                Section::Adf => adf.supported_intents.push(i),
+                                Section::Root => {}
                             }
                         }
                     }
@@ -190,10 +192,7 @@ pub fn parse_capabilities(xml: &[u8]) -> Result<ScanCapabilities, ScannerError> 
                 text.clear();
             }
             Event::Text(e) => {
-                text = e
-                    .unescape()
-                    .map(|s| s.into_owned())
-                    .unwrap_or_default();
+                text = e.unescape().map(|s| s.into_owned()).unwrap_or_default();
             }
             Event::Eof => break,
             _ => {}
@@ -391,9 +390,18 @@ mod tests {
     #[test]
     fn from_mime_ignora_parametros_content_type() {
         use crate::types::ScanFormat;
-        assert_eq!(ScanFormat::from_mime("application/pdf"), Some(ScanFormat::Pdf));
-        assert_eq!(ScanFormat::from_mime("image/jpeg; charset=utf-8"), Some(ScanFormat::Jpeg));
-        assert_eq!(ScanFormat::from_mime("image/tiff; boundary=xxx"), Some(ScanFormat::Tiff));
+        assert_eq!(
+            ScanFormat::from_mime("application/pdf"),
+            Some(ScanFormat::Pdf)
+        );
+        assert_eq!(
+            ScanFormat::from_mime("image/jpeg; charset=utf-8"),
+            Some(ScanFormat::Jpeg)
+        );
+        assert_eq!(
+            ScanFormat::from_mime("image/tiff; boundary=xxx"),
+            Some(ScanFormat::Tiff)
+        );
         assert_eq!(ScanFormat::from_mime("image/png"), Some(ScanFormat::Png));
         assert_eq!(ScanFormat::from_mime("text/html"), None);
     }

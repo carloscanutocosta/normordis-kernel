@@ -22,7 +22,11 @@ fn main() -> Result<()> {
             252.0,
             190.0,
             252.0,
-            RgbColor { r: 0.0, g: 0.2, b: 0.6 },
+            RgbColor {
+                r: 0.0,
+                g: 0.2,
+                b: 0.6,
+            },
         )
         .fixed_text(
             FixedBox {

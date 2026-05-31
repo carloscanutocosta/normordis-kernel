@@ -6,10 +6,13 @@ use support_crypto::{
 use support_errors::MiniError;
 use zeroize::Zeroizing;
 
-use crate::config::{RecoveryPassphrasePolicy, SecretsConfig};
+use crate::config::RecoveryPassphrasePolicy;
+#[cfg(windows)]
+use crate::config::SecretsConfig;
 use crate::error::{secret_error, PROTECT_FAILED, UNPROTECT_FAILED, WEAK_PASSPHRASE};
 
 pub const PORTABLE_PASSPHRASE_BACKEND: &str = "portable-passphrase-v1";
+#[cfg(windows)]
 pub const WINDOWS_DPAPI_BACKEND: &str = "windows-dpapi";
 
 #[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]

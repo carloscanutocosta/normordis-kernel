@@ -10,8 +10,9 @@ db-path = "~/.cargo/advisory-db"
 db-urls = ["https://github.com/rustsec/advisory-db"]
 # Falha em qualquer vulnerabilidade
 vulnerability = "deny"
-# Unmaintained: avisar (não bloquear — pode ser intencional)
-unmaintained = "warn"
+# Unmaintained: verificar todas as dependências (workspace + transitivas)
+# Valores válidos: "all" | "workspace" | "transitive" | "none"
+unmaintained = "all"
 # Yanked crates: bloquear
 yanked = "deny"
 # Avisos de segurança genéricos

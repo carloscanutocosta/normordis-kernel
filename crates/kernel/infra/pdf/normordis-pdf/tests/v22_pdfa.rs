@@ -45,7 +45,10 @@ fn pdfa_03_contains_xmp_namespace() {
 fn pdfa_04_pdfaid_part_1() {
     let bytes = pdfa_doc();
     let raw = String::from_utf8_lossy(&bytes);
-    assert!(raw.contains("<pdfaid:part>1</pdfaid:part>"), "must declare PDF/A part 1");
+    assert!(
+        raw.contains("<pdfaid:part>1</pdfaid:part>"),
+        "must declare PDF/A part 1"
+    );
 }
 
 #[test]
@@ -82,22 +85,34 @@ fn pdfa_07_srgb_icc_identifier() {
 fn pdfa_08_metadata_stream_type() {
     let bytes = pdfa_doc();
     let raw = String::from_utf8_lossy(&bytes);
-    assert!(raw.contains("/Type /Metadata"), "must contain a /Type /Metadata stream");
+    assert!(
+        raw.contains("/Type /Metadata"),
+        "must contain a /Type /Metadata stream"
+    );
 }
 
 #[test]
 fn pdfa_09_metadata_subtype_xml() {
     let bytes = pdfa_doc();
     let raw = String::from_utf8_lossy(&bytes);
-    assert!(raw.contains("/Subtype /XML"), "metadata stream must have /Subtype /XML");
+    assert!(
+        raw.contains("/Subtype /XML"),
+        "metadata stream must have /Subtype /XML"
+    );
 }
 
 #[test]
 fn pdfa_10_xmp_xpacket_wrapper() {
     let bytes = pdfa_doc();
     let raw = String::from_utf8_lossy(&bytes);
-    assert!(raw.contains("<?xpacket"), "XMP must be wrapped in xpacket PI");
-    assert!(raw.contains("<?xpacket end="), "XMP must close with xpacket end PI");
+    assert!(
+        raw.contains("<?xpacket"),
+        "XMP must be wrapped in xpacket PI"
+    );
+    assert!(
+        raw.contains("<?xpacket end="),
+        "XMP must close with xpacket end PI"
+    );
 }
 
 // ── ICC profile ───────────────────────────────────────────────────────────────
@@ -156,7 +171,7 @@ fn pdfa_15_plain_doc_has_no_xmp() {
 #[test]
 fn pdfa_16_pdfa_doc_larger_than_plain() {
     // PDF/A adds ICC profile + XMP, so it must be larger than the plain equivalent.
-    let pdfa_size  = pdfa_doc().len();
+    let pdfa_size = pdfa_doc().len();
     let plain_size = plain_doc().len();
     assert!(
         pdfa_size > plain_size,
@@ -197,11 +212,14 @@ fn pdfa_19_title_xml_escaping() {
         .expect("render failed");
     let raw = String::from_utf8_lossy(&bytes);
     // Escaped form must appear in the XMP stream.
-    assert!(raw.contains("A &amp; B &lt;test&gt;"), "title must be XML-escaped in XMP");
+    assert!(
+        raw.contains("A &amp; B &lt;test&gt;"),
+        "title must be XML-escaped in XMP"
+    );
     // XMP section must not have the unescaped & immediately before "B <test>".
     // (The PDF info dict legitimately contains the raw bytes; we scope to XMP.)
     let xmp_start = raw.find("<?xpacket").expect("xpacket PI not found");
-    let xmp_end   = raw.rfind("?>").expect("xpacket end not found") + 2;
+    let xmp_end = raw.rfind("?>").expect("xpacket end not found") + 2;
     let xmp_section = &raw[xmp_start..xmp_end];
     assert!(
         !xmp_section.contains("A & B"),

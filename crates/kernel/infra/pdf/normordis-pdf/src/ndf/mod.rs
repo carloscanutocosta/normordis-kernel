@@ -53,17 +53,15 @@ pub struct NdfDocument {
 impl NdfDocument {
     /// Serialises to canonical JSON per RFC 8785 / JCS.
     pub fn to_canonical_json(&self) -> crate::Result<String> {
-        let value = serde_json::to_value(self)
-            .map_err(|e| NormaxisPdfError::SerdeError(e.to_string()))?;
+        let value =
+            serde_json::to_value(self).map_err(|e| NormaxisPdfError::SerdeError(e.to_string()))?;
         let canonical = jcs::canonicalise(&value);
-        serde_json::to_string(&canonical)
-            .map_err(|e| NormaxisPdfError::SerdeError(e.to_string()))
+        serde_json::to_string(&canonical).map_err(|e| NormaxisPdfError::SerdeError(e.to_string()))
     }
 
     /// Serialises to pretty-printed JSON. Use only for debugging; not for hashing.
     pub fn to_pretty_json(&self) -> crate::Result<String> {
-        serde_json::to_string_pretty(self)
-            .map_err(|e| NormaxisPdfError::SerdeError(e.to_string()))
+        serde_json::to_string_pretty(self).map_err(|e| NormaxisPdfError::SerdeError(e.to_string()))
     }
 
     /// Appends an audit event, verifying content_hash for documentary events.

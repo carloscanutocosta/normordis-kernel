@@ -1,10 +1,8 @@
-use normordis_pdf::{
-    compile_ndt, parse_ndf, parse_ncrtf, render_ndf, verify_ndf,
-    Actor, AuditEvent, CompileOptions, EventType,
-    NcrtfImage, NcrtfMark, NdfRevision,
-    canonical_hash,
-};
 use normordis_pdf::ndf::jcs;
+use normordis_pdf::{
+    canonical_hash, compile_ndt, parse_ncrtf, parse_ndf, render_ndf, verify_ndf, Actor, AuditEvent,
+    CompileOptions, EventType, NcrtfImage, NcrtfMark, NdfRevision,
+};
 use serde_json::json;
 
 // ── helpers ───────────────────────────────────────────────────────────────────
@@ -137,15 +135,25 @@ text = "Static TOML."
     let data: normordis_pdf::template::NdtData =
         serde_json::from_str(r#"{"ndt_data":"1.0.0","data":{}}"#).unwrap();
     let ndf = compile_ndt(toml, &data, CompileOptions::default());
-    assert!(ndf.is_ok(), "compile_ndt TOML must return Ok: {:?}", ndf.err());
+    assert!(
+        ndf.is_ok(),
+        "compile_ndt TOML must return Ok: {:?}",
+        ndf.err()
+    );
 }
 
 #[test]
 fn fmt_13_compile_ndt_resolves_placeholders() {
     let ndf = simple_ndf();
     let content_str = serde_json::to_string(&ndf.content).unwrap();
-    assert!(content_str.contains("World"), "{{name}} must be resolved to 'World'");
-    assert!(!content_str.contains("{{name}}"), "raw placeholder must not remain");
+    assert!(
+        content_str.contains("World"),
+        "{{name}} must be resolved to 'World'"
+    );
+    assert!(
+        !content_str.contains("{{name}}"),
+        "raw placeholder must not remain"
+    );
 }
 
 #[test]
@@ -154,7 +162,10 @@ fn fmt_14_compile_ndt_missing_placeholder_errors() {
     let empty_data: normordis_pdf::template::NdtData =
         serde_json::from_str(r#"{"ndt_data":"1.0.0","data":{}}"#).unwrap();
     let result = compile_ndt(ndt, &empty_data, CompileOptions::default());
-    assert!(result.is_err(), "missing required placeholder must return Err");
+    assert!(
+        result.is_err(),
+        "missing required placeholder must return Err"
+    );
 }
 
 #[test]
@@ -162,9 +173,15 @@ fn fmt_15_compile_ndt_validate_resolved_false_allows_remaining() {
     let ndt = r#"{"ndt":"1.1.0","body":[{"type":"paragraph","text":"{{missing}}"}]}"#;
     let empty_data: normordis_pdf::template::NdtData =
         serde_json::from_str(r#"{"ndt_data":"1.0.0","data":{}}"#).unwrap();
-    let opts = CompileOptions { validate_resolved: false, ..Default::default() };
+    let opts = CompileOptions {
+        validate_resolved: false,
+        ..Default::default()
+    };
     let result = compile_ndt(ndt, &empty_data, opts);
-    assert!(result.is_ok(), "validate_resolved=false must not fail on remaining placeholders");
+    assert!(
+        result.is_ok(),
+        "validate_resolved=false must not fail on remaining placeholders"
+    );
 }
 
 #[test]
@@ -204,7 +221,10 @@ fn fmt_20_render_ndf_starts_with_pdf_header() {
     let ndf = simple_ndf();
     let json = ndf.to_canonical_json().unwrap();
     let pdf = render_ndf(&json).unwrap();
-    assert!(pdf.starts_with(b"%PDF-"), "rendered bytes must start with %PDF-");
+    assert!(
+        pdf.starts_with(b"%PDF-"),
+        "rendered bytes must start with %PDF-"
+    );
 }
 
 #[test]
@@ -232,7 +252,11 @@ fn fmt_23_verify_ndf_intact_all_valid() {
     let ndf = simple_ndf();
     let json = ndf.to_pretty_json().unwrap();
     let report = verify_ndf(&json).unwrap();
-    assert!(report.all_valid, "integrity must be valid for unmodified NDF; failures: {:?}", report.failures);
+    assert!(
+        report.all_valid,
+        "integrity must be valid for unmodified NDF; failures: {:?}",
+        report.failures
+    );
 }
 
 #[test]
@@ -241,7 +265,10 @@ fn fmt_24_verify_ndf_tampered_content_fails() {
     ndf.content = json!([{"type":"paragraph","text":"TAMPERED"}]);
     let json = ndf.to_pretty_json().unwrap();
     let report = verify_ndf(&json).unwrap();
-    assert!(!report.content_hash_valid, "tampered content must fail content_hash check");
+    assert!(
+        !report.content_hash_valid,
+        "tampered content must fail content_hash check"
+    );
     assert!(!report.all_valid);
 }
 
@@ -251,7 +278,10 @@ fn fmt_25_verify_ndf_tampered_styles_fails() {
     ndf.styles = json!({"font_size_body": 99.0});
     let json = ndf.to_pretty_json().unwrap();
     let report = verify_ndf(&json).unwrap();
-    assert!(!report.styles_hash_valid, "tampered styles must fail styles_hash check");
+    assert!(
+        !report.styles_hash_valid,
+        "tampered styles must fail styles_hash check"
+    );
 }
 
 // ── 26–29: NdfDocument::add_event ────────────────────────────────────────────
@@ -263,7 +293,11 @@ fn fmt_26_add_event_correct_hash_ok() {
         seq: 0,
         event_type: EventType::DocumentReviewed,
         timestamp: now_ts(),
-        actor: Actor::System { id: "test".into(), version: None, instance_id: None },
+        actor: Actor::System {
+            id: "test".into(),
+            version: None,
+            instance_id: None,
+        },
         content_hash: Some(ndf.integrity.content_hash.clone()),
         note: None,
         extra: Default::default(),
@@ -279,7 +313,11 @@ fn fmt_27_add_event_wrong_hash_errors() {
         seq: 0,
         event_type: EventType::DocumentReviewed,
         timestamp: now_ts(),
-        actor: Actor::System { id: "test".into(), version: None, instance_id: None },
+        actor: Actor::System {
+            id: "test".into(),
+            version: None,
+            instance_id: None,
+        },
         content_hash: Some("sha256:wronghash".into()),
         note: None,
         extra: Default::default(),
@@ -295,7 +333,11 @@ fn fmt_28_add_event_increments_seq() {
         seq: 0,
         event_type: EventType::DocumentApproved,
         timestamp: now_ts(),
-        actor: Actor::System { id: "x".into(), version: None, instance_id: None },
+        actor: Actor::System {
+            id: "x".into(),
+            version: None,
+            instance_id: None,
+        },
         content_hash: Some(ndf.integrity.content_hash.clone()),
         note: None,
         extra: Default::default(),
@@ -312,12 +354,19 @@ fn fmt_29_add_event_non_monotonic_timestamp_errors() {
         seq: 0,
         event_type: EventType::DocumentReviewed,
         timestamp: past,
-        actor: Actor::System { id: "x".into(), version: None, instance_id: None },
+        actor: Actor::System {
+            id: "x".into(),
+            version: None,
+            instance_id: None,
+        },
         content_hash: None,
         note: None,
         extra: Default::default(),
     };
-    assert!(ndf.add_event(event).is_err(), "past timestamp must return Err");
+    assert!(
+        ndf.add_event(event).is_err(),
+        "past timestamp must return Err"
+    );
 }
 
 // ── 30–33: NdfRevision::create_from ──────────────────────────────────────────
@@ -325,14 +374,19 @@ fn fmt_29_add_event_non_monotonic_timestamp_errors() {
 #[test]
 fn fmt_30_revision_seq_is_2_for_original() {
     let original = simple_ndf();
-    let actor = Actor::System { id: "test".into(), version: None, instance_id: None };
+    let actor = Actor::System {
+        id: "test".into(),
+        version: None,
+        instance_id: None,
+    };
     let revised = NdfRevision::create_from(
         &original,
         json!([{"type":"paragraph","text":"Revised content."}]),
         actor,
         "Fix typo",
         None,
-    ).unwrap();
+    )
+    .unwrap();
     assert_eq!(revised.revision.as_ref().unwrap().revision_seq, 2);
 }
 
@@ -342,14 +396,19 @@ fn fmt_31_revision_does_not_modify_original() {
     let original_hash = original.integrity.content_hash.clone();
     let original_events = original.audit.events.len();
 
-    let actor = Actor::System { id: "test".into(), version: None, instance_id: None };
+    let actor = Actor::System {
+        id: "test".into(),
+        version: None,
+        instance_id: None,
+    };
     let _revised = NdfRevision::create_from(
         &original,
         json!([{"type":"paragraph","text":"Changed."}]),
         actor,
         "reason",
         None,
-    ).unwrap();
+    )
+    .unwrap();
 
     assert_eq!(original.integrity.content_hash, original_hash);
     assert_eq!(original.audit.events.len(), original_events);
@@ -359,31 +418,40 @@ fn fmt_31_revision_does_not_modify_original() {
 fn fmt_32_revision_of_matches_original_document_id() {
     let original = simple_ndf();
     let doc_id = original.audit.document_id.clone();
-    let actor = Actor::System { id: "test".into(), version: None, instance_id: None };
+    let actor = Actor::System {
+        id: "test".into(),
+        version: None,
+        instance_id: None,
+    };
     let revised = NdfRevision::create_from(
         &original,
         json!([{"type":"paragraph","text":"New."}]),
         actor,
         "reason",
         None,
-    ).unwrap();
+    )
+    .unwrap();
     assert_eq!(revised.revision.as_ref().unwrap().revision_of, doc_id);
 }
 
 #[test]
 fn fmt_33_revised_content_hash_differs_from_original() {
     let original = simple_ndf();
-    let actor = Actor::System { id: "test".into(), version: None, instance_id: None };
+    let actor = Actor::System {
+        id: "test".into(),
+        version: None,
+        instance_id: None,
+    };
     let revised = NdfRevision::create_from(
         &original,
         json!([{"type":"paragraph","text":"Completely different content."}]),
         actor,
         "reason",
         None,
-    ).unwrap();
+    )
+    .unwrap();
     assert_ne!(
-        revised.integrity.content_hash,
-        original.integrity.content_hash,
+        revised.integrity.content_hash, original.integrity.content_hash,
         "revised document must have a different content_hash"
     );
 }
@@ -406,7 +474,11 @@ fn fmt_34_parse_ncrtf_130_ok() {
         ]
     }"#;
     let doc = parse_ncrtf(json);
-    assert!(doc.is_ok(), "parse_ncrtf 1.3.0 must return Ok: {:?}", doc.err());
+    assert!(
+        doc.is_ok(),
+        "parse_ncrtf 1.3.0 must return Ok: {:?}",
+        doc.err()
+    );
     assert_eq!(doc.unwrap().ncrtf, "1.3.0");
 }
 
@@ -418,7 +490,9 @@ fn fmt_35_footnote_ref_inline_deserializes() {
     let block = &doc.blocks[0];
     if let normordis_pdf::richtext::model::Block::Paragraph(p) = block {
         assert!(
-            p.children.iter().any(|i| matches!(i, Inline::FootnoteRef(n) if n.number == 3)),
+            p.children
+                .iter()
+                .any(|i| matches!(i, Inline::FootnoteRef(n) if n.number == 3)),
             "FootnoteRef number=3 must be deserialised"
         );
     } else {
@@ -433,7 +507,10 @@ fn fmt_36_soft_hyphen_preserved_in_text_node() {
     use normordis_pdf::richtext::model::{Block, Inline};
     if let Block::Paragraph(p) = &doc.blocks[0] {
         if let Inline::Text(t) = &p.children[0] {
-            assert!(t.text.contains('\u{00AD}'), "soft hyphen U+00AD must be preserved");
+            assert!(
+                t.text.contains('\u{00AD}'),
+                "soft hyphen U+00AD must be preserved"
+            );
         }
     }
 }
@@ -501,14 +578,12 @@ fn fmt_42_ncrtf_meta_is_separate_from_ndt_meta() {
     use normordis_pdf::richtext::model::DocumentMeta;
     use normordis_pdf::template::model::NdtMeta;
 
-    let ncrtf_meta: DocumentMeta = serde_json::from_str(
-        r#"{"title":"Editorial only","author":"Editor"}"#,
-    ).unwrap();
+    let ncrtf_meta: DocumentMeta =
+        serde_json::from_str(r#"{"title":"Editorial only","author":"Editor"}"#).unwrap();
     assert_eq!(ncrtf_meta.title.as_deref(), Some("Editorial only"));
 
-    let ndt_meta: NdtMeta = serde_json::from_str(
-        r#"{"title":"Template title","compat_mode":16}"#,
-    ).unwrap();
+    let ndt_meta: NdtMeta =
+        serde_json::from_str(r#"{"title":"Template title","compat_mode":16}"#).unwrap();
     assert_eq!(ndt_meta.compat_mode, Some(16));
     // The two structs exist independently — compiles only if they are separate types.
     drop(ncrtf_meta);

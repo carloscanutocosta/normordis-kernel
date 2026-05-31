@@ -3,12 +3,12 @@ use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    backend::{FontRef, PdfBackend},
     backend::pdf_writer_backend::PdfWriterBackend,
+    backend::{FontRef, PdfBackend},
     compliance::ua::{AccessibilityConfig, StructTag, StructureTree, UaValidator},
     elements::{
-        footnote::FootnoteAccumulator,
         footer::{PageFooter, SectionedFooter},
+        footnote::FootnoteAccumulator,
         header::SectionedHeader,
         toc::TocEntry,
         Element, LayoutMode, RenderContext,
@@ -67,10 +67,10 @@ pub enum CompressionLevel {
 impl CompressionLevel {
     pub fn to_zlib_level(self) -> u32 {
         match self {
-            Self::None    => 0,
-            Self::Fast    => 1,
+            Self::None => 0,
+            Self::Fast => 1,
             Self::Default => 6,
-            Self::Best    => 9,
+            Self::Best => 9,
         }
     }
 }
@@ -101,7 +101,11 @@ impl Document {
     /// First pass: estimate section positions for the TOC.
     fn collect_toc_entries_pass(&self) -> Vec<TocEntry> {
         let layout = PageLayout::from_style(&self.style);
-        let hdr_h = if let Some(ref h) = self.header { h.estimated_height_mm() } else { 0.0 };
+        let hdr_h = if let Some(ref h) = self.header {
+            h.estimated_height_mm()
+        } else {
+            0.0
+        };
         let mut cursor_y = layout.page_height_mm - layout.margin_top_mm - hdr_h;
         let mut page = 1u32;
         let mut entries = Vec::new();
@@ -116,7 +120,11 @@ impl Document {
                 cursor_y -= h;
             }
             if let Some((level, title)) = element.as_section_info() {
-                entries.push(TocEntry { level, title: title.to_string(), page_number: page });
+                entries.push(TocEntry {
+                    level,
+                    title: title.to_string(),
+                    page_number: page,
+                });
             }
         }
         entries
@@ -175,7 +183,11 @@ impl Document {
                     if flow.would_overflow(h) {
                         flow.new_page();
                         pages += 1;
-                        flow.advance(header_height_mm(&header, &sectioned_header, flow.page_number));
+                        flow.advance(header_height_mm(
+                            &header,
+                            &sectioned_header,
+                            flow.page_number,
+                        ));
                     }
                     flow.advance(h);
                 }
@@ -188,7 +200,10 @@ impl Document {
 
         // If PdfUa2 is requested, enable accessibility automatically
         let accessibility = if standard == PdfStandard::PdfUa2 && !accessibility.enabled {
-            AccessibilityConfig { enabled: true, ..accessibility }
+            AccessibilityConfig {
+                enabled: true,
+                ..accessibility
+            }
         } else {
             accessibility
         };
@@ -278,10 +293,16 @@ impl Document {
                     if ctx.force_page_break {
                         ctx.force_page_break = false;
                         flush_page(
-                            &mut ctx, &mut fixed_pending, &mut footnote_acc,
-                            &footer, &sectioned_footer,
-                            &watermark, &header, &sectioned_header,
-                            pw, ph,
+                            &mut ctx,
+                            &mut fixed_pending,
+                            &mut footnote_acc,
+                            &footer,
+                            &sectioned_footer,
+                            &watermark,
+                            &header,
+                            &sectioned_header,
+                            pw,
+                            ph,
                         )?;
                     }
 
@@ -292,10 +313,16 @@ impl Document {
                             break;
                         }
                         flush_page(
-                            &mut ctx, &mut fixed_pending, &mut footnote_acc,
-                            &footer, &sectioned_footer,
-                            &watermark, &header, &sectioned_header,
-                            pw, ph,
+                            &mut ctx,
+                            &mut fixed_pending,
+                            &mut footnote_acc,
+                            &footer,
+                            &sectioned_footer,
+                            &watermark,
+                            &header,
+                            &sectioned_header,
+                            pw,
+                            ph,
                         )?;
                     }
                 }
@@ -319,7 +346,9 @@ impl Document {
         if ua_enabled {
             ctx.ua_events.end_group(); // close the /Document root
             let events = std::mem::take(&mut ctx.ua_events.events);
-            let tree_for_validation = StructureTree { events: events.clone() };
+            let tree_for_validation = StructureTree {
+                events: events.clone(),
+            };
             let validator = UaValidator::validate(Some(&tree_for_validation), &ua_lang);
             validator.report();
             ctx.backend.write_structure_tree(&events, &ua_lang);
@@ -341,7 +370,11 @@ impl Document {
         opts: crate::signing::SignatureOptions,
     ) -> Result<crate::signing::PreparedPdf> {
         let reserved = opts.reserved_bytes;
-        let bytes = Document { signature: Some(opts), ..self }.render_to_bytes()?;
+        let bytes = Document {
+            signature: Some(opts),
+            ..self
+        }
+        .render_to_bytes()?;
         crate::signing::extract_prepared(bytes, reserved)
     }
 }
@@ -354,7 +387,9 @@ fn header_height_mm(
     page: u32,
 ) -> f64 {
     if let Some(ref sh) = sectioned {
-        sh.resolve(page).map(|h| h.estimated_height_mm()).unwrap_or(0.0)
+        sh.resolve(page)
+            .map(|h| h.estimated_height_mm())
+            .unwrap_or(0.0)
     } else if let Some(ref h) = header {
         h.estimated_height_mm()
     } else {
@@ -450,12 +485,17 @@ fn render_watermark_if_any(
     page_height_mm: f64,
 ) {
     let Some(wm) = watermark else { return };
-    let Some(font_ref) = ctx.get_font_ref(false, false) else { return };
+    let Some(font_ref) = ctx.get_font_ref(false, false) else {
+        return;
+    };
 
     let cx_mm = page_width_mm / 2.0;
     let cy_mm = page_height_mm / 2.0;
-    let half_w = ctx.fonts.get_default()
-        .measure_text_mm(&wm.text, wm.font_size, false, false) / 2.0;
+    let half_w = ctx
+        .fonts
+        .get_default()
+        .measure_text_mm(&wm.text, wm.font_size, false, false)
+        / 2.0;
 
     if ctx.ua_config.enabled {
         ctx.backend.begin_artifact_content();
@@ -465,7 +505,8 @@ fn render_watermark_if_any(
     let _ = ctx.backend.set_opacity(wm.opacity);
     let _ = ctx.backend.draw_text_rotated(
         &wm.text,
-        cx_mm, cy_mm,
+        cx_mm,
+        cy_mm,
         wm.font_size,
         font_ref,
         &wm.color,

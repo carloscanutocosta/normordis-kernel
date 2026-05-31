@@ -3,8 +3,7 @@ use serde_json::Value;
 use super::{
     data::NdtData,
     model::{BodyElement, NdtDocument},
-    resolver,
-    TemplateError,
+    resolver, TemplateError,
 };
 use crate::{
     elements::{
@@ -99,8 +98,10 @@ fn render_body(
                     .unwrap_or(&[])
                     .iter()
                     .map(|row| {
-                        let cells: Vec<String> =
-                            row.iter().map(|c| resolver::resolve_string(c, data)).collect();
+                        let cells: Vec<String> = row
+                            .iter()
+                            .map(|c| resolver::resolve_string(c, data))
+                            .collect();
                         crate::elements::table::TableRow::plain(cells)
                     })
                     .collect();
@@ -201,19 +202,18 @@ fn render_body(
             }
 
             BodyElement::FixedBox(fb) => {
-                let text = resolver::resolve_string(
-                    fb.content.as_deref().unwrap_or(""),
-                    data,
-                );
+                let text = resolver::resolve_string(fb.content.as_deref().unwrap_or(""), data);
                 let overflow = parse_overflow(fb.overflow.as_deref());
                 let alignment = parse_alignment(fb.alignment.as_deref());
-                let border = fb.border_color.as_deref().and_then(RgbColor::from_hex).map(|c| {
-                    BoxBorder {
+                let border = fb
+                    .border_color
+                    .as_deref()
+                    .and_then(RgbColor::from_hex)
+                    .map(|c| BoxBorder {
                         width_mm: fb.border_width_mm.unwrap_or(0.3),
                         color: c,
                         style: BorderStyle::Solid,
-                    }
-                });
+                    });
                 let background = fb.background.as_deref().and_then(RgbColor::from_hex);
                 elements.push(Box::new(FixedTextBox {
                     text_box: FixedBox {
@@ -237,18 +237,28 @@ fn render_body(
             }
 
             BodyElement::ZoneRef(zr) => {
-                let zones = doc.zones.as_ref().ok_or_else(|| TemplateError::ZoneNotFound {
-                    name: zr.zone.clone(),
-                })?;
-                let zone = zones.get(&zr.zone).ok_or_else(|| TemplateError::ZoneNotFound {
-                    name: zr.zone.clone(),
-                })?;
+                let zones = doc
+                    .zones
+                    .as_ref()
+                    .ok_or_else(|| TemplateError::ZoneNotFound {
+                        name: zr.zone.clone(),
+                    })?;
+                let zone = zones
+                    .get(&zr.zone)
+                    .ok_or_else(|| TemplateError::ZoneNotFound {
+                        name: zr.zone.clone(),
+                    })?;
                 let mut zone_els = render_body(&zone.elements, doc, data, style)?;
                 elements.append(&mut zone_els);
             }
 
             BodyElement::Conditional(cond) => {
-                let branch = if evaluate_condition(&cond.condition, cond.operator.as_deref(), &cond.value, data) {
+                let branch = if evaluate_condition(
+                    &cond.condition,
+                    cond.operator.as_deref(),
+                    &cond.value,
+                    data,
+                ) {
                     &cond.then
                 } else {
                     &cond.else_branch
@@ -265,7 +275,9 @@ fn render_body(
                 if let Some(Value::Array(arr)) = items_value {
                     for item_val in arr {
                         let mut item_data = data.clone();
-                        item_data.data.insert(item_var.to_string(), item_val.clone());
+                        item_data
+                            .data
+                            .insert(item_var.to_string(), item_val.clone());
 
                         // Flatten nested object fields under item_var prefix
                         if let Value::Object(map) = item_val {
@@ -297,10 +309,16 @@ fn render_body(
             BodyElement::Toc(toc_el) => {
                 use crate::elements::toc::TableOfContents;
                 let mut toc = TableOfContents::new();
-                if let Some(ref t) = toc_el.title { toc = toc.title(t.clone()); }
-                if let Some(lvl) = toc_el.max_level { toc = toc.max_level(lvl); }
+                if let Some(ref t) = toc_el.title {
+                    toc = toc.title(t.clone());
+                }
+                if let Some(lvl) = toc_el.max_level {
+                    toc = toc.max_level(lvl);
+                }
                 if let Some(ref lc) = toc_el.leader_char {
-                    if let Some(c) = lc.chars().next() { toc = toc.dot_leader(c); }
+                    if let Some(c) = lc.chars().next() {
+                        toc = toc.dot_leader(c);
+                    }
                 }
                 elements.push(Box::new(toc));
             }
@@ -381,13 +399,15 @@ fn evaluate_condition(
 
     match operator.unwrap_or("exists") {
         "exists" => actual.is_some(),
-        "empty" => actual.is_none()
-            || actual.is_none_or(|v| match v {
-                Value::String(s) => s.is_empty(),
-                Value::Array(a) => a.is_empty(),
-                Value::Null => true,
-                _ => false,
-            }),
+        "empty" => {
+            actual.is_none()
+                || actual.is_none_or(|v| match v {
+                    Value::String(s) => s.is_empty(),
+                    Value::Array(a) => a.is_empty(),
+                    Value::Null => true,
+                    _ => false,
+                })
+        }
         "eq" => {
             if let (Some(a), Some(e)) = (actual, expected.as_ref()) {
                 values_equal(a, e)
@@ -403,14 +423,20 @@ fn evaluate_condition(
             }
         }
         "gt" => {
-            if let (Some(a), Some(e)) = (actual.and_then(|v| v.as_f64()), expected.as_ref().and_then(|v| v.as_f64())) {
+            if let (Some(a), Some(e)) = (
+                actual.and_then(|v| v.as_f64()),
+                expected.as_ref().and_then(|v| v.as_f64()),
+            ) {
                 a > e
             } else {
                 false
             }
         }
         "lt" => {
-            if let (Some(a), Some(e)) = (actual.and_then(|v| v.as_f64()), expected.as_ref().and_then(|v| v.as_f64())) {
+            if let (Some(a), Some(e)) = (
+                actual.and_then(|v| v.as_f64()),
+                expected.as_ref().and_then(|v| v.as_f64()),
+            ) {
                 a < e
             } else {
                 false

@@ -52,20 +52,20 @@
 
 // ── Modules ───────────────────────────────────────────────────────────────────
 
-pub mod error;
-pub mod styles;
-pub mod fonts;
-pub mod page;
 pub mod backend;
-pub mod document;
 pub mod builder;
-pub mod layout;
-pub mod elements;
-pub mod richtext;
-pub mod template;
-pub mod signing;
-pub mod ndf;
 pub mod compliance;
+pub mod document;
+pub mod elements;
+pub mod error;
+pub mod fonts;
+pub mod layout;
+pub mod ndf;
+pub mod page;
+pub mod richtext;
+pub mod signing;
+pub mod styles;
+pub mod template;
 
 // ── Error handling ────────────────────────────────────────────────────────────
 
@@ -73,7 +73,7 @@ pub use error::{NormaxisPdfError, Result};
 
 // ── Digital signing ───────────────────────────────────────────────────────────
 
-pub use signing::{PreparedPdf, SignatureConfig, SignatureField, SignatureOptions, sign_pdf};
+pub use signing::{sign_pdf, PreparedPdf, SignatureConfig, SignatureField, SignatureOptions};
 
 // ── Styles ────────────────────────────────────────────────────────────────────
 
@@ -85,11 +85,16 @@ pub use styles::{
 // ── Fonts ─────────────────────────────────────────────────────────────────────
 
 pub use fonts::{
-    liberation_sans_family, liberation_serif_family, liberation_mono_family,
-    FontData, FontVariants, ShapedGlyph,
+    liberation_mono_family,
+    liberation_sans_family,
+    liberation_serif_family,
+    FontData,
     // v1.3.x backward-compatibility aliases
-    FontFamily, FontVariant,
+    FontFamily,
     FontRegistry,
+    FontVariant,
+    FontVariants,
+    ShapedGlyph,
 };
 
 // ── Page ─────────────────────────────────────────────────────────────────────
@@ -100,26 +105,25 @@ pub use page::PageLayout;
 
 pub use layout::{
     AppliedStyle, BorderStyle, BoxBorder, DecorationLine, FixedBox, GlyphUsageTracker,
-    HighlightColor, KnuthPlassOptimizer, LayoutResult, LineBox, LineBreakingMode,
-    LineSegment, OpenTypeFeatures, OverflowPolicy, PageFlow, TabStop, TabStopAlign,
-    TextAlign, TextDecoration, TextLayoutEngine, TextRun, WordBox,
+    HighlightColor, KnuthPlassOptimizer, LayoutResult, LineBox, LineBreakingMode, LineSegment,
+    OpenTypeFeatures, OverflowPolicy, PageFlow, TabStop, TabStopAlign, TextAlign, TextDecoration,
+    TextLayoutEngine, TextRun, WordBox,
 };
 
 // ── Builder / Document ───────────────────────────────────────────────────────
 
-pub use builder::{DocumentBuilder, SigningBuilder};
-pub use backend::{FontRef, ImageRef, PdfBackend};
 pub use backend::pdf_writer_backend::encode_for_identity_h;
+pub use backend::{FontRef, ImageRef, PdfBackend};
+pub use builder::{DocumentBuilder, SigningBuilder};
 pub use document::{CompressionLevel, Document, PdfStandard};
 
 // ── Elements — Flow ──────────────────────────────────────────────────────────
 
 pub use elements::{
-    footnote::{FootnoteMarkStyle, FootnoteRef, FOOTNOTE_SEPARATOR_THICKNESS_MM},
     footer::{PageFooter, SectionedFooter},
+    footnote::{FootnoteMarkStyle, FootnoteRef, FOOTNOTE_SEPARATOR_THICKNESS_MM},
     form::{
-        CheckBoxDef, ComboBoxDef, FieldRect, FormField, ListBoxDef,
-        RadioButtonDef, TextFieldDef,
+        CheckBoxDef, ComboBoxDef, FieldRect, FormField, ListBoxDef, RadioButtonDef, TextFieldDef,
     },
     header::{InstitutionalHeader, SectionedHeader},
     image::ImageElement,
@@ -130,8 +134,8 @@ pub use elements::{
     section_break::{Orientation as SectionOrientation, SectionBreak, SectionMargins},
     spacer::{HorizontalRuleElement, Spacer},
     table::{
-        BorderLineStyle, CellBorder, CellBorders, CellPadding, RowHeight,
-        Table, TableBuilder, TableCell, TableRow, TableStyle,
+        BorderLineStyle, CellBorder, CellBorders, CellPadding, RowHeight, Table, TableBuilder,
+        TableCell, TableRow, TableStyle,
     },
     toc::{TableOfContents, TocEntry},
     Element, LayoutMode, RenderContext, RenderResult,
@@ -148,12 +152,9 @@ pub use richtext::{ncrtf_to_elements, parse_ncrtf, NcrtfDocument};
 // ── Templates ────────────────────────────────────────────────────────────────
 
 pub use template::{
-    parse_ndt, parse_ndt_data, render as render_ndt,
-    serialize_ndt_json, serialize_ndt_toml,
-    NdtDocument, TemplateError,
-    ENGINE_NDT_DATA_VERSION, ENGINE_NDT_VERSION,
-    resolve_runtime_fields, RuntimeContext,
-    check_version_compatibility,
+    check_version_compatibility, parse_ndt, parse_ndt_data, render as render_ndt,
+    resolve_runtime_fields, serialize_ndt_json, serialize_ndt_toml, NdtDocument, RuntimeContext,
+    TemplateError, ENGINE_NDT_DATA_VERSION, ENGINE_NDT_VERSION,
 };
 
 // ── NDT 2.0.0 types ───────────────────────────────────────────────────────────
@@ -163,18 +164,15 @@ pub use template::model::{NdtOutput, NdtSignature, NdtSignatureField};
 // ── NDF pipeline ─────────────────────────────────────────────────────────────
 
 pub use template::{
-    compile_ndt, parse_ndf, render_ndf, render_ndf_prepared_for_signing,
-    verify_ndf, CompileOptions,
+    compile_ndt, parse_ndf, render_ndf, render_ndf_prepared_for_signing, verify_ndf, CompileOptions,
 };
 
 // ── NDF types ─────────────────────────────────────────────────────────────────
 
 pub use ndf::{
-    canonical_hash,
-    Actor, AuditEvent, EventType,
-    IntegrityFailure, IntegrityReport,
-    NdfAudit, NdfDocument, NdfIntegrity,
-    NdfMeta, NdfMetaNumbering, NdfOrigin, NdfOutput, NdfRevision, NdfRevisionRef, NdfSignature,
+    canonical_hash, Actor, AuditEvent, EventType, IntegrityFailure, IntegrityReport, NdfAudit,
+    NdfDocument, NdfIntegrity, NdfMeta, NdfMetaNumbering, NdfOrigin, NdfOutput, NdfRevision,
+    NdfRevisionRef, NdfSignature,
 };
 
 // ── NCRTF 1.3.0 types ────────────────────────────────────────────────────────
@@ -190,8 +188,8 @@ pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 // ── Accessibility / PDF/UA-2 ─────────────────────────────────────────────────
 
 pub use compliance::ua::{
-    AccessibilityConfig, ArtifactType, StructEvent, StructTag, StructureTree,
-    UaError, UaValidator, UaWarning,
+    AccessibilityConfig, ArtifactType, StructEvent, StructTag, StructureTree, UaError, UaValidator,
+    UaWarning,
 };
 
 /// NDT format version supported by this release.

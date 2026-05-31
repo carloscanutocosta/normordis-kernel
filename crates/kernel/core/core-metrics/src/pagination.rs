@@ -8,7 +8,10 @@ pub struct ListOptions {
 
 impl Default for ListOptions {
     fn default() -> Self {
-        Self { limit: 50, offset: 0 }
+        Self {
+            limit: 50,
+            offset: 0,
+        }
     }
 }
 
@@ -19,7 +22,10 @@ impl ListOptions {
 
     /// Constrói opções para a página `page` (0-indexed) com tamanho `size`.
     pub fn page(page: u32, size: u32) -> Self {
-        Self { limit: size, offset: page * size }
+        Self {
+            limit: size,
+            offset: page * size,
+        }
     }
 
     /// Primeira página com o limite dado.
@@ -30,7 +36,10 @@ impl ListOptions {
     /// Sem limite — retorna todos os registos. Usar apenas para exports ou
     /// conjuntos conhecidamente pequenos.
     pub fn unlimited() -> Self {
-        Self { limit: 0, offset: 0 }
+        Self {
+            limit: 0,
+            offset: 0,
+        }
     }
 }
 
@@ -48,7 +57,12 @@ impl<T> Page<T> {
     pub fn from_items(items: Vec<T>, opts: &ListOptions) -> Self {
         let limit = opts.limit;
         let has_more = limit > 0 && items.len() as u32 == limit;
-        Self { items, limit, offset: opts.offset, has_more }
+        Self {
+            items,
+            limit,
+            offset: opts.offset,
+            has_more,
+        }
     }
 
     pub fn map<U>(self, f: impl FnMut(T) -> U) -> Page<U> {

@@ -5,7 +5,8 @@ use native_tls::TlsConnector;
 
 use crate::error::ScannerError;
 use crate::types::{
-    ScanCapabilities, ScanSettings, ScannerClientConfig, ScannerDevice, ScannerState, ScannedDocument,
+    ScanCapabilities, ScanSettings, ScannedDocument, ScannerClientConfig, ScannerDevice,
+    ScannerState,
 };
 use crate::xml::{build_scan_settings_xml, parse_capabilities, parse_scanner_state};
 
@@ -72,7 +73,9 @@ impl ScannerClient {
             return Err(ScannerError::InvalidConfig("resolution must be > 0".into()));
         }
         if s.region.width == 0 || s.region.height == 0 {
-            return Err(ScannerError::InvalidConfig("region width and height must be > 0".into()));
+            return Err(ScannerError::InvalidConfig(
+                "region width and height must be > 0".into(),
+            ));
         }
         Ok(())
     }
@@ -121,7 +124,10 @@ impl ScannerClient {
                 Ok(doc) => return Ok(doc),
                 Err(ScannerError::NotReady) => {
                     if last_progress.elapsed().as_secs() >= 5 {
-                        eprintln!("  Still scanning... ({:.0}s elapsed)", start.elapsed().as_secs_f32());
+                        eprintln!(
+                            "  Still scanning... ({:.0}s elapsed)",
+                            start.elapsed().as_secs_f32()
+                        );
                         last_progress = Instant::now();
                     }
                     std::thread::sleep(self.config.poll_interval);
@@ -146,9 +152,11 @@ impl ScannerClient {
                     return Err(ScannerError::NotReady);
                 }
 
-                let format = crate::types::ScanFormat::from_mime(&content_type)
-                    .ok_or_else(|| ScannerError::FormatNotSupported {
-                        format: content_type.clone(),
+                let format =
+                    crate::types::ScanFormat::from_mime(&content_type).ok_or_else(|| {
+                        ScannerError::FormatNotSupported {
+                            format: content_type.clone(),
+                        }
                     })?;
 
                 eprintln!("  Downloading document ({content_type})...");
@@ -157,7 +165,11 @@ impl ScannerClient {
                     .read_to_end(&mut data)
                     .map_err(|e| ScannerError::NetworkError(e.to_string()))?;
 
-                Ok(ScannedDocument { format, data, content_type })
+                Ok(ScannedDocument {
+                    format,
+                    data,
+                    content_type,
+                })
             }
             // 200 with no content-type or empty body treated as not-ready
             Err(ureq::Error::Status(503, _)) | Err(ureq::Error::Status(202, _)) => {
@@ -237,7 +249,10 @@ mod tests {
             d.escl_url("/ScannerCapabilities"),
             "http://192.168.1.100:80/eSCL/ScannerCapabilities"
         );
-        assert_eq!(d.escl_url("/ScanJobs"), "http://192.168.1.100:80/eSCL/ScanJobs");
+        assert_eq!(
+            d.escl_url("/ScanJobs"),
+            "http://192.168.1.100:80/eSCL/ScanJobs"
+        );
     }
 
     #[test]
@@ -313,7 +328,10 @@ mod tests {
     #[test]
     #[ignore = "requires eSCL scanner at 192.168.1.100:80"]
     fn integration_capabilities_hp() {
-        let client = ScannerClient::new(ScannerDevice::http("192.168.1.100", 80), ScannerClientConfig::default());
+        let client = ScannerClient::new(
+            ScannerDevice::http("192.168.1.100", 80),
+            ScannerClientConfig::default(),
+        );
         let caps = client.capabilities().unwrap();
         assert!(!caps.make_model.is_empty());
         assert!(caps.platen.is_some());
@@ -322,7 +340,10 @@ mod tests {
     #[test]
     #[ignore = "requires eSCL scanner at 192.168.1.100:80"]
     fn integration_scan_a4_pdf_300dpi() {
-        let client = ScannerClient::new(ScannerDevice::http("192.168.1.100", 80), ScannerClientConfig::default());
+        let client = ScannerClient::new(
+            ScannerDevice::http("192.168.1.100", 80),
+            ScannerClientConfig::default(),
+        );
         let doc = client.scan(&ScanSettings::default()).unwrap();
         assert!(!doc.data.is_empty());
         assert_eq!(doc.format, crate::types::ScanFormat::Pdf);

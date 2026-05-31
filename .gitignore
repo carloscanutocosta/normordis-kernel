@@ -3,10 +3,6 @@
 # Artefactos de compilação — reconstruídos por `cargo build`
 /target/
 
-# Cargo.lock não é versionado em crates de biblioteca
-# (convenção: binários versionar, bibliotecas não)
-Cargo.lock
-
 # Backups criados pelo rustfmt
 *.rs.bk
 

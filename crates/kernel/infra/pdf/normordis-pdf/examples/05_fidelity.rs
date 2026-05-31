@@ -55,11 +55,7 @@ fn main() -> Result<()> {
         // Table with exact row heights (v1.1.0)
         .push(
             Table::new(
-                vec![
-                    "Nome".into(),
-                    "Cargo".into(),
-                    "Presença".into(),
-                ],
+                vec!["Nome".into(), "Cargo".into(), "Presença".into()],
                 vec![
                     TableRow::plain(vec![
                         "Ana Ferreira".into(),
@@ -95,9 +91,7 @@ fn main() -> Result<()> {
             items: vec![
                 ListItemElement {
                     indent: 0,
-                    runs: vec![TextRun::plain(
-                        "Aprovação da acta da reunião anterior",
-                    )],
+                    runs: vec![TextRun::plain("Aprovação da acta da reunião anterior")],
                 },
                 ListItemElement {
                     indent: 0,
@@ -126,11 +120,7 @@ fn main() -> Result<()> {
 
     let out = std::env::temp_dir().join("normaxis_fidelity_v110.pdf");
     std::fs::write(&out, &pdf)?;
-    println!(
-        "PDF v1.1.0 gerado: {} ({} bytes)",
-        out.display(),
-        pdf.len()
-    );
+    println!("PDF v1.1.0 gerado: {} ({} bytes)", out.display(), pdf.len());
     assert!(pdf.starts_with(b"%PDF"), "output must be a PDF file");
     assert!(pdf.len() > 10_000, "PDF must be at least 10 KB");
     Ok(())

@@ -1,11 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 use super::{paragraph::TextRun, Element, RenderContext, RenderResult};
-use crate::{
-    compliance::ua::StructTag,
-    layout::LayoutResult,
-    richtext::marks::AppliedStyle,
-};
+use crate::{compliance::ua::StructTag, layout::LayoutResult, richtext::marks::AppliedStyle};
 
 /// A single item in an unordered or ordered list.
 ///
@@ -76,8 +72,12 @@ fn render_item_ua_or_plain(
             let y = ctx.flow.cursor_y_mm;
             ctx.flow.advance(line.height_mm);
             for seg in &line.segments {
-                if seg.text.is_empty() { continue; }
-                let Some(font_ref) = ctx.get_font_ref(seg.style.bold, seg.style.italic) else { continue };
+                if seg.text.is_empty() {
+                    continue;
+                }
+                let Some(font_ref) = ctx.get_font_ref(seg.style.bold, seg.style.italic) else {
+                    continue;
+                };
                 let x = text_x + seg.x_offset_mm;
                 let _ = ctx.draw_text(&seg.text, x, y, fs, font_ref, &tc);
             }
@@ -98,7 +98,10 @@ fn layout_item(
     fs: f64,
 ) -> (f64, LayoutResult) {
     let indent_mm = f64::from(indent) * INDENT_MM;
-    let prefix_w = ctx.fonts.get_default().measure_text_mm(prefix, fs, false, false);
+    let prefix_w = ctx
+        .fonts
+        .get_default()
+        .measure_text_mm(prefix, fs, false, false);
     let text_x = ctx.layout.content_x_mm + indent_mm + prefix_w;
     let max_w = (ctx.layout.content_width_mm - indent_mm - prefix_w).max(1.0);
     let result = ctx.layout_engine.layout_runs(
@@ -177,7 +180,9 @@ impl Element for BulletList {
         let fs = ctx.style.font_size_body;
         let ua = ctx.ua_config.enabled;
 
-        if ua && start == 0 { ctx.ua_begin_group(StructTag::L, None); }
+        if ua && start == 0 {
+            ctx.ua_begin_group(StructTag::L, None);
+        }
 
         for (i, item) in self.items.iter().enumerate().skip(start) {
             let (text_x, layout) = layout_item(ctx, item.indent, "• ", &item.runs, fs);
@@ -185,16 +190,24 @@ impl Element for BulletList {
 
             if ctx.flow.would_overflow(item_h) && i > start {
                 ctx.resume_index = i;
-                if ua { ctx.ua_end_group(); }
+                if ua {
+                    ctx.ua_end_group();
+                }
                 return Ok(RenderResult::more());
             }
 
-            if ua { ctx.ua_begin_group(StructTag::LI, None); }
+            if ua {
+                ctx.ua_begin_group(StructTag::LI, None);
+            }
             render_item_ua_or_plain(ctx, item.indent, "• ", text_x, fs, &layout);
-            if ua { ctx.ua_end_group(); }
+            if ua {
+                ctx.ua_end_group();
+            }
         }
 
-        if ua { ctx.ua_end_group(); }
+        if ua {
+            ctx.ua_end_group();
+        }
         Ok(RenderResult::done())
     }
 }
@@ -225,7 +238,9 @@ impl Element for OrderedList {
         let fs = ctx.style.font_size_body;
         let ua = ctx.ua_config.enabled;
 
-        if ua && start == 0 { ctx.ua_begin_group(StructTag::L, None); }
+        if ua && start == 0 {
+            ctx.ua_begin_group(StructTag::L, None);
+        }
 
         for (i, item) in self.items.iter().enumerate().skip(start) {
             let prefix = format!("{}. ", self.start + i as u32);
@@ -234,16 +249,24 @@ impl Element for OrderedList {
 
             if ctx.flow.would_overflow(item_h) && i > start {
                 ctx.resume_index = i;
-                if ua { ctx.ua_end_group(); }
+                if ua {
+                    ctx.ua_end_group();
+                }
                 return Ok(RenderResult::more());
             }
 
-            if ua { ctx.ua_begin_group(StructTag::LI, None); }
+            if ua {
+                ctx.ua_begin_group(StructTag::LI, None);
+            }
             render_item_ua_or_plain(ctx, item.indent, &prefix, text_x, fs, &layout);
-            if ua { ctx.ua_end_group(); }
+            if ua {
+                ctx.ua_end_group();
+            }
         }
 
-        if ua { ctx.ua_end_group(); }
+        if ua {
+            ctx.ua_end_group();
+        }
         Ok(RenderResult::done())
     }
 }
@@ -272,31 +295,45 @@ impl Element for CheckList {
         let fs = ctx.style.font_size_body;
         let ua = ctx.ua_config.enabled;
 
-        if ua && start == 0 { ctx.ua_begin_group(StructTag::L, None); }
+        if ua && start == 0 {
+            ctx.ua_begin_group(StructTag::L, None);
+        }
 
         for (i, item) in self.items.iter().enumerate().skip(start) {
             let prefix = if item.checked { "[x] " } else { "[ ] " };
-            let runs: Vec<TextRun> = item.runs.iter().map(|r| TextRun {
-                text: r.text.clone(),
-                style: r.style.clone(),
-                letter_spacing_mm: r.letter_spacing_mm,
-                ..Default::default()
-            }).collect();
+            let runs: Vec<TextRun> = item
+                .runs
+                .iter()
+                .map(|r| TextRun {
+                    text: r.text.clone(),
+                    style: r.style.clone(),
+                    letter_spacing_mm: r.letter_spacing_mm,
+                    ..Default::default()
+                })
+                .collect();
             let (text_x, layout) = layout_item(ctx, item.indent, prefix, &runs, fs);
             let item_h = layout.total_height_mm + fs * 0.20 * 25.4 / 72.0;
 
             if ctx.flow.would_overflow(item_h) && i > start {
                 ctx.resume_index = i;
-                if ua { ctx.ua_end_group(); }
+                if ua {
+                    ctx.ua_end_group();
+                }
                 return Ok(RenderResult::more());
             }
 
-            if ua { ctx.ua_begin_group(StructTag::LI, None); }
+            if ua {
+                ctx.ua_begin_group(StructTag::LI, None);
+            }
             render_item_ua_or_plain(ctx, item.indent, prefix, text_x, fs, &layout);
-            if ua { ctx.ua_end_group(); }
+            if ua {
+                ctx.ua_end_group();
+            }
         }
 
-        if ua { ctx.ua_end_group(); }
+        if ua {
+            ctx.ua_end_group();
+        }
         Ok(RenderResult::done())
     }
 }

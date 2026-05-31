@@ -53,8 +53,14 @@ impl<'de> Deserialize<'de> for MarkValue {
                     other => Err(de::Error::unknown_variant(
                         other,
                         &[
-                            "bold", "italic", "underline", "strikethrough",
-                            "superscript", "subscript", "code", "small_caps",
+                            "bold",
+                            "italic",
+                            "underline",
+                            "strikethrough",
+                            "superscript",
+                            "subscript",
+                            "code",
+                            "small_caps",
                         ],
                     )),
                 }
@@ -76,8 +82,7 @@ impl<'de> Deserialize<'de> for MarkValue {
                     }
                 }
 
-                let type_str =
-                    type_field.ok_or_else(|| de::Error::missing_field("type"))?;
+                let type_str = type_field.ok_or_else(|| de::Error::missing_field("type"))?;
 
                 match type_str.as_str() {
                     "color" => {
@@ -104,18 +109,22 @@ impl<'de> Deserialize<'de> for MarkValue {
                         Ok(MarkValue::FontSize(val))
                     }
                     "underline" => {
-                        let val = color_field
-                            .ok_or_else(|| de::Error::missing_field("color"))?;
+                        let val = color_field.ok_or_else(|| de::Error::missing_field("color"))?;
                         Ok(MarkValue::UnderlineColor(val))
                     }
                     "strikethrough" => {
-                        let val = color_field
-                            .ok_or_else(|| de::Error::missing_field("color"))?;
+                        let val = color_field.ok_or_else(|| de::Error::missing_field("color"))?;
                         Ok(MarkValue::StrikethroughColor(val))
                     }
                     other => Err(de::Error::unknown_variant(
                         other,
-                        &["color", "highlight", "font_size", "underline", "strikethrough"],
+                        &[
+                            "color",
+                            "highlight",
+                            "font_size",
+                            "underline",
+                            "strikethrough",
+                        ],
                     )),
                 }
             }
@@ -283,22 +292,22 @@ impl HighlightColor {
     /// Returns the sRGB colour for this Word highlight.
     pub fn to_rgb(self) -> RgbColor {
         let (r, g, b) = match self {
-            Self::Black       => (0.000, 0.000, 0.000),
-            Self::Blue        => (0.000, 0.000, 1.000),
-            Self::Cyan        => (0.000, 1.000, 1.000),
-            Self::DarkBlue    => (0.000, 0.000, 0.502),
-            Self::DarkCyan    => (0.000, 0.502, 0.502),
-            Self::DarkGray    => (0.663, 0.663, 0.663),
-            Self::DarkGreen   => (0.000, 0.502, 0.000),
+            Self::Black => (0.000, 0.000, 0.000),
+            Self::Blue => (0.000, 0.000, 1.000),
+            Self::Cyan => (0.000, 1.000, 1.000),
+            Self::DarkBlue => (0.000, 0.000, 0.502),
+            Self::DarkCyan => (0.000, 0.502, 0.502),
+            Self::DarkGray => (0.663, 0.663, 0.663),
+            Self::DarkGreen => (0.000, 0.502, 0.000),
             Self::DarkMagenta => (0.502, 0.000, 0.502),
-            Self::DarkRed     => (0.502, 0.000, 0.000),
-            Self::DarkYellow  => (0.502, 0.502, 0.000),
-            Self::Green       => (0.000, 1.000, 0.000),
-            Self::LightGray   => (0.827, 0.827, 0.827),
-            Self::Magenta     => (1.000, 0.000, 1.000),
-            Self::Red         => (1.000, 0.000, 0.000),
-            Self::White       => (1.000, 1.000, 1.000),
-            Self::Yellow      => (1.000, 1.000, 0.000),
+            Self::DarkRed => (0.502, 0.000, 0.000),
+            Self::DarkYellow => (0.502, 0.502, 0.000),
+            Self::Green => (0.000, 1.000, 0.000),
+            Self::LightGray => (0.827, 0.827, 0.827),
+            Self::Magenta => (1.000, 0.000, 1.000),
+            Self::Red => (1.000, 0.000, 0.000),
+            Self::White => (1.000, 1.000, 1.000),
+            Self::Yellow => (1.000, 1.000, 0.000),
         };
         RgbColor { r, g, b }
     }
@@ -318,19 +327,29 @@ pub struct DecorationLine {
 }
 
 impl DecorationLine {
-    fn default_thickness() -> f64 { 0.25 }
+    fn default_thickness() -> f64 {
+        0.25
+    }
 
     pub fn simple() -> Self {
-        Self { color: None, thickness_mm: 0.25 }
+        Self {
+            color: None,
+            thickness_mm: 0.25,
+        }
     }
 
     pub fn with_color(color: RgbColor) -> Self {
-        Self { color: Some(color), thickness_mm: 0.25 }
+        Self {
+            color: Some(color),
+            thickness_mm: 0.25,
+        }
     }
 }
 
 impl Default for DecorationLine {
-    fn default() -> Self { Self::simple() }
+    fn default() -> Self {
+        Self::simple()
+    }
 }
 
 // ── TextDecoration ────────────────────────────────────────────────────────────
@@ -405,12 +424,24 @@ impl OpenTypeFeatures {
                 end: u32::MAX,
             });
         };
-        if self.kern { add(*b"kern"); }
-        if self.liga { add(*b"liga"); }
-        if self.tnum { add(*b"tnum"); }
-        if self.smcp { add(*b"smcp"); }
-        if self.sups { add(*b"sups"); }
-        if self.subs { add(*b"subs"); }
+        if self.kern {
+            add(*b"kern");
+        }
+        if self.liga {
+            add(*b"liga");
+        }
+        if self.tnum {
+            add(*b"tnum");
+        }
+        if self.smcp {
+            add(*b"smcp");
+        }
+        if self.sups {
+            add(*b"sups");
+        }
+        if self.subs {
+            add(*b"subs");
+        }
         out
     }
 }
@@ -489,7 +520,10 @@ impl Default for TextRun {
 impl TextRun {
     /// Create a plain (unstyled) text run.
     pub fn plain(text: impl Into<String>) -> Self {
-        Self { text: text.into(), ..Default::default() }
+        Self {
+            text: text.into(),
+            ..Default::default()
+        }
     }
 
     /// Create a superscript run for inline footnote references.
@@ -498,7 +532,10 @@ impl TextRun {
     pub fn footnote_ref(number: u32) -> Self {
         Self {
             text: number.to_string(),
-            style: AppliedStyle { superscript: true, ..Default::default() },
+            style: AppliedStyle {
+                superscript: true,
+                ..Default::default()
+            },
             ..Default::default()
         }
     }

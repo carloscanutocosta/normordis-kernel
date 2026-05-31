@@ -18,8 +18,8 @@ impl MetricVersionStore for MetricsSqliteStore {
             .map(|b| serde_json::to_string(b))
             .transpose()
             .map_err(|_| MetricError::MarshalFailed)?;
-        let evidence_json =
-            serde_json::to_string(&v.evidence_requirements).map_err(|_| MetricError::MarshalFailed)?;
+        let evidence_json = serde_json::to_string(&v.evidence_requirements)
+            .map_err(|_| MetricError::MarshalFailed)?;
         self.db()
             .execute(
                 "INSERT INTO metric_versions
@@ -49,7 +49,8 @@ impl MetricVersionStore for MetricsSqliteStore {
     }
 
     fn get_version(&self, id: &str) -> Result<MetricVersion, MetricError> {
-        let row = self.db()
+        let row = self
+            .db()
             .query_row(
                 "SELECT id, metric_definition_id, version, status,
                         valid_from, valid_to, formula_ref,
@@ -95,7 +96,8 @@ impl MetricVersionStore for MetricsSqliteStore {
         at: DateTime<Utc>,
     ) -> Result<Option<MetricVersion>, MetricError> {
         let at_str = dt_to_str(at);
-        let row = self.db()
+        let row = self
+            .db()
             .query_row(
                 "SELECT mv.id, mv.metric_definition_id, mv.version, mv.status,
                         mv.valid_from, mv.valid_to, mv.formula_ref,
@@ -127,10 +129,9 @@ impl MetricVersionStore for MetricsSqliteStore {
         if matches!(status, MetricVersionStatus::Published) {
             extra = format!(", published_at = '{}'", dt_to_str(Utc::now()));
         }
-        let sql = format!(
-            "UPDATE metric_versions SET status = ?1{extra} WHERE id = ?2"
-        );
-        let n = self.db()
+        let sql = format!("UPDATE metric_versions SET status = ?1{extra} WHERE id = ?2");
+        let n = self
+            .db()
             .execute(&sql, params![status.as_str(), id])
             .map_err(MetricsSqliteError::Sqlite)?;
         if n == 0 {
@@ -149,14 +150,14 @@ fn row_to_version(r: &rusqlite::Row<'_>) -> rusqlite::Result<MetricVersion> {
     let published_s: Option<String> = r.get(10)?;
     let created_s: String = r.get(11)?;
 
-    let status =
-        MetricVersionStatus::from_str(&status_s).unwrap_or(MetricVersionStatus::Draft);
+    let status = MetricVersionStatus::from_str(&status_s).unwrap_or(MetricVersionStatus::Draft);
     let valid_from = crate::util::str_to_dt(&valid_from_s).unwrap_or_else(|_| Utc::now());
     let valid_to = valid_to_s
         .as_deref()
         .and_then(|s| crate::util::str_to_dt(s).ok());
-    let calculation_binding: Option<CalculationBinding> =
-        binding_s.as_deref().and_then(|s| serde_json::from_str(s).ok());
+    let calculation_binding: Option<CalculationBinding> = binding_s
+        .as_deref()
+        .and_then(|s| serde_json::from_str(s).ok());
     let evidence_requirements: Vec<EvidenceRequirement> =
         serde_json::from_str(&evidence_s).unwrap_or_default();
     let published_at = published_s

@@ -21,4 +21,3 @@ pub fn limit_offset(opts: &ListOptions) -> String {
         format!(" LIMIT {} OFFSET {}", opts.limit, opts.offset)
     }
 }
-

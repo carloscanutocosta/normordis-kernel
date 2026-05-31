@@ -61,8 +61,8 @@ impl Default for CompileOptions {
 /// 5. Compute integrity hashes (RFC 8785 / JCS)
 /// 6. Build and return `NdfDocument`
 pub fn compile_ndt(ndt: &str, data: &NdtData, options: CompileOptions) -> Result<NdfDocument> {
-    let doc = super::parse_ndt(ndt)
-        .map_err(|e| NormaxisPdfError::NdfCompileError(e.to_string()))?;
+    let doc =
+        super::parse_ndt(ndt).map_err(|e| NormaxisPdfError::NdfCompileError(e.to_string()))?;
 
     if let Some(ref placeholders) = doc.placeholders {
         super::validator::validate(placeholders, data)
@@ -70,8 +70,8 @@ pub fn compile_ndt(ndt: &str, data: &NdtData, options: CompileOptions) -> Result
     }
 
     // Serialize and resolve body + style
-    let body_val = serde_json::to_value(&doc.body)
-        .map_err(|e| NormaxisPdfError::SerdeError(e.to_string()))?;
+    let body_val =
+        serde_json::to_value(&doc.body).map_err(|e| NormaxisPdfError::SerdeError(e.to_string()))?;
     let resolved_content = resolve_value_placeholders(body_val, data);
 
     let styles_val = serde_json::to_value(&doc.style)
@@ -114,8 +114,8 @@ pub fn compile_ndt(ndt: &str, data: &NdtData, options: CompileOptions) -> Result
         compat_mode: meta_compat,
         numbering: None,
     };
-    let meta_val = serde_json::to_value(&meta)
-        .map_err(|e| NormaxisPdfError::SerdeError(e.to_string()))?;
+    let meta_val =
+        serde_json::to_value(&meta).map_err(|e| NormaxisPdfError::SerdeError(e.to_string()))?;
 
     let integrity = NdfIntegrity::compute(&resolved_content, &styles_val, &meta_val)?;
     let document_id = options
@@ -181,9 +181,8 @@ pub fn verify_ndf(json: &str) -> Result<crate::ndf::integrity::IntegrityReport> 
 pub fn render_ndf(ndf_json: &str) -> Result<Vec<u8>> {
     let ndf = parse_ndf(ndf_json)?;
 
-    let body: Vec<super::model::BodyElement> =
-        serde_json::from_value(ndf.content.clone())
-            .map_err(|e| NormaxisPdfError::SerdeError(e.to_string()))?;
+    let body: Vec<super::model::BodyElement> = serde_json::from_value(ndf.content.clone())
+        .map_err(|e| NormaxisPdfError::SerdeError(e.to_string()))?;
 
     let ndt_doc = super::model::NdtDocument {
         ndt: "1.1.0".into(),
@@ -245,9 +244,8 @@ pub fn render_ndf_prepared_for_signing(
 ) -> Result<crate::signing::PreparedPdf> {
     let ndf = parse_ndf(ndf_json)?;
 
-    let body: Vec<super::model::BodyElement> =
-        serde_json::from_value(ndf.content.clone())
-            .map_err(|e| NormaxisPdfError::SerdeError(e.to_string()))?;
+    let body: Vec<super::model::BodyElement> = serde_json::from_value(ndf.content.clone())
+        .map_err(|e| NormaxisPdfError::SerdeError(e.to_string()))?;
 
     let ndt_doc = super::model::NdtDocument {
         ndt: "1.1.0".into(),
@@ -308,9 +306,11 @@ pub fn render_ndf_prepared_for_signing(
 fn resolve_value_placeholders(value: Value, data: &NdtData) -> Value {
     match value {
         Value::String(s) => Value::String(resolver::resolve_string(&s, data)),
-        Value::Array(arr) => {
-            Value::Array(arr.into_iter().map(|v| resolve_value_placeholders(v, data)).collect())
-        }
+        Value::Array(arr) => Value::Array(
+            arr.into_iter()
+                .map(|v| resolve_value_placeholders(v, data))
+                .collect(),
+        ),
         Value::Object(map) => {
             let mut new_map = serde_json::Map::new();
             for (k, v) in map {

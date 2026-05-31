@@ -3,9 +3,8 @@ use chrono::{DateTime, Utc};
 use core_rh::RoleRepository;
 
 use crate::{
-    AppId, AppRegistration, AppRegistryFilter, AppRegistryRepository,
-    AppState, AppStateTransition, RegisterAppRequest, RegistryError,
-    RoleId, TransitionStateRequest, UpdateAppMetadataRequest,
+    AppId, AppRegistration, AppRegistryFilter, AppRegistryRepository, AppState, AppStateTransition,
+    RegisterAppRequest, RegistryError, RoleId, TransitionStateRequest, UpdateAppMetadataRequest,
 };
 
 /// Ponto de entrada único para operações sobre o catálogo institucional de apps.
@@ -17,7 +16,7 @@ where
     R: AppRegistryRepository,
     L: RoleRepository,
 {
-    repo:  R,
+    repo: R,
     roles: L,
 }
 
@@ -62,9 +61,7 @@ where
         request.validate()?;
         self.validate_roles(&request.allowed_roles)?;
         if self.repo.exists(&request.id)? {
-            return Err(
-                RegistryError::AppAlreadyRegistered(request.id.as_str().to_owned()).into(),
-            );
+            return Err(RegistryError::AppAlreadyRegistered(request.id.as_str().to_owned()).into());
         }
         self.repo.register(&request, now)
     }
@@ -78,7 +75,9 @@ where
         request.validate()?;
 
         let app = self.repo.get(&request.app_id)?.ok_or_else(|| {
-            R::Error::from(RegistryError::AppNotFound(request.app_id.as_str().to_owned()))
+            R::Error::from(RegistryError::AppNotFound(
+                request.app_id.as_str().to_owned(),
+            ))
         })?;
 
         let current = app.current_state().ok_or_else(|| {
@@ -91,7 +90,7 @@ where
         if !current.can_transition_to(&request.to_state) {
             return Err(RegistryError::InvalidStateTransition {
                 from: current.as_str().to_owned(),
-                to:   request.to_state.as_str().to_owned(),
+                to: request.to_state.as_str().to_owned(),
             }
             .into());
         }
@@ -108,9 +107,7 @@ where
     ) -> Result<(), R::Error> {
         request.validate()?;
         if !self.repo.exists(&request.app_id)? {
-            return Err(
-                RegistryError::AppNotFound(request.app_id.as_str().to_owned()).into(),
-            );
+            return Err(RegistryError::AppNotFound(request.app_id.as_str().to_owned()).into());
         }
         self.repo.update_metadata(&request, now)
     }
@@ -165,10 +162,7 @@ where
         self.repo.list(filter, limit)
     }
 
-    pub fn history(
-        &self,
-        id: &AppId,
-    ) -> Result<Vec<AppStateTransition>, R::Error> {
+    pub fn history(&self, id: &AppId) -> Result<Vec<AppStateTransition>, R::Error> {
         self.repo.state_history(id)
     }
 }

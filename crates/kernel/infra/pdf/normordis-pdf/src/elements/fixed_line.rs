@@ -63,9 +63,12 @@ impl Element for FixedLineElement {
     fn render(&self, ctx: &mut RenderContext) -> crate::Result<super::RenderResult> {
         let width_pt = (self.width_mm * 72.0 / 25.4) as f32;
         ctx.backend.draw_line(
-            self.x1_mm, self.y1_mm,
-            self.x2_mm, self.y2_mm,
-            width_pt, &self.color,
+            self.x1_mm,
+            self.y1_mm,
+            self.x2_mm,
+            self.y2_mm,
+            width_pt,
+            &self.color,
         )?;
         Ok(super::RenderResult::done())
     }

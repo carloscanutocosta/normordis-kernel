@@ -1,6 +1,4 @@
-use crate::{
-    AppUsageEvent, AppUsageStats, TelemetryError, UsageEventFilter, UsagePeriod,
-};
+use crate::{AppUsageEvent, AppUsageStats, TelemetryError, UsageEventFilter, UsagePeriod};
 
 pub trait TelemetryRepository {
     type Error: From<TelemetryError>;

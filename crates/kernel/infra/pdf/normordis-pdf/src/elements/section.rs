@@ -64,13 +64,23 @@ impl Element for Section {
     }
 
     fn estimated_height_mm(&self) -> f64 {
-        let pre = match self.level { 1 => 8.0, 2 => 6.0, _ => 4.0 };
-        let post = match self.level { 1 => 4.0, 2 => 3.0, _ => 2.0 };
+        let pre = match self.level {
+            1 => 8.0,
+            2 => 6.0,
+            _ => 4.0,
+        };
+        let post = match self.level {
+            1 => 4.0,
+            2 => 3.0,
+            _ => 2.0,
+        };
         pre + 7.0 + post
     }
 
     fn render(&self, ctx: &mut RenderContext) -> crate::Result<super::RenderResult> {
-        let style_name = self.style_ref.as_deref()
+        let style_name = self
+            .style_ref
+            .as_deref()
             .unwrap_or_else(|| self.default_style_name());
 
         let resolver = StyleResolver::new(&ctx.style.named_styles, &ctx.style);
@@ -82,11 +92,14 @@ impl Element for Section {
             ctx.flow.advance(resolved.space_before_mm);
         }
 
-        let color = resolved.color.clone()
+        let color = resolved
+            .color
+            .clone()
             .unwrap_or_else(|| ctx.style.text_color.clone());
 
         let Some(font_ref) = ctx.get_font_ref(resolved.bold, resolved.italic) else {
-            ctx.flow.advance(self.estimated_height_mm() - resolved.space_before_mm);
+            ctx.flow
+                .advance(self.estimated_height_mm() - resolved.space_before_mm);
             return Ok(super::RenderResult::done());
         };
 
@@ -114,7 +127,14 @@ impl Element for Section {
         let mcid_opt = if ctx.ua_enabled() {
             let mcid = ctx.ua_tag_element(ua_tag, None);
             ctx.backend.begin_tagged_content(
-                match self.level { 1 => b"H1", 2 => b"H2", 3 => b"H3", 4 => b"H4", 5 => b"H5", _ => b"H6" },
+                match self.level {
+                    1 => b"H1",
+                    2 => b"H2",
+                    3 => b"H3",
+                    4 => b"H4",
+                    5 => b"H5",
+                    _ => b"H6",
+                },
                 mcid,
             );
             Some(mcid)
@@ -128,7 +148,8 @@ impl Element for Section {
 
         // Record outline entry so the bookmarks panel navigates here.
         let page_idx = ctx.backend.current_page_idx();
-        ctx.backend.add_outline_entry(&self.title, self.level, page_idx, y);
+        ctx.backend
+            .add_outline_entry(&self.title, self.level, page_idx, y);
 
         let line_h = ctx.layout_engine.line_height_mm(&ctx.fonts, fs);
         ctx.flow.advance(line_h + resolved.space_after_mm);
