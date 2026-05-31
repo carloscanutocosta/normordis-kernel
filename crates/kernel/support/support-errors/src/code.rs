@@ -17,6 +17,19 @@ pub enum ErrorCodeError {
 }
 
 impl ErrorCode {
+    /// Creates an `ErrorCode` from a compile-time `&'static str` without allocation overhead.
+    /// In debug builds, panics if the value does not meet `ErrorCode` requirements.
+    /// Only use with string literals whose validity is guaranteed by the caller.
+    pub fn new_static(value: &'static str) -> Self {
+        debug_assert!(!value.is_empty(), "error code cannot be empty");
+        debug_assert!(value.starts_with("MINI."), "error code must start with MINI.");
+        debug_assert!(
+            !value.chars().any(char::is_whitespace),
+            "error code cannot contain spaces"
+        );
+        Self(value.to_owned())
+    }
+
     pub fn new(value: impl Into<String>) -> Result<Self, ErrorCodeError> {
         let value = value.into();
 
@@ -93,5 +106,12 @@ mod tests {
         let err = serde_json::from_str::<ErrorCode>(r#""SQLITE.OPEN_FAILED""#).unwrap_err();
 
         assert!(err.to_string().contains("MINI."));
+    }
+
+    #[test]
+    fn new_static_accepts_valid_code() {
+        let code = ErrorCode::new_static("MINI.CONFIG.INVALID_APP");
+
+        assert_eq!(code.as_str(), "MINI.CONFIG.INVALID_APP");
     }
 }

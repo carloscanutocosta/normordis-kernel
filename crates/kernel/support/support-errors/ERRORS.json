@@ -441,6 +441,13 @@
       "public_message_policy": "Generica. Nao expor detalhes internos de configuracao sensivel."
     },
     {
+      "code": "MINI.CONFIG.MALFORMED_JSON",
+      "status": "active",
+      "component": "core-config",
+      "use": "JSON de configuracao local nao pode ser desserializado — formato invalido, campo desconhecido, valor de enum nao reconhecido ou campo obrigatorio em falta sem default.",
+      "public_message_policy": "Generica. Nao expor o JSON recebido nem o detalhe do erro de parsing."
+    },
+    {
       "code": "MINI.VALIDATION.INVALID_INPUT",
       "status": "active",
       "component": "core-validation",

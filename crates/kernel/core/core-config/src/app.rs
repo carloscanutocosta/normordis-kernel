@@ -8,6 +8,8 @@ pub struct AppProfile {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[non_exhaustive]
+#[serde(rename_all = "snake_case")]
 pub enum Environment {
     Dev,
     Test,
