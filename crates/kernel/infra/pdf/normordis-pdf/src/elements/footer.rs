@@ -27,7 +27,10 @@ impl PageFooter {
 
     /// Convenience constructor — shows page number only.
     pub fn with_page_numbers() -> Self {
-        Self { show_page_number: true, ..Self::new() }
+        Self {
+            show_page_number: true,
+            ..Self::new()
+        }
     }
 
     pub fn left(mut self, text: impl Into<String>) -> Self {
@@ -56,7 +59,9 @@ impl Element for PageFooter {
         use crate::template::resolver::{resolve_runtime_fields, RuntimeContext};
 
         let ua = ctx.ua_config.enabled;
-        if ua { ctx.backend.begin_artifact_content(); }
+        if ua {
+            ctx.backend.begin_artifact_content();
+        }
 
         let y = ctx.flow.cursor_y_mm;
         let x1 = ctx.layout.content_x_mm;
@@ -83,25 +88,36 @@ impl Element for PageFooter {
 
         if let Some(ref txt) = self.center_text {
             let resolved = resolve_runtime_fields(txt, &rt);
-            let w = ctx.fonts.get_default().measure_text_mm(&resolved, fs, false, false);
+            let w = ctx
+                .fonts
+                .get_default()
+                .measure_text_mm(&resolved, fs, false, false);
             let cx = x1 + content_width / 2.0 - w / 2.0;
             ctx.draw_text(&resolved, cx, text_y, fs, font_ref, &tc)?;
         }
 
         if let Some(ref txt) = self.right_text {
             let resolved = resolve_runtime_fields(txt, &rt);
-            let w = ctx.fonts.get_default().measure_text_mm(&resolved, fs, false, false);
+            let w = ctx
+                .fonts
+                .get_default()
+                .measure_text_mm(&resolved, fs, false, false);
             let rx = x1 + content_width - w;
             ctx.draw_text(&resolved, rx, text_y, fs, font_ref, &tc)?;
         } else if self.show_page_number {
             let num = ctx.page_number.to_string();
-            let w = ctx.fonts.get_default().measure_text_mm(&num, fs, false, false);
+            let w = ctx
+                .fonts
+                .get_default()
+                .measure_text_mm(&num, fs, false, false);
             let rx = x1 + content_width - w;
             ctx.draw_text(&num, rx, text_y, fs, font_ref, &tc)?;
         }
 
         ctx.flow.advance(self.estimated_height_mm());
-        if ua { ctx.backend.end_tagged_content(); }
+        if ua {
+            ctx.backend.end_tagged_content();
+        }
         Ok(super::RenderResult::done())
     }
 }

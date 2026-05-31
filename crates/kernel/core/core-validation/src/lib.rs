@@ -9,9 +9,9 @@ pub mod validators;
 
 // ── error ─────────────────────────────────────────────────────────────────────
 pub use error::{
-    ValidationError, VALIDATION_COMPONENT, FILE_NOT_FOUND, FILE_READ_FAILED, HASH_FAILED,
-    INVALID_INPUT, INVALID_RULE, JSON_FAILED, MANIFEST_FAILED, NORMALIZATION_FAILED,
-    NOT_REGULAR_FILE, OPERATION_FAILED,
+    ValidationError, FILE_NOT_FOUND, FILE_READ_FAILED, HASH_FAILED, INVALID_INPUT, INVALID_RULE,
+    JSON_FAILED, MANIFEST_FAILED, NORMALIZATION_FAILED, NOT_REGULAR_FILE, OPERATION_FAILED,
+    VALIDATION_COMPONENT,
 };
 
 // ── hash ──────────────────────────────────────────────────────────────────────

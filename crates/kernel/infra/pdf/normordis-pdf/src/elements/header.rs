@@ -22,10 +22,7 @@ pub struct InstitutionalHeader {
 }
 
 impl InstitutionalHeader {
-    pub fn new(
-        entity_name: impl Into<String>,
-        document_title: impl Into<String>,
-    ) -> Self {
+    pub fn new(entity_name: impl Into<String>, document_title: impl Into<String>) -> Self {
         Self {
             entity_name: entity_name.into(),
             document_title: document_title.into(),
@@ -59,18 +56,31 @@ impl InstitutionalHeader {
 
 impl Element for InstitutionalHeader {
     fn estimated_height_mm(&self) -> f64 {
-        if self.logo.is_some() { 35.0 } else { 25.0 }
+        if self.logo.is_some() {
+            35.0
+        } else {
+            25.0
+        }
     }
 
     fn render(&self, ctx: &mut RenderContext) -> crate::Result<super::RenderResult> {
         let ua = ctx.ua_config.enabled;
-        if ua { ctx.backend.begin_artifact_content(); }
+        if ua {
+            ctx.backend.begin_artifact_content();
+        }
 
         let text_color = ctx.style.text_color.clone();
-        let muted_color = RgbColor { r: 0.45, g: 0.45, b: 0.45 };
+        let muted_color = RgbColor {
+            r: 0.45,
+            g: 0.45,
+            b: 0.45,
+        };
         let sep_color = ctx.style.primary_color.clone();
         let resolver = StyleResolver::new(&ctx.style.named_styles, &ctx.style);
-        let font_family = resolver.resolve("normal").map(|r| r.font_family).unwrap_or_else(|_| "LiberationSans".to_string());
+        let font_family = resolver
+            .resolve("normal")
+            .map(|r| r.font_family)
+            .unwrap_or_else(|_| "LiberationSans".to_string());
 
         let content_x = ctx.layout.content_x_mm;
         let content_w = ctx.layout.content_width_mm;
@@ -85,7 +95,9 @@ impl Element for InstitutionalHeader {
                 ctx.draw_text(&self.entity_name, content_x, y, fs_main, fref, &text_color)?;
             }
             if let Some(ref date) = self.date {
-                let dw = ctx.fonts.get_family(&font_family)
+                let dw = ctx
+                    .fonts
+                    .get_family(&font_family)
                     .measure_text_mm(date, fs_meta, false, false);
                 if let Some(fref) = ctx.get_font_ref(false, false) {
                     ctx.draw_text(date, right_edge - dw, y, fs_meta, fref, &muted_color)?;
@@ -101,10 +113,19 @@ impl Element for InstitutionalHeader {
             let fs_meta = 9.0_f64;
             let y = ctx.flow.cursor_y_mm;
             if let Some(fref) = ctx.get_font_ref(true, false) {
-                ctx.draw_text(&self.document_title, content_x, y, fs_main, fref, &text_color)?;
+                ctx.draw_text(
+                    &self.document_title,
+                    content_x,
+                    y,
+                    fs_main,
+                    fref,
+                    &text_color,
+                )?;
             }
             if let Some(ref reference) = self.reference {
-                let rw = ctx.fonts.get_family(&font_family)
+                let rw = ctx
+                    .fonts
+                    .get_family(&font_family)
                     .measure_text_mm(reference, fs_meta, false, false);
                 if let Some(fref) = ctx.get_font_ref(false, false) {
                     ctx.draw_text(reference, right_edge - rw, y, fs_meta, fref, &muted_color)?;
@@ -128,10 +149,13 @@ impl Element for InstitutionalHeader {
         // ── Separator line ───────────────────────────────────────────────────
         ctx.flow.advance(1.0);
         let sep_y = ctx.flow.cursor_y_mm;
-        ctx.backend.draw_line(content_x, sep_y, right_edge, sep_y, 0.75, &sep_color)?;
+        ctx.backend
+            .draw_line(content_x, sep_y, right_edge, sep_y, 0.75, &sep_color)?;
         ctx.flow.advance(3.0);
 
-        if ua { ctx.backend.end_tagged_content(); }
+        if ua {
+            ctx.backend.end_tagged_content();
+        }
         Ok(super::RenderResult::done())
     }
 }

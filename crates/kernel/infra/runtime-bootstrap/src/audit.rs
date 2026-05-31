@@ -104,12 +104,11 @@ impl AuditDbRuntime {
     ) -> Result<Self, MiniError> {
         if config.create_parent_dir {
             if let Some(parent) = config.database_path.parent() {
-                std::fs::create_dir_all(parent)
-                    .map_err(|_| RuntimeError::AuditRuntimeFailed)?;
+                std::fs::create_dir_all(parent).map_err(|_| RuntimeError::AuditRuntimeFailed)?;
             }
         }
-        let encryptor =
-            CryptoDetailsEncryptor::from_provider(&keys).map_err(|_| RuntimeError::AuditRuntimeFailed)?;
+        let encryptor = CryptoDetailsEncryptor::from_provider(&keys)
+            .map_err(|_| RuntimeError::AuditRuntimeFailed)?;
         let store =
             AuditSqliteStore::open_with_encryptor(&config.sqlite_relational_config(), encryptor)
                 .map_err(|_| RuntimeError::AuditRuntimeFailed)?;
@@ -183,8 +182,12 @@ mod tests {
         let manifest = runtime.service().export_manifest().unwrap();
         assert_eq!(manifest.events_count, 1);
         let signing_key = AuditSigningKey::from_bytes([31; 32]);
-        let signed = sign_manifest(manifest, &signing_key, Some("audit-export-test".to_string()))
-            .unwrap();
+        let signed = sign_manifest(
+            manifest,
+            &signing_key,
+            Some("audit-export-test".to_string()),
+        )
+        .unwrap();
         verify_signed_manifest(&signed).unwrap();
         runtime.shutdown().unwrap();
     }

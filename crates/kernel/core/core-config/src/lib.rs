@@ -21,20 +21,20 @@ pub use crypto::CryptoProfile;
 // ── error ─────────────────────────────────────────────────────────────────────
 pub use error::{
     ConfigError, CONFIG_COMPONENT, DUPLICATE_STORAGE_PROFILE, INCONSISTENT_PROFILE,
-    INVALID_APP_PROFILE, INVALID_AUDIT_PROFILE, INVALID_CRYPTO_PROFILE,
-    INVALID_LOGGING_PROFILE, INVALID_RUNTIME_PROFILE, INVALID_STORAGE_PROFILE,
-    MISSING_STORAGE_PROFILE,
+    INVALID_APP_PROFILE, INVALID_AUDIT_PROFILE, INVALID_CRYPTO_PROFILE, INVALID_LOGGING_PROFILE,
+    INVALID_RUNTIME_PROFILE, INVALID_STORAGE_PROFILE, MALFORMED_JSON, MISSING_STORAGE_PROFILE,
 };
 
 // ── local ─────────────────────────────────────────────────────────────────────
 pub use local::{
-    app_config_to_json_string, load_app_config_from_json_str, resolve_paths,
-    validate_app_config, AppConfig, AppOptions, PathsConfig, ResolvedPaths,
+    app_config_to_json_string, load_app_config_from_json_str,
+    load_validated_app_config_from_json_str, resolve_paths, validate_app_config, AppConfig,
+    AppOptions, PathsConfig, ResolvedPaths,
 };
 
 // ── logging ───────────────────────────────────────────────────────────────────
 pub use logging::{
-    LoggingProfile, DEFAULT_LOG_FILE_NAME, DEFAULT_MAX_FILE_SIZE_MB, DEFAULT_MAX_FILES,
+    LoggingProfile, DEFAULT_LOG_FILE_NAME, DEFAULT_MAX_FILES, DEFAULT_MAX_FILE_SIZE_MB,
     DEFAULT_RETENTION_DAYS,
 };
 
@@ -50,6 +50,6 @@ pub use storage::{StorageBackend, StorageProfile, StorageProfiles, StoragePurpos
 // ── validate ──────────────────────────────────────────────────────────────────
 pub use validate::{
     validate_app_profile, validate_audit_profile, validate_crypto_profile,
-    validate_logging_profile, validate_profile, validate_runtime_profile,
-    validate_storage_profile, validate_storage_profiles,
+    validate_logging_profile, validate_profile, validate_runtime_profile, validate_storage_profile,
+    validate_storage_profiles,
 };

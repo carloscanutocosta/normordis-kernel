@@ -1,6 +1,8 @@
 use std::sync::{Arc, Mutex};
 
-use adapter_sqlite::{open_relational_connection, run_relational_migrations, SqliteRelationalConfig};
+use adapter_sqlite::{
+    open_relational_connection, run_relational_migrations, SqliteRelationalConfig,
+};
 use rusqlite::{params, OptionalExtension};
 use support_storage::{Storage, StorageError, StorageKey, StorageNamespace, StorageValue};
 
@@ -24,10 +26,8 @@ pub struct PlainJsonSqliteStorage {
 
 impl PlainJsonSqliteStorage {
     pub fn open(config: &SqliteRelationalConfig) -> Result<Self, StorageError> {
-        let conn = open_relational_connection(config)
-            .map_err(|_| StorageError::BackendFailed)?;
-        run_relational_migrations(&conn, SCHEMA)
-            .map_err(|_| StorageError::BackendFailed)?;
+        let conn = open_relational_connection(config).map_err(|_| StorageError::BackendFailed)?;
+        run_relational_migrations(&conn, SCHEMA).map_err(|_| StorageError::BackendFailed)?;
         Ok(Self {
             conn: Arc::new(Mutex::new(conn)),
         })
@@ -45,15 +45,15 @@ impl Storage for PlainJsonSqliteStorage {
         key: &StorageKey,
         value: &StorageValue,
     ) -> Result<(), StorageError> {
-        let json =
-            serde_json::to_string(value).map_err(|_| StorageError::SerializationFailed)?;
+        let json = serde_json::to_string(value).map_err(|_| StorageError::SerializationFailed)?;
         let now = chrono::Utc::now().to_rfc3339();
-        self.lock()?.execute(
-            "INSERT OR REPLACE INTO kv_json (Namespace, Key, ValueJson, UpdatedAtUtc) \
+        self.lock()?
+            .execute(
+                "INSERT OR REPLACE INTO kv_json (Namespace, Key, ValueJson, UpdatedAtUtc) \
              VALUES (?1, ?2, ?3, ?4)",
-            params![namespace.as_str(), key.as_str(), json, now],
-        )
-        .map_err(|_| StorageError::BackendFailed)?;
+                params![namespace.as_str(), key.as_str(), json, now],
+            )
+            .map_err(|_| StorageError::BackendFailed)?;
         Ok(())
     }
 
@@ -63,15 +63,16 @@ impl Storage for PlainJsonSqliteStorage {
         key: &StorageKey,
         value: &StorageValue,
     ) -> Result<bool, StorageError> {
-        let json =
-            serde_json::to_string(value).map_err(|_| StorageError::SerializationFailed)?;
+        let json = serde_json::to_string(value).map_err(|_| StorageError::SerializationFailed)?;
         let now = chrono::Utc::now().to_rfc3339();
-        let rows_changed = self.lock()?.execute(
-            "INSERT OR IGNORE INTO kv_json (Namespace, Key, ValueJson, UpdatedAtUtc) \
+        let rows_changed = self
+            .lock()?
+            .execute(
+                "INSERT OR IGNORE INTO kv_json (Namespace, Key, ValueJson, UpdatedAtUtc) \
              VALUES (?1, ?2, ?3, ?4)",
-            params![namespace.as_str(), key.as_str(), json, now],
-        )
-        .map_err(|_| StorageError::BackendFailed)?;
+                params![namespace.as_str(), key.as_str(), json, now],
+            )
+            .map_err(|_| StorageError::BackendFailed)?;
         Ok(rows_changed > 0)
     }
 
@@ -97,16 +98,13 @@ impl Storage for PlainJsonSqliteStorage {
             .transpose()
     }
 
-    fn delete(
-        &self,
-        namespace: &StorageNamespace,
-        key: &StorageKey,
-    ) -> Result<(), StorageError> {
-        self.lock()?.execute(
-            "DELETE FROM kv_json WHERE Namespace = ?1 AND Key = ?2",
-            params![namespace.as_str(), key.as_str()],
-        )
-        .map_err(|_| StorageError::BackendFailed)?;
+    fn delete(&self, namespace: &StorageNamespace, key: &StorageKey) -> Result<(), StorageError> {
+        self.lock()?
+            .execute(
+                "DELETE FROM kv_json WHERE Namespace = ?1 AND Key = ?2",
+                params![namespace.as_str(), key.as_str()],
+            )
+            .map_err(|_| StorageError::BackendFailed)?;
         Ok(())
     }
 }

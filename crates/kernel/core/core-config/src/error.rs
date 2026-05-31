@@ -11,8 +11,10 @@ pub const INVALID_CRYPTO_PROFILE: &str = "MINI.CONFIG.INVALID_CRYPTO_PROFILE";
 pub const INVALID_LOGGING_PROFILE: &str = "MINI.CONFIG.INVALID_LOGGING_PROFILE";
 pub const INVALID_AUDIT_PROFILE: &str = "MINI.CONFIG.INVALID_AUDIT_PROFILE";
 pub const INCONSISTENT_PROFILE: &str = "MINI.CONFIG.INCONSISTENT_PROFILE";
+pub const MALFORMED_JSON: &str = "MINI.CONFIG.MALFORMED_JSON";
 
 #[derive(Debug, Clone, PartialEq, Eq, Error)]
+#[non_exhaustive]
 pub enum ConfigError {
     #[error("app profile invalid: {reason}")]
     InvalidAppProfile { reason: String },
@@ -32,6 +34,8 @@ pub enum ConfigError {
     InvalidAuditProfile { reason: String },
     #[error("profile inconsistent: {reason}")]
     InconsistentProfile { reason: String },
+    #[error("profile json malformed: {reason}")]
+    MalformedJson { reason: String },
 }
 
 impl ConfigError {
@@ -46,6 +50,7 @@ impl ConfigError {
             Self::InvalidLoggingProfile { .. } => INVALID_LOGGING_PROFILE,
             Self::InvalidAuditProfile { .. } => INVALID_AUDIT_PROFILE,
             Self::InconsistentProfile { .. } => INCONSISTENT_PROFILE,
+            Self::MalformedJson { .. } => MALFORMED_JSON,
         }
     }
 
@@ -60,13 +65,14 @@ impl ConfigError {
             Self::InvalidLoggingProfile { .. } => "logging configuration profile is invalid",
             Self::InvalidAuditProfile { .. } => "audit configuration profile is invalid",
             Self::InconsistentProfile { .. } => "configuration profiles are inconsistent",
+            Self::MalformedJson { .. } => "configuration profile json is malformed",
         }
     }
 
     pub fn to_mini_error(&self) -> MiniError {
         MiniError::new(
-            ErrorCode::new(self.code()).expect("core-config error codes must be valid"),
-            Component::new(CONFIG_COMPONENT).expect("core-config component must be valid"),
+            ErrorCode::new_static(self.code()),
+            Component::new_static(CONFIG_COMPONENT),
             self.public_message(),
         )
     }

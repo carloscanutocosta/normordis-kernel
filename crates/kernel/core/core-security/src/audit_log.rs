@@ -72,7 +72,9 @@ pub struct InMemoryAuditLog {
 
 impl InMemoryAuditLog {
     pub fn new() -> Self {
-        Self { entries: Arc::new(RwLock::new(vec![])) }
+        Self {
+            entries: Arc::new(RwLock::new(vec![])),
+        }
     }
 
     pub fn entries(&self) -> Vec<SecurityAuthDecision> {

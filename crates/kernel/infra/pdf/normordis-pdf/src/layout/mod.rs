@@ -5,15 +5,15 @@ pub mod line;
 pub mod page_flow;
 
 pub use engine::{LayoutResult, TabStop, TabStopAlign, TextLayoutEngine};
-pub use knuth_plass::{KnuthPlassOptimizer, WordBox};
 pub use fixed_box::{BorderStyle, BoxBorder, FixedBox, OverflowPolicy};
+pub use knuth_plass::{KnuthPlassOptimizer, WordBox};
 pub use line::{LineBox, LineSegment};
 pub use page_flow::PageFlow;
 
 // Convenience re-exports so callers can import text-run types from `layout::`.
 pub use crate::richtext::marks::{
-    AppliedStyle, DecorationLine, GlyphUsageTracker, HighlightColor,
-    LineBreakingMode, OpenTypeFeatures, TextDecoration, TextRun,
+    AppliedStyle, DecorationLine, GlyphUsageTracker, HighlightColor, LineBreakingMode,
+    OpenTypeFeatures, TextDecoration, TextRun,
 };
 
 use serde::{Deserialize, Serialize};

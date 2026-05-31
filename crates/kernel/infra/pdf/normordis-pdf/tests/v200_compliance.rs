@@ -4,9 +4,9 @@
 /// traceability/classification, digital signature, NDT 2.0.0, file size.
 use normordis_pdf::{
     backend::pdf_writer_backend::{generate_to_unicode_cmap, subset_font, to_cff_if_possible},
-    CompressionLevel, DocumentBuilder, Paragraph, PageBreakElement,
-    PdfStandard, Section, SecurityClassification, SignatureOptions,
-    TraceabilityMetadata, Watermark, PDF_BACKEND, VERSION,
+    CompressionLevel, DocumentBuilder, PageBreakElement, Paragraph, PdfStandard, Section,
+    SecurityClassification, SignatureOptions, TraceabilityMetadata, Watermark, PDF_BACKEND,
+    VERSION,
 };
 use std::collections::HashSet;
 
@@ -79,7 +79,10 @@ fn v200_06_draw_rect_full_opacity_no_ext_gstate() {
     let bytes = simple_doc();
     let raw = String::from_utf8_lossy(&bytes);
     // Opacity watermarks add /ExtGState; a plain doc should not
-    assert!(!raw.contains("/ExtGState"), "plain doc should have no ExtGState");
+    assert!(
+        !raw.contains("/ExtGState"),
+        "plain doc should have no ExtGState"
+    );
 }
 
 #[test]
@@ -90,7 +93,10 @@ fn v200_07_watermark_opacity_adds_ext_gstate() {
         .render_to_bytes()
         .expect("render failed");
     let raw = String::from_utf8_lossy(&bytes);
-    assert!(raw.contains("/ExtGState"), "watermark must produce ExtGState");
+    assert!(
+        raw.contains("/ExtGState"),
+        "watermark must produce ExtGState"
+    );
 }
 
 #[test]
@@ -129,7 +135,10 @@ fn v200_10_subset_font_empty_glyphs_no_panic() {
     let font_bytes = embedded_font_bytes();
     let empty: HashSet<u16> = HashSet::new();
     let result = subset_font(&font_bytes, &empty);
-    assert!(!result.is_empty(), "subset of empty glyph set must not panic");
+    assert!(
+        !result.is_empty(),
+        "subset of empty glyph set must not panic"
+    );
 }
 
 #[test]
@@ -188,8 +197,14 @@ fn v200_14_generate_cmap_contains_bfchar() {
     }
     let cmap = generate_to_unicode_cmap(&font_bytes, &used);
     let cmap_str = String::from_utf8_lossy(&cmap);
-    assert!(cmap_str.contains("beginbfchar"), "CMap must contain beginbfchar");
-    assert!(cmap_str.contains("endbfchar"), "CMap must contain endbfchar");
+    assert!(
+        cmap_str.contains("beginbfchar"),
+        "CMap must contain beginbfchar"
+    );
+    assert!(
+        cmap_str.contains("endbfchar"),
+        "CMap must contain endbfchar"
+    );
 }
 
 #[test]
@@ -197,7 +212,10 @@ fn v200_15_cff_extraction_no_panic() {
     let font_bytes = embedded_font_bytes();
     let result = to_cff_if_possible(&font_bytes);
     // For TTF-only fonts returns original bytes; for OTF with CFF returns smaller result.
-    assert!(!result.is_empty(), "to_cff_if_possible must return non-empty bytes");
+    assert!(
+        !result.is_empty(),
+        "to_cff_if_possible must return non-empty bytes"
+    );
 }
 
 // ── 16–21 PDF/A-1b ───────────────────────────────────────────────────────────
@@ -231,7 +249,10 @@ fn v200_18_pdfa_xmp_is_utf8() {
 fn v200_19_pdfa_contains_output_intent() {
     let bytes = simple_pdfa_doc();
     let raw = String::from_utf8_lossy(&bytes);
-    assert!(raw.contains("OutputIntent"), "must contain OutputIntent for PDF/A");
+    assert!(
+        raw.contains("OutputIntent"),
+        "must contain OutputIntent for PDF/A"
+    );
 }
 
 #[test]
@@ -264,7 +285,10 @@ fn v200_22_watermark_opacity_produces_ext_gstate() {
         .render_to_bytes()
         .expect("render failed");
     let raw = String::from_utf8_lossy(&bytes);
-    assert!(raw.contains("/ExtGState"), "opacity watermark must add ExtGState");
+    assert!(
+        raw.contains("/ExtGState"),
+        "opacity watermark must add ExtGState"
+    );
 }
 
 #[test]
@@ -317,7 +341,10 @@ fn v200_26_classification_internal_label_pt() {
 
 #[test]
 fn v200_27_classification_confidential_label_pt() {
-    assert_eq!(SecurityClassification::Confidential.label_pt(), "Confidencial");
+    assert_eq!(
+        SecurityClassification::Confidential.label_pt(),
+        "Confidencial"
+    );
 }
 
 #[test]
@@ -337,7 +364,10 @@ fn v200_28_internal_classification_adds_watermark() {
         .expect("render failed");
     // Internal classification triggers a watermark → ExtGState should appear
     let raw = String::from_utf8_lossy(&bytes);
-    assert!(raw.contains("/ExtGState"), "internal doc must have classification watermark");
+    assert!(
+        raw.contains("/ExtGState"),
+        "internal doc must have classification watermark"
+    );
 }
 
 #[test]
@@ -356,7 +386,10 @@ fn v200_29_public_classification_no_auto_watermark() {
         .render_to_bytes()
         .expect("render failed");
     let raw = String::from_utf8_lossy(&bytes);
-    assert!(!raw.contains("/ExtGState"), "public doc must not have auto watermark");
+    assert!(
+        !raw.contains("/ExtGState"),
+        "public doc must not have auto watermark"
+    );
 }
 
 #[test]
@@ -406,7 +439,10 @@ fn v200_33_prepared_pdf_contains_byte_range() {
         .expect("prepare failed");
     let (r0, r1, r2, r3) = prepared.byte_range();
     // ByteRange must have non-zero lengths
-    assert!(r1 > 0 && r3 > 0, "ByteRange lengths must be positive: ({r0},{r1},{r2},{r3})");
+    assert!(
+        r1 > 0 && r3 > 0,
+        "ByteRange lengths must be positive: ({r0},{r1},{r2},{r3})"
+    );
 }
 
 #[test]
@@ -417,7 +453,9 @@ fn v200_34_prepared_pdf_embed_dummy_signature() {
         .expect("prepare failed");
     // Embed a dummy (invalid) PKCS#7 blob — only tests the byte-writing logic
     let dummy_sig = vec![0u8; 64];
-    let signed = prepared.embed_signature(&dummy_sig).expect("embed must not fail for dummy sig");
+    let signed = prepared
+        .embed_signature(&dummy_sig)
+        .expect("embed must not fail for dummy sig");
     assert!(signed.starts_with(b"%PDF-"));
 }
 
@@ -445,7 +483,10 @@ fn v200_36_ndt200_output_standard_sets_pdfa() {
         .expect("render failed");
     let raw = String::from_utf8_lossy(&bytes);
     // PDF/A-1b must include OutputIntent
-    assert!(raw.contains("OutputIntent"), "output.standard=pdf_a_1b must produce PDF/A");
+    assert!(
+        raw.contains("OutputIntent"),
+        "output.standard=pdf_a_1b must produce PDF/A"
+    );
 }
 
 #[test]
@@ -462,7 +503,10 @@ fn v200_37_ndt200_output_classification_confidential_adds_watermark() {
         .render_to_bytes()
         .expect("render failed");
     let raw = String::from_utf8_lossy(&bytes);
-    assert!(raw.contains("/ExtGState"), "confidential classification must add watermark");
+    assert!(
+        raw.contains("/ExtGState"),
+        "confidential classification must add watermark"
+    );
 }
 
 #[test]
@@ -490,7 +534,10 @@ fn v200_39_ndt200_json_and_toml_parse_equivalent() {
     assert_eq!(doc_json.ndt, doc_toml.ndt);
     let out_json = doc_json.output.as_ref().and_then(|o| o.standard.as_deref());
     let out_toml = doc_toml.output.as_ref().and_then(|o| o.standard.as_deref());
-    assert_eq!(out_json, out_toml, "standard field must match between JSON and TOML");
+    assert_eq!(
+        out_json, out_toml,
+        "standard field must match between JSON and TOML"
+    );
 }
 
 #[test]

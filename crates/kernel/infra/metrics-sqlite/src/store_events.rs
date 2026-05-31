@@ -54,7 +54,8 @@ impl MetricStore for MetricsSqliteStore {
     }
 
     fn get_by_id(&self, id: &str) -> Result<MetricEvent, MetricError> {
-        let row = self.db()
+        let row = self
+            .db()
             .query_row(
                 "SELECT id, metric_code, metric_version_id, evaluation_cycle_id,
                         value, unit, correlation_id, entity_type, entity_id,
@@ -160,9 +161,9 @@ fn row_to_event(r: &rusqlite::Row<'_>) -> rusqlite::Result<MetricEvent> {
     let labels: Option<HashMap<String, String>> = labels_s
         .as_deref()
         .map(|s| serde_json::from_str(s).unwrap_or_default());
-    let payload: Option<Value> = payload_s.as_deref().map(|s| {
-        serde_json::from_str(s).unwrap_or(Value::Null)
-    });
+    let payload: Option<Value> = payload_s
+        .as_deref()
+        .map(|s| serde_json::from_str(s).unwrap_or(Value::Null));
     let valid_at = valid_at_s
         .as_deref()
         .and_then(|s| crate::util::str_to_dt(s).ok());

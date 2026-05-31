@@ -43,7 +43,10 @@ impl VerifiedPrincipal {
     /// O `id` deve provir de um token autenticado validado por `support-auth`.
     /// A responsabilidade de verificação é do caller — este construtor não valida o token.
     pub fn human(id: impl Into<String>) -> Self {
-        Self { id: id.into(), kind: PrincipalKind::Human }
+        Self {
+            id: id.into(),
+            kind: PrincipalKind::Human,
+        }
     }
 
     /// Cria um principal técnico do sistema (daemon, worker, processo interno).
@@ -51,7 +54,10 @@ impl VerifiedPrincipal {
     /// Explicitamente marcado como `System` para que greps de auditoria detectem
     /// todos os pontos onde a verificação de identidade é contornada.
     pub fn system(name: impl Into<String>) -> Self {
-        Self { id: name.into(), kind: PrincipalKind::System }
+        Self {
+            id: name.into(),
+            kind: PrincipalKind::System,
+        }
     }
 
     pub fn id(&self) -> &str {

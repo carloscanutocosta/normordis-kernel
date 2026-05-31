@@ -16,8 +16,7 @@ pub struct DbManager {
 
 impl DbManager {
     pub fn init(data_dir: &Path, mode: StorageMode) -> Result<Self, DbError> {
-        fs::create_dir_all(data_dir)
-            .map_err(|e| DbError::MigrationError(e.to_string()))?;
+        fs::create_dir_all(data_dir).map_err(|e| DbError::MigrationError(e.to_string()))?;
 
         let plain_pool = match &mode {
             StorageMode::Plain | StorageMode::Mixed { .. } => {
@@ -33,7 +32,11 @@ impl DbManager {
             StorageMode::Plain => None,
         };
 
-        Ok(Self { plain_pool, secure_pool, mode })
+        Ok(Self {
+            plain_pool,
+            secure_pool,
+            mode,
+        })
     }
 
     pub fn plain(&self) -> Result<&Pool<SqliteConnectionManager>, DbError> {
@@ -128,7 +131,10 @@ fn build_plain_pool(path: &Path) -> Result<Pool<SqliteConnectionManager>, DbErro
         Ok(())
     });
 
-    Pool::builder().max_size(4).build(manager).map_err(DbError::Pool)
+    Pool::builder()
+        .max_size(4)
+        .build(manager)
+        .map_err(DbError::Pool)
 }
 
 fn build_secure_pool(path: &Path, key: &str) -> Result<Pool<SqliteConnectionManager>, DbError> {
@@ -149,7 +155,10 @@ fn build_secure_pool(path: &Path, key: &str) -> Result<Pool<SqliteConnectionMana
         Ok(())
     });
 
-    Pool::builder().max_size(4).build(manager).map_err(DbError::Pool)
+    Pool::builder()
+        .max_size(4)
+        .build(manager)
+        .map_err(DbError::Pool)
 }
 
 fn validate_encryption_key(path: &Path, key: &str) -> Result<(), DbError> {

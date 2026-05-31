@@ -28,6 +28,12 @@ impl From<MetricsSqliteError> for core_metrics::MetricError {
 fn is_unique_violation(e: &rusqlite::Error) -> bool {
     matches!(
         e,
-        rusqlite::Error::SqliteFailure(rusqlite::ffi::Error { code: rusqlite::ErrorCode::ConstraintViolation, .. }, _)
+        rusqlite::Error::SqliteFailure(
+            rusqlite::ffi::Error {
+                code: rusqlite::ErrorCode::ConstraintViolation,
+                ..
+            },
+            _
+        )
     )
 }

@@ -3,8 +3,8 @@ use adapter_sqlite::{
 };
 use chrono::{DateTime, NaiveDate, Utc};
 use domain_numerador::{
-    format_nns_number, period_key, ActorRef, AssignedNumber, AssignedStatus, AssignmentFilter,
-    AssignmentMetadata, AssignNumberRequest, ChangeStatusRequest, NumberFormat, NumberingKind,
+    format_nns_number, period_key, ActorRef, AssignNumberRequest, AssignedNumber, AssignedStatus,
+    AssignmentFilter, AssignmentMetadata, ChangeStatusRequest, NumberFormat, NumberingKind,
     NumberingSequence, NumberingSequenceRepository, NumberingStore, NumeradorDomainError,
     ResetPolicy,
 };
@@ -115,7 +115,6 @@ impl NumeradorDb {
         ensure_metadata_columns(&self.conn)?;
         Ok(())
     }
-
 }
 
 /// Adiciona as colunas de metadados a `nns_assignment` se ainda não existirem.
@@ -445,10 +444,7 @@ impl NumberingStore for NumeradorDb {
             .prepare(&sql)
             .map_err(|e| NumeradorDomainError::Storage(e.to_string()))?;
         let rows = stmt
-            .query_map(
-                rusqlite::params_from_iter(params.iter()),
-                decode_assignment,
-            )
+            .query_map(rusqlite::params_from_iter(params.iter()), decode_assignment)
             .map_err(|e| NumeradorDomainError::Storage(e.to_string()))?;
         rows.collect::<Result<Vec<_>, _>>()
             .map_err(|e| NumeradorDomainError::Storage(e.to_string()))
@@ -459,11 +455,9 @@ impl NumberingStore for NumeradorDb {
             build_assignment_filter_query("SELECT COUNT(*) FROM nns_assignment", filter, "");
         let count: i64 = self
             .conn
-            .query_row(
-                &sql,
-                rusqlite::params_from_iter(params.iter()),
-                |row| row.get(0),
-            )
+            .query_row(&sql, rusqlite::params_from_iter(params.iter()), |row| {
+                row.get(0)
+            })
             .map_err(|e| NumeradorDomainError::Storage(e.to_string()))?;
         u64::try_from(count).map_err(|_| NumeradorDomainError::Storage("count overflow".into()))
     }
@@ -818,7 +812,7 @@ mod tests {
     use super::*;
     use chrono::NaiveDate;
     use domain_numerador::{
-        ActorRef, AssignmentFilter, AssignmentMetadata, AssignNumberRequest, ChangeStatusRequest,
+        ActorRef, AssignNumberRequest, AssignmentFilter, AssignmentMetadata, ChangeStatusRequest,
         FormatPart, NumberFormat, NumberingKind, NumberingSequence, NumberingSequenceRepository,
         NumberingStore, NumeradorService, ResetPolicy, TargetRef,
     };

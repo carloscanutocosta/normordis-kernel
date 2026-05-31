@@ -16,5 +16,4 @@ impl Element for PageBreakElement {
         ctx.force_page_break = true;
         Ok(super::RenderResult::done())
     }
-
 }

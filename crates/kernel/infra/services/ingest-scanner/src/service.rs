@@ -3,7 +3,7 @@ use serde_json::json;
 
 use adapter_scanner::ScannedDocument;
 use core_documental::{Artefact, DocumentPackage, EngineRef, HashResult, TemplateRef};
-use core_exports::{canonical_bytes, build_export_receipt, BuildSnapshotConfig, SourceRef};
+use core_exports::{build_export_receipt, canonical_bytes, BuildSnapshotConfig, SourceRef};
 use core_ingest::{
     process_export_snapshot, IngestConfig, IngestError, IngestOutcome, IngestRequest, IngestSource,
     ScanAdapter, ScanInput, ScanResult,
@@ -34,7 +34,9 @@ pub struct AlwaysCleanScanner {
 
 impl Default for AlwaysCleanScanner {
     fn default() -> Self {
-        Self { adapter_name: "always-clean".into() }
+        Self {
+            adapter_name: "always-clean".into(),
+        }
     }
 }
 
@@ -177,5 +179,9 @@ pub fn ingest_scanned_document(
         })),
     };
 
-    Ok(process_export_snapshot(&ingest_req, correlation_id, &ingest_cfg))
+    Ok(process_export_snapshot(
+        &ingest_req,
+        correlation_id,
+        &ingest_cfg,
+    ))
 }

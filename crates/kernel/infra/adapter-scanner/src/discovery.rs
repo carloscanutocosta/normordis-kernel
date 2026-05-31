@@ -20,8 +20,7 @@ const SERVICE_HTTPS: &str = "_uscans._tcp.local.";
 /// Pesquisa tanto `_uscan._tcp` (HTTP) como `_uscans._tcp` (HTTPS).
 /// Retorna todos os dispositivos encontrados dentro do período.
 pub fn discover(timeout: Duration) -> Result<Vec<ScannerDevice>, ScannerError> {
-    let mdns =
-        ServiceDaemon::new().map_err(|e| ScannerError::NetworkError(e.to_string()))?;
+    let mdns = ServiceDaemon::new().map_err(|e| ScannerError::NetworkError(e.to_string()))?;
 
     let rx_http = mdns
         .browse(SERVICE_HTTP)
@@ -42,16 +41,11 @@ pub fn discover(timeout: Duration) -> Result<Vec<ScannerDevice>, ScannerError> {
         for (rx, uses_https) in [(&rx_http, false), (&rx_https, true)] {
             while let Ok(event) = rx.recv_timeout(poll) {
                 if let ServiceEvent::ServiceResolved(info) = event {
-                    let host = info
-                        .get_hostname()
-                        .trim_end_matches('.')
-                        .to_string();
+                    let host = info.get_hostname().trim_end_matches('.').to_string();
                     let port = info.get_port();
 
                     // TXT record "rs" contém o path base (ex.: "eSCL")
-                    let rs = info
-                        .get_property_val_str("rs")
-                        .unwrap_or("eSCL");
+                    let rs = info.get_property_val_str("rs").unwrap_or("eSCL");
                     let base_path = format!("/{rs}");
 
                     // TXT record "ty" contém o modelo do dispositivo
@@ -70,7 +64,10 @@ pub fn discover(timeout: Duration) -> Result<Vec<ScannerDevice>, ScannerError> {
                     };
 
                     // Evitar duplicados (mesmo host:port)
-                    if !devices.iter().any(|d| d.host == device.host && d.port == device.port) {
+                    if !devices
+                        .iter()
+                        .any(|d| d.host == device.host && d.port == device.port)
+                    {
                         devices.push(device);
                     }
                 }

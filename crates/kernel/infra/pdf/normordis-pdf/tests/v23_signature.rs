@@ -48,7 +48,8 @@ fn sig_05_contents_placeholder_still_in_raw_bytes() {
     // The Contents field should contain a hex string starting with '<'
     // (it's not been patched yet)
     assert!(
-        raw.windows(b"/Contents <".len()).any(|w| w == b"/Contents <"),
+        raw.windows(b"/Contents <".len())
+            .any(|w| w == b"/Contents <"),
         "/Contents hex placeholder must be present"
     );
 }
@@ -57,7 +58,10 @@ fn sig_05_contents_placeholder_still_in_raw_bytes() {
 fn sig_06_sig_filter_adobe_ppklite() {
     let p = prepared_doc();
     let raw = String::from_utf8_lossy(p.raw_bytes());
-    assert!(raw.contains("/Adobe.PPKLite"), "/Filter /Adobe.PPKLite must be present");
+    assert!(
+        raw.contains("/Adobe.PPKLite"),
+        "/Filter /Adobe.PPKLite must be present"
+    );
 }
 
 #[test]
@@ -74,7 +78,10 @@ fn sig_07_subfilter_pkcs7_detached() {
 fn sig_08_sig_type_present() {
     let p = prepared_doc();
     let raw = String::from_utf8_lossy(p.raw_bytes());
-    assert!(raw.contains("/Type /Sig"), "/Type /Sig must be present in sig value dict");
+    assert!(
+        raw.contains("/Type /Sig"),
+        "/Type /Sig must be present in sig value dict"
+    );
 }
 
 #[test]
@@ -88,7 +95,10 @@ fn sig_09_acroform_in_catalog() {
 fn sig_10_sig_flags_3() {
     let p = prepared_doc();
     let raw = String::from_utf8_lossy(p.raw_bytes());
-    assert!(raw.contains("/SigFlags"), "/SigFlags must be present in AcroForm");
+    assert!(
+        raw.contains("/SigFlags"),
+        "/SigFlags must be present in AcroForm"
+    );
 }
 
 // ── ByteRange / bytes_to_sign ─────────────────────────────────────────────────
@@ -102,7 +112,10 @@ fn sig_11_byte_range_tuple_valid() {
     assert!(r2_start > r1_len, "range2 must start after range1 ends");
     assert!(r2_len > 0, "range2 must have positive length");
     let total = r1_len + (r2_start - r1_len - 1) + 1 + r2_len; // with Contents bytes
-    assert!(total <= p.raw_bytes().len() as u64 + 10, "ranges must not exceed file size");
+    assert!(
+        total <= p.raw_bytes().len() as u64 + 10,
+        "ranges must not exceed file size"
+    );
 }
 
 #[test]
@@ -110,7 +123,10 @@ fn sig_12_byte_ranges_non_overlapping() {
     let p = prepared_doc();
     let (_, r1_len, r2_start, _) = p.byte_range();
     // There is a gap between range1 end and range2 start (the /Contents hex).
-    assert!(r2_start > r1_len, "Contents placeholder must create a gap between ranges");
+    assert!(
+        r2_start > r1_len,
+        "Contents placeholder must create a gap between ranges"
+    );
 }
 
 #[test]
@@ -132,7 +148,10 @@ fn sig_13_bytes_to_sign_covers_most_of_file() {
 fn sig_14_bytes_to_sign_starts_with_pdf_header() {
     let p = prepared_doc();
     let to_sign = p.bytes_to_sign();
-    assert!(to_sign.starts_with(b"%PDF-"), "bytes_to_sign must start with %PDF-");
+    assert!(
+        to_sign.starts_with(b"%PDF-"),
+        "bytes_to_sign must start with %PDF-"
+    );
 }
 
 // ── embed_signature ───────────────────────────────────────────────────────────
@@ -141,7 +160,9 @@ fn sig_14_bytes_to_sign_starts_with_pdf_header() {
 fn sig_15_embed_empty_pkcs7_succeeds() {
     let p = prepared_doc();
     let dummy_pkcs7 = vec![0x30u8, 0x00u8]; // minimal DER sequence
-    let signed = p.embed_signature(&dummy_pkcs7).expect("embed_signature failed");
+    let signed = p
+        .embed_signature(&dummy_pkcs7)
+        .expect("embed_signature failed");
     assert!(signed.starts_with(b"%PDF-"));
 }
 
@@ -149,7 +170,9 @@ fn sig_15_embed_empty_pkcs7_succeeds() {
 fn sig_16_embed_signature_patches_contents() {
     let p = prepared_doc();
     let dummy_pkcs7 = vec![0xAAu8, 0xBBu8, 0xCCu8];
-    let signed = p.embed_signature(&dummy_pkcs7).expect("embed_signature failed");
+    let signed = p
+        .embed_signature(&dummy_pkcs7)
+        .expect("embed_signature failed");
     // The hex encoding of 0xAA 0xBB 0xCC is "aabbcc"
     let raw = String::from_utf8_lossy(&signed);
     assert!(
@@ -160,13 +183,19 @@ fn sig_16_embed_signature_patches_contents() {
 
 #[test]
 fn sig_17_embed_oversized_signature_errors() {
-    let opts = SignatureOptions { reserved_bytes: 8, ..Default::default() };
+    let opts = SignatureOptions {
+        reserved_bytes: 8,
+        ..Default::default()
+    };
     let p = DocumentBuilder::new("Test")
         .push(Paragraph::new("x"))
         .render_prepared_for_signing(opts)
         .expect("render failed");
     let oversized = vec![0u8; 100]; // larger than reserved 8 bytes
-    assert!(p.embed_signature(&oversized).is_err(), "oversized signature must return Err");
+    assert!(
+        p.embed_signature(&oversized).is_err(),
+        "oversized signature must return Err"
+    );
 }
 
 #[test]
@@ -201,7 +230,10 @@ fn sig_19_custom_reason_in_prepared() {
         raw.contains("Signed by director"),
         "custom ASCII reason must appear verbatim in prepared PDF"
     );
-    assert!(raw.contains("Lisbon"), "custom location must appear in prepared PDF");
+    assert!(
+        raw.contains("Lisbon"),
+        "custom location must appear in prepared PDF"
+    );
 }
 
 // ── Compatibility: PDF/A + signature ─────────────────────────────────────────
@@ -217,7 +249,13 @@ fn sig_20_pdfa_and_signature_together() {
 
     let raw = String::from_utf8_lossy(p.raw_bytes());
     // Both PDF/A and signature structures must be present
-    assert!(raw.contains("pdfaid:part"), "PDF/A metadata must be present");
+    assert!(
+        raw.contains("pdfaid:part"),
+        "PDF/A metadata must be present"
+    );
     assert!(raw.contains("/AcroForm"), "AcroForm must be present");
-    assert!(raw.contains("adbe.pkcs7.detached"), "sig subfilter must be present");
+    assert!(
+        raw.contains("adbe.pkcs7.detached"),
+        "sig subfilter must be present"
+    );
 }

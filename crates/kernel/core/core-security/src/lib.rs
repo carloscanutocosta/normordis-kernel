@@ -38,17 +38,17 @@ pub use page::ListOptions;
 pub use repository::SecurityPolicyRepository;
 
 // ── audit_log ─────────────────────────────────────────────────────────────────
-pub use audit_log::{AuditDecision, NoopSecurityAuditLog, SecurityAuditLog, SecurityAuthDecision};
 #[cfg(any(test, feature = "test-helpers"))]
 pub use audit_log::InMemoryAuditLog;
+pub use audit_log::{AuditDecision, NoopSecurityAuditLog, SecurityAuditLog, SecurityAuthDecision};
 
 // ── service ───────────────────────────────────────────────────────────────────
 pub use service::{AuthorizationToken, GrantedBy, SecurityService};
 
 // ── role ──────────────────────────────────────────────────────────────────────
-pub use role::{NoopRoleMembership, RoleId, RoleMembershipRepository};
 #[cfg(any(test, feature = "test-helpers"))]
 pub use role::InMemoryRoleMembership;
+pub use role::{NoopRoleMembership, RoleId, RoleMembershipRepository};
 
 // ── memory ────────────────────────────────────────────────────────────────────
 #[cfg(any(test, feature = "test-helpers"))]

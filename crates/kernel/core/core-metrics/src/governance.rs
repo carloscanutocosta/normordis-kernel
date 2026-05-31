@@ -7,7 +7,6 @@ use crate::result::{EvidenceLink, MeasurementResult, MeasurementStatus};
 use crate::target::TargetDefinition;
 use crate::version::{MetricVersion, MetricVersionStatus};
 
-
 // ── MetricDefinitionStore ──────────────────────────────────────────────────────
 
 pub trait MetricDefinitionStore: Send + Sync {
@@ -99,11 +98,7 @@ pub trait IndicatorInstanceStore: Send + Sync {
         org_unit_id: &str,
         opts: ListOptions,
     ) -> Result<Vec<IndicatorInstance>, MetricError>;
-    fn update_instance_status(
-        &self,
-        id: &str,
-        status: &InstanceStatus,
-    ) -> Result<(), MetricError>;
+    fn update_instance_status(&self, id: &str, status: &InstanceStatus) -> Result<(), MetricError>;
 
     /// Persiste múltiplas instâncias atomicamente.
     ///

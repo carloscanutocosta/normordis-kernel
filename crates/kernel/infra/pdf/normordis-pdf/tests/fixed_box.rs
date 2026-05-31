@@ -1,8 +1,8 @@
 use normordis_pdf::{
-    AccessibilityConfig, DocumentBuilder, DocumentStyle, Element, FixedBox, FixedTextBox,
-    FontRegistry, LayoutMode, OverflowPolicy, PageFlow, PageLayout, ParagraphContent,
-    RenderContext, Spacer, StructureTree, TextAlign, TextLayoutEngine, VerticalAlign,
-    backend::pdf_writer_backend::PdfWriterBackend,
+    backend::pdf_writer_backend::PdfWriterBackend, AccessibilityConfig, DocumentBuilder,
+    DocumentStyle, Element, FixedBox, FixedTextBox, FontRegistry, LayoutMode, OverflowPolicy,
+    PageFlow, PageLayout, ParagraphContent, RenderContext, Spacer, StructureTree, TextAlign,
+    TextLayoutEngine, VerticalAlign,
 };
 
 // ── helpers ───────────────────────────────────────────────────────────────────
@@ -51,7 +51,11 @@ fn default_fixed_box() -> FixedBox {
 
 #[test]
 fn inner_width_subtracts_padding() {
-    let b = FixedBox { width_mm: 60.0, padding_mm: 2.0, ..Default::default() };
+    let b = FixedBox {
+        width_mm: 60.0,
+        padding_mm: 2.0,
+        ..Default::default()
+    };
     assert_eq!(b.inner_width_mm(), 56.0);
 }
 
@@ -59,7 +63,11 @@ fn inner_width_subtracts_padding() {
 
 #[test]
 fn inner_height_subtracts_padding() {
-    let b = FixedBox { height_mm: 20.0, padding_mm: 2.0, ..Default::default() };
+    let b = FixedBox {
+        height_mm: 20.0,
+        padding_mm: 2.0,
+        ..Default::default()
+    };
     assert_eq!(b.inner_height_mm(), 16.0);
 }
 
@@ -169,8 +177,7 @@ fn shrink_policy_reduces_font_size() {
     let el = FixedTextBox {
         text_box: small_box,
         content: ParagraphContent::Plain(
-            "This is a long text that definitely does not fit at the default body font size"
-                .into(),
+            "This is a long text that definitely does not fit at the default body font size".into(),
         ),
         alignment: TextAlign::Left,
         font_size: Some(12.0),
@@ -241,7 +248,10 @@ fn ncrtf_fixed_box_deserialises() {
     assert_eq!(doc.blocks.len(), 1);
     // Block variant should be FixedBox
     assert!(
-        matches!(doc.blocks[0], normordis_pdf::richtext::model::Block::FixedBox(_)),
+        matches!(
+            doc.blocks[0],
+            normordis_pdf::richtext::model::Block::FixedBox(_)
+        ),
         "block should be FixedBox variant"
     );
 }

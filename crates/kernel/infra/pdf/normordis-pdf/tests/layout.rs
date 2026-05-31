@@ -29,8 +29,19 @@ fn measure_single_char_is_positive() {
 fn layout_plain_short_text_one_line() {
     let r = reg();
     let e = engine();
-    let result = e.layout_plain(&r, "Hello", 200.0, TextAlign::Left, 11.0, AppliedStyle::default());
-    assert_eq!(result.lines.len(), 1, "short text should produce exactly 1 line");
+    let result = e.layout_plain(
+        &r,
+        "Hello",
+        200.0,
+        TextAlign::Left,
+        11.0,
+        AppliedStyle::default(),
+    );
+    assert_eq!(
+        result.lines.len(),
+        1,
+        "short text should produce exactly 1 line"
+    );
 }
 
 // ── 3. Long text wraps into multiple lines ────────────────────────────────────
@@ -40,7 +51,14 @@ fn layout_plain_long_text_wraps() {
     let r = reg();
     let e = engine();
     let text = "The quick brown fox jumps over the lazy dog near the river bank";
-    let result = e.layout_plain(&r, text, 30.0, TextAlign::Left, 11.0, AppliedStyle::default());
+    let result = e.layout_plain(
+        &r,
+        text,
+        30.0,
+        TextAlign::Left,
+        11.0,
+        AppliedStyle::default(),
+    );
     assert!(
         result.lines.len() > 1,
         "expected multiple lines for narrow column, got {}",
@@ -54,7 +72,14 @@ fn layout_plain_long_text_wraps() {
 fn layout_plain_oversized_word_does_not_loop() {
     let r = reg();
     let e = engine();
-    let result = e.layout_plain(&r, "Supercalifragilistic", 1.0, TextAlign::Left, 11.0, AppliedStyle::default());
+    let result = e.layout_plain(
+        &r,
+        "Supercalifragilistic",
+        1.0,
+        TextAlign::Left,
+        11.0,
+        AppliedStyle::default(),
+    );
     assert_eq!(
         result.lines.len(),
         1,
@@ -80,7 +105,10 @@ fn layout_runs_mixed_styles_segments() {
         },
         TextRun {
             text: "Bold".to_string(),
-            style: AppliedStyle { bold: true, ..Default::default() },
+            style: AppliedStyle {
+                bold: true,
+                ..Default::default()
+            },
             letter_spacing_mm: 0.0,
             ..Default::default()
         },
@@ -96,7 +124,10 @@ fn layout_runs_mixed_styles_segments() {
         "expected 2 segments (one per run), got {}",
         first_line.segments.len()
     );
-    assert!(first_line.segments[1].style.bold, "second segment should be bold");
+    assert!(
+        first_line.segments[1].style.bold,
+        "second segment should be bold"
+    );
 }
 
 // ── 6. PageFlow::would_overflow when cursor is below threshold ────────────────
@@ -124,7 +155,11 @@ fn page_flow_new_page_resets() {
 
     flow.new_page();
 
-    assert_eq!(flow.page_number, initial_page + 1, "page_number should increment");
+    assert_eq!(
+        flow.page_number,
+        initial_page + 1,
+        "page_number should increment"
+    );
     assert!(
         flow.cursor_y_mm > y_before,
         "cursor_y should reset upward after new_page"

@@ -1,5 +1,7 @@
 use serde::{Deserialize, Serialize};
 
+#[cfg(feature = "optimal_wrap")]
+use crate::layout::knuth_plass::{KnuthPlassOptimizer, WordBox};
 use crate::{
     fonts::FontRegistry,
     layout::{
@@ -9,8 +11,6 @@ use crate::{
     richtext::marks::{AppliedStyle, LineBreakingMode, TextRun},
     styles::DocumentStyle,
 };
-#[cfg(feature = "optimal_wrap")]
-use crate::layout::knuth_plass::{KnuthPlassOptimizer, WordBox};
 
 // ── Tab stops ─────────────────────────────────────────────────────────────────
 
@@ -41,19 +41,35 @@ pub struct TabStop {
 
 impl TabStop {
     pub fn left(position_mm: f64) -> Self {
-        Self { position_mm, alignment: TabStopAlign::Left, leader: ' ' }
+        Self {
+            position_mm,
+            alignment: TabStopAlign::Left,
+            leader: ' ',
+        }
     }
 
     pub fn right(position_mm: f64) -> Self {
-        Self { position_mm, alignment: TabStopAlign::Right, leader: ' ' }
+        Self {
+            position_mm,
+            alignment: TabStopAlign::Right,
+            leader: ' ',
+        }
     }
 
     pub fn center(position_mm: f64) -> Self {
-        Self { position_mm, alignment: TabStopAlign::Center, leader: ' ' }
+        Self {
+            position_mm,
+            alignment: TabStopAlign::Center,
+            leader: ' ',
+        }
     }
 
     pub fn decimal(position_mm: f64) -> Self {
-        Self { position_mm, alignment: TabStopAlign::Decimal, leader: ' ' }
+        Self {
+            position_mm,
+            alignment: TabStopAlign::Decimal,
+            leader: ' ',
+        }
     }
 
     pub fn with_leader(mut self, c: char) -> Self {
@@ -103,7 +119,9 @@ impl TextLayoutEngine {
 
     /// Returns the line height in mm for `font_size` (pt).
     pub fn line_height_mm(&self, fonts: &FontRegistry, font_size: f64) -> f64 {
-        fonts.get_default().line_height_mm(font_size, self.line_height)
+        fonts
+            .get_default()
+            .line_height_mm(font_size, self.line_height)
     }
 
     /// Lays out `runs` into `LineBox`es fitting `max_width_mm`.
@@ -142,7 +160,11 @@ impl TextLayoutEngine {
                         if !buf.is_empty() {
                             let w = buf.trim().to_string();
                             if !w.is_empty() {
-                                tokens.push(Token::Word(w, run.style.clone(), run.letter_spacing_mm));
+                                tokens.push(Token::Word(
+                                    w,
+                                    run.style.clone(),
+                                    run.letter_spacing_mm,
+                                ));
                             }
                             buf.clear();
                         }
@@ -152,7 +174,11 @@ impl TextLayoutEngine {
                         if !buf.is_empty() {
                             let w = buf.trim().to_string();
                             if !w.is_empty() {
-                                tokens.push(Token::Word(w, run.style.clone(), run.letter_spacing_mm));
+                                tokens.push(Token::Word(
+                                    w,
+                                    run.style.clone(),
+                                    run.letter_spacing_mm,
+                                ));
                             }
                             buf.clear();
                         }
@@ -163,7 +189,11 @@ impl TextLayoutEngine {
                         if !buf.is_empty() {
                             let w = buf.trim().to_string();
                             if !w.is_empty() {
-                                tokens.push(Token::Word(w, run.style.clone(), run.letter_spacing_mm));
+                                tokens.push(Token::Word(
+                                    w,
+                                    run.style.clone(),
+                                    run.letter_spacing_mm,
+                                ));
                             }
                             buf.clear();
                         }
@@ -187,7 +217,12 @@ impl TextLayoutEngine {
         let mut word_widths: Vec<f64> = Vec::new();
         let mut x_cursor: f64 = 0.0;
 
-        let word_width = |fonts: &FontRegistry, word: &str, bold: bool, italic: bool, letter_spacing: f64| -> f64 {
+        let word_width = |fonts: &FontRegistry,
+                          word: &str,
+                          bold: bool,
+                          italic: bool,
+                          letter_spacing: f64|
+         -> f64 {
             let base = fonts.measure_text_mm(word, &self.default_family, font_size, bold, italic);
             let chars = word.chars().count();
             if chars > 1 && letter_spacing > 0.0 {
@@ -198,9 +233,8 @@ impl TextLayoutEngine {
         };
 
         // Find the next tab stop at or after `x` (returns None if no stop applies).
-        let next_tab_stop = |x: f64| -> Option<&TabStop> {
-            tab_stops.iter().find(|ts| ts.position_mm > x)
-        };
+        let next_tab_stop =
+            |x: f64| -> Option<&TabStop> { tab_stops.iter().find(|ts| ts.position_mm > x) };
 
         // Measure the combined width of all Word tokens up to (not including) the
         // next Tab or Break. Used for Right/Center tab look-ahead.
@@ -211,9 +245,17 @@ impl TextLayoutEngine {
                 match tok {
                     Token::Tab(_) | Token::Break => break,
                     Token::Word(text, style, ls) => {
-                        if !first { w += space_w; }
+                        if !first {
+                            w += space_w;
+                        }
                         first = false;
-                        let base = fonts.measure_text_mm(text, &self.default_family, font_size, style.bold, style.italic);
+                        let base = fonts.measure_text_mm(
+                            text,
+                            &self.default_family,
+                            font_size,
+                            style.bold,
+                            style.italic,
+                        );
                         let chars = text.chars().count();
                         w += if chars > 1 && *ls > 0.0 {
                             base + ls * (chars - 1) as f64
@@ -234,8 +276,14 @@ impl TextLayoutEngine {
                 Token::Break => {
                     if !pending.is_empty() {
                         lines.push(build_line(
-                            &pending, &word_widths, max_width_mm, alignment,
-                            font_size, space_w, line_h, true,
+                            &pending,
+                            &word_widths,
+                            max_width_mm,
+                            alignment,
+                            font_size,
+                            space_w,
+                            line_h,
+                            true,
                         ));
                         pending.clear();
                         word_widths.clear();
@@ -256,8 +304,14 @@ impl TextLayoutEngine {
                     // Flush current pending words into a line before processing the tab.
                     if !pending.is_empty() {
                         lines.push(build_line(
-                            &pending, &word_widths, max_width_mm, alignment,
-                            font_size, space_w, line_h, true,
+                            &pending,
+                            &word_widths,
+                            max_width_mm,
+                            alignment,
+                            font_size,
+                            space_w,
+                            line_h,
+                            true,
                         ));
                         pending.clear();
                         word_widths.clear();
@@ -270,27 +324,56 @@ impl TextLayoutEngine {
                         let stop_align = stop.alignment;
 
                         let leader_count = |gap: f64| -> usize {
-                            let char_w = word_width(fonts, &leader.to_string(), style.bold, style.italic, 0.0);
-                            if char_w > 0.0 { (gap / char_w).floor() as usize } else { 0 }
+                            let char_w = word_width(
+                                fonts,
+                                &leader.to_string(),
+                                style.bold,
+                                style.italic,
+                                0.0,
+                            );
+                            if char_w > 0.0 {
+                                (gap / char_w).floor() as usize
+                            } else {
+                                0
+                            }
                         };
-                        let push_leader = |pending: &mut Vec<_>, word_widths: &mut Vec<f64>, gap: f64| {
-                            if leader == ' ' || gap <= 0.0 { return; }
-                            let n = {
-                                let char_w = word_width(fonts, &leader.to_string(), style.bold, style.italic, 0.0);
-                                if char_w > 0.0 { (gap / char_w).floor() as usize } else { 0 }
+                        let push_leader =
+                            |pending: &mut Vec<_>, word_widths: &mut Vec<f64>, gap: f64| {
+                                if leader == ' ' || gap <= 0.0 {
+                                    return;
+                                }
+                                let n = {
+                                    let char_w = word_width(
+                                        fonts,
+                                        &leader.to_string(),
+                                        style.bold,
+                                        style.italic,
+                                        0.0,
+                                    );
+                                    if char_w > 0.0 {
+                                        (gap / char_w).floor() as usize
+                                    } else {
+                                        0
+                                    }
+                                };
+                                if n == 0 {
+                                    return;
+                                }
+                                let s: String = std::iter::repeat_n(leader, n).collect();
+                                let w = word_width(fonts, &s, style.bold, style.italic, 0.0);
+                                pending.push((s, style.clone(), 0.0));
+                                word_widths.push(w);
                             };
-                            if n == 0 { return; }
-                            let s: String = std::iter::repeat_n(leader, n).collect();
-                            let w = word_width(fonts, &s, style.bold, style.italic, 0.0);
-                            pending.push((s, style.clone(), 0.0));
-                            word_widths.push(w);
-                        };
                         let _ = leader_count; // used via push_leader closure
 
                         match stop_align {
                             TabStopAlign::Left => {
                                 if stop_pos > x_cursor {
-                                    push_leader(&mut pending, &mut word_widths, stop_pos - x_cursor);
+                                    push_leader(
+                                        &mut pending,
+                                        &mut word_widths,
+                                        stop_pos - x_cursor,
+                                    );
                                 }
                                 x_cursor = stop_pos;
                             }
@@ -298,7 +381,11 @@ impl TextLayoutEngine {
                                 let ahead_w = lookahead_width(tok_idx + 1, &tokens);
                                 let text_start = (stop_pos - ahead_w).max(x_cursor);
                                 if text_start > x_cursor {
-                                    push_leader(&mut pending, &mut word_widths, text_start - x_cursor);
+                                    push_leader(
+                                        &mut pending,
+                                        &mut word_widths,
+                                        text_start - x_cursor,
+                                    );
                                 }
                                 x_cursor = text_start;
                             }
@@ -306,7 +393,11 @@ impl TextLayoutEngine {
                                 let ahead_w = lookahead_width(tok_idx + 1, &tokens);
                                 let text_start = (stop_pos - ahead_w / 2.0).max(x_cursor);
                                 if text_start > x_cursor {
-                                    push_leader(&mut pending, &mut word_widths, text_start - x_cursor);
+                                    push_leader(
+                                        &mut pending,
+                                        &mut word_widths,
+                                        text_start - x_cursor,
+                                    );
                                 }
                                 x_cursor = text_start;
                             }
@@ -356,8 +447,14 @@ impl TextLayoutEngine {
                         word_widths.push(w);
                     } else if !pending.is_empty() {
                         lines.push(build_line(
-                            &pending, &word_widths, max_width_mm, alignment,
-                            font_size, space_w, line_h, false,
+                            &pending,
+                            &word_widths,
+                            max_width_mm,
+                            alignment,
+                            font_size,
+                            space_w,
+                            line_h,
+                            false,
                         ));
                         pending.clear();
                         word_widths.clear();
@@ -369,8 +466,14 @@ impl TextLayoutEngine {
                         pending.push((word.clone(), style.clone(), *ls));
                         word_widths.push(w);
                         lines.push(build_line(
-                            &pending, &word_widths, max_width_mm, alignment,
-                            font_size, space_w, line_h, false,
+                            &pending,
+                            &word_widths,
+                            max_width_mm,
+                            alignment,
+                            font_size,
+                            space_w,
+                            line_h,
+                            false,
                         ));
                         pending.clear();
                         word_widths.clear();
@@ -383,13 +486,22 @@ impl TextLayoutEngine {
 
         if !pending.is_empty() {
             lines.push(build_line(
-                &pending, &word_widths, max_width_mm, alignment,
-                font_size, space_w, line_h, true,
+                &pending,
+                &word_widths,
+                max_width_mm,
+                alignment,
+                font_size,
+                space_w,
+                line_h,
+                true,
             ));
         }
 
         let total_height_mm = lines.len() as f64 * line_h;
-        LayoutResult { lines, total_height_mm }
+        LayoutResult {
+            lines,
+            total_height_mm,
+        }
     }
 
     /// Convenience wrapper: lay out a plain string with a uniform style.
@@ -402,7 +514,12 @@ impl TextLayoutEngine {
         font_size: f64,
         style: AppliedStyle,
     ) -> LayoutResult {
-        let run = TextRun { text: text.to_string(), style, letter_spacing_mm: 0.0, ..Default::default() };
+        let run = TextRun {
+            text: text.to_string(),
+            style,
+            letter_spacing_mm: 0.0,
+            ..Default::default()
+        };
         self.layout_runs(fonts, &[run], max_width_mm, alignment, font_size, &[])
     }
 
@@ -426,7 +543,11 @@ impl TextLayoutEngine {
                 #[cfg(feature = "optimal_wrap")]
                 {
                     return self.layout_runs_knuth_plass(
-                        fonts, runs, max_width_mm, alignment, font_size,
+                        fonts,
+                        runs,
+                        max_width_mm,
+                        alignment,
+                        font_size,
                     );
                 }
                 #[cfg(not(feature = "optimal_wrap"))]
@@ -448,7 +569,7 @@ impl TextLayoutEngine {
     pub fn hyphenate_word(&self, word: &str) -> Vec<usize> {
         #[cfg(feature = "hyphenation")]
         {
-            use hyphenation::{Language, Load, Hyphenator};
+            use hyphenation::{Hyphenator, Language, Load};
             if word.chars().count() < 5 {
                 return vec![];
             }
@@ -484,20 +605,38 @@ impl TextLayoutEngine {
         let mut words: Vec<(String, AppliedStyle, f64, f64)> = Vec::new();
         for run in runs {
             for word in run.text.split_whitespace() {
-                if word.is_empty() { continue; }
-                let base = fonts.measure_text_mm(word, &self.default_family, font_size, run.style.bold, run.style.italic);
+                if word.is_empty() {
+                    continue;
+                }
+                let base = fonts.measure_text_mm(
+                    word,
+                    &self.default_family,
+                    font_size,
+                    run.style.bold,
+                    run.style.italic,
+                );
                 let ls = run.letter_spacing_mm;
                 let n = word.chars().count();
-                let w = if n > 1 && ls > 0.0 { base + ls * (n - 1) as f64 } else { base };
+                let w = if n > 1 && ls > 0.0 {
+                    base + ls * (n - 1) as f64
+                } else {
+                    base
+                };
                 words.push((word.to_string(), run.style.clone(), ls, w));
             }
         }
 
         if words.is_empty() {
-            return LayoutResult { lines: vec![], total_height_mm: 0.0 };
+            return LayoutResult {
+                lines: vec![],
+                total_height_mm: 0.0,
+            };
         }
 
-        let boxes: Vec<WordBox> = words.iter().map(|(_, _, _, w)| WordBox { width: *w }).collect();
+        let boxes: Vec<WordBox> = words
+            .iter()
+            .map(|(_, _, _, w)| WordBox { width: *w })
+            .collect();
         let optimizer = KnuthPlassOptimizer::new(max_width_mm, space_w);
         let breaks = optimizer.optimize(&boxes);
 
@@ -513,14 +652,23 @@ impl TextLayoutEngine {
                 .map(|(t, s, ls, _)| (t.clone(), s.clone(), *ls))
                 .collect();
             lines.push(build_line(
-                &pending, &word_widths, max_width_mm, alignment,
-                font_size, space_w, line_h, is_last,
+                &pending,
+                &word_widths,
+                max_width_mm,
+                alignment,
+                font_size,
+                space_w,
+                line_h,
+                is_last,
             ));
             line_start = line_end + 1;
         }
 
         let total_height_mm = lines.len() as f64 * line_h;
-        LayoutResult { lines, total_height_mm }
+        LayoutResult {
+            lines,
+            total_height_mm,
+        }
     }
 }
 
@@ -540,7 +688,11 @@ fn build_line(
     let n = words.len();
     let words_total: f64 = word_widths.iter().sum();
     let non_empty = words.iter().filter(|(t, _, _)| !t.is_empty()).count();
-    let spaces_total = if non_empty > 1 { (non_empty - 1) as f64 * space_w } else { 0.0 };
+    let spaces_total = if non_empty > 1 {
+        (non_empty - 1) as f64 * space_w
+    } else {
+        0.0
+    };
     let line_w = words_total + spaces_total;
 
     let base_x = match alignment {

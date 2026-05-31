@@ -1,11 +1,11 @@
 use core_config::PathsConfig;
+use files::{
+    ensure_directories, generate_technical_filename, prune_stale_temp_files, resolve_layout,
+};
 use std::fs;
 use std::path::PathBuf;
 use std::thread::sleep;
 use std::time::Duration;
-use files::{
-    ensure_directories, generate_technical_filename, prune_stale_temp_files, resolve_layout,
-};
 
 #[test]
 fn technical_filename_is_sanitized() {

@@ -45,8 +45,9 @@ impl EvaluationCycleStore for MetricsSqliteStore {
         status: Option<&CycleStatus>,
     ) -> Result<Vec<EvaluationCycle>, MetricError> {
         let lo = limit_offset(&opts);
-        let filter = status
-            .map_or(String::new(), |s| format!(" WHERE status = '{}'", s.as_str()));
+        let filter = status.map_or(String::new(), |s| {
+            format!(" WHERE status = '{}'", s.as_str())
+        });
         let conn = self.db();
         let mut stmt = conn
             .prepare(&format!(
@@ -63,7 +64,8 @@ impl EvaluationCycleStore for MetricsSqliteStore {
     }
 
     fn update_cycle_status(&self, id: &str, status: &CycleStatus) -> Result<(), MetricError> {
-        let n = self.db()
+        let n = self
+            .db()
             .execute(
                 "UPDATE evaluation_cycles SET status = ?1 WHERE id = ?2",
                 params![status.as_str(), id],
@@ -105,8 +107,7 @@ fn row_to_cycle(r: &rusqlite::Row<'_>) -> rusqlite::Result<EvaluationCycle> {
     let cycle_type = CycleType::from_str(&cycle_type_s).unwrap_or(CycleType::Custom);
     let period_start =
         crate::util::str_to_dt(&period_start_s).unwrap_or_else(|_| chrono::Utc::now());
-    let period_end =
-        crate::util::str_to_dt(&period_end_s).unwrap_or_else(|_| chrono::Utc::now());
+    let period_end = crate::util::str_to_dt(&period_end_s).unwrap_or_else(|_| chrono::Utc::now());
     let status = CycleStatus::from_str(&status_s).unwrap_or(CycleStatus::Planned);
     let created_at = crate::util::str_to_dt(&created_s).unwrap_or_else(|_| chrono::Utc::now());
 

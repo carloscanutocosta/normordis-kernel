@@ -1,11 +1,11 @@
 use normordis_pdf::{
-    AccessibilityConfig, CheckBoxDef, ComboBoxDef, DocumentBuilder, DocumentStyle, FieldRect,
-    FontRegistry, FormField, FootnoteMarkStyle, FootnoteRef, FOOTNOTE_SEPARATOR_THICKNESS_MM,
-    InstitutionalHeader, PageFlow, PageLayout, Paragraph, RenderContext, Section, StructureTree,
-    Table, TableCell, TableOfContents, TextFieldDef,
-    elements::{footnote::FootnoteAccumulator, Element},
-    layout::{TextLayoutEngine, GlyphUsageTracker},
     backend::pdf_writer_backend::PdfWriterBackend,
+    elements::{footnote::FootnoteAccumulator, Element},
+    layout::{GlyphUsageTracker, TextLayoutEngine},
+    AccessibilityConfig, CheckBoxDef, ComboBoxDef, DocumentBuilder, DocumentStyle, FieldRect,
+    FontRegistry, FootnoteMarkStyle, FootnoteRef, FormField, InstitutionalHeader, PageFlow,
+    PageLayout, Paragraph, RenderContext, Section, StructureTree, Table, TableCell,
+    TableOfContents, TextFieldDef, FOOTNOTE_SEPARATOR_THICKNESS_MM,
 };
 
 // ── helpers ───────────────────────────────────────────────────────────────────
@@ -51,14 +51,20 @@ fn renders_to_pdf(builder: DocumentBuilder) -> Vec<u8> {
 #[test]
 fn font_01_registry_has_liberation_serif() {
     let reg = FontRegistry::default();
-    assert!(reg.get("LiberationSerif").is_some(), "LiberationSerif must be registered");
+    assert!(
+        reg.get("LiberationSerif").is_some(),
+        "LiberationSerif must be registered"
+    );
 }
 
 // 02. FontRegistry::default() tem "LiberationMono" registado
 #[test]
 fn font_02_registry_has_liberation_mono() {
     let reg = FontRegistry::default();
-    assert!(reg.get("LiberationMono").is_some(), "LiberationMono must be registered");
+    assert!(
+        reg.get("LiberationMono").is_some(),
+        "LiberationMono must be registered"
+    );
 }
 
 // 03. alias "Times New Roman" resolve para "LiberationSerif"
@@ -69,8 +75,7 @@ fn font_03_times_new_roman_alias_resolves_to_liberation_serif() {
     let serif = reg.get_family("LiberationSerif");
     // Both should return the same font data (same units_per_em)
     assert_eq!(
-        resolved.regular.units_per_em,
-        serif.regular.units_per_em,
+        resolved.regular.units_per_em, serif.regular.units_per_em,
         "Times New Roman alias must resolve to LiberationSerif"
     );
 }
@@ -82,8 +87,7 @@ fn font_04_courier_new_alias_resolves_to_liberation_mono() {
     let resolved = reg.get_family("Courier New");
     let mono = reg.get_family("LiberationMono");
     assert_eq!(
-        resolved.regular.units_per_em,
-        mono.regular.units_per_em,
+        resolved.regular.units_per_em, mono.regular.units_per_em,
         "Courier New alias must resolve to LiberationMono"
     );
 }
@@ -118,7 +122,10 @@ fn hyph_07_hyphenate_long_word_returns_breaks() {
     let fonts = FontRegistry::new();
     let engine = TextLayoutEngine::new(&fonts, &style);
     let breaks = engine.hyphenate_word("implementação");
-    assert!(!breaks.is_empty(), "PT-PT: 'implementação' must have hyphenation breaks");
+    assert!(
+        !breaks.is_empty(),
+        "PT-PT: 'implementação' must have hyphenation breaks"
+    );
 }
 
 // 08. (feature="hyphenation") palavra demasiado curta (< 5 chars) retorna []
@@ -129,7 +136,10 @@ fn hyph_08_short_word_returns_no_breaks() {
     let fonts = FontRegistry::new();
     let engine = TextLayoutEngine::new(&fonts, &style);
     let breaks = engine.hyphenate_word("de");
-    assert!(breaks.is_empty(), "word 'de' (< 5 chars) must return no breaks");
+    assert!(
+        breaks.is_empty(),
+        "word 'de' (< 5 chars) must return no breaks"
+    );
 }
 
 // 09. (sem feature="hyphenation") hyphenate_word nunca faz panic e retorna []
@@ -140,7 +150,10 @@ fn hyph_09_without_feature_returns_empty() {
     let fonts = FontRegistry::new();
     let engine = TextLayoutEngine::new(&fonts, &style);
     let breaks = engine.hyphenate_word("implementação");
-    assert!(breaks.is_empty(), "without hyphenation feature must return []");
+    assert!(
+        breaks.is_empty(),
+        "without hyphenation feature must return []"
+    );
 }
 
 // 09 with-feature variant (always true when feature is on — just verifies no panic)
@@ -161,16 +174,20 @@ fn hyph_09_with_feature_no_panic() {
 fn hyph_10_soft_hyphen_paragraph_renders_without_panic() {
     let mut ctx = make_ctx();
     // U+00AD = soft hyphen — must not cause panic
-    let text = "im\u{00AD}ple\u{00AD}men\u{00AD}tação de fun\u{00AD}cio\u{00AD}na\u{00AD}li\u{00AD}dades";
+    let text =
+        "im\u{00AD}ple\u{00AD}men\u{00AD}tação de fun\u{00AD}cio\u{00AD}na\u{00AD}li\u{00AD}dades";
     let p = Paragraph::new(text);
-    p.render(&mut ctx).expect("soft hyphen paragraph must render without error");
+    p.render(&mut ctx)
+        .expect("soft hyphen paragraph must render without error");
 }
 
 // 11. Parágrafo com palavra muito longa sem hifenização não causa panic
 #[test]
 fn hyph_11_long_word_without_hyphenation_no_panic() {
     let bytes = DocumentBuilder::new("test")
-        .push(Paragraph::new("Pneumonoultramicroscopicsilicovolcanoconiosis is a long word."))
+        .push(Paragraph::new(
+            "Pneumonoultramicroscopicsilicovolcanoconiosis is a long word.",
+        ))
         .render_to_bytes()
         .expect("long word must not cause panic");
     assert!(bytes.starts_with(b"%PDF-"));
@@ -181,10 +198,13 @@ fn hyph_11_long_word_without_hyphenation_no_panic() {
 #[test]
 fn hyph_12_with_feature_long_text_renders_ok() {
     let bytes = DocumentBuilder::new("hyph test")
-        .push(Paragraph::new(
-            "responsabilidade desenvolvimento implementação funcionalidade \
-             disponibilidade estabelecimento"
-        ).align(normordis_pdf::TextAlign::Justify))
+        .push(
+            Paragraph::new(
+                "responsabilidade desenvolvimento implementação funcionalidade \
+             disponibilidade estabelecimento",
+            )
+            .align(normordis_pdf::TextAlign::Justify),
+        )
         .render_to_bytes()
         .expect("justified long text must render without error");
     assert!(bytes.starts_with(b"%PDF-"));
@@ -214,10 +234,16 @@ fn note_14_footnote_ref_mark_text_numeric() {
 // 14b. FootnoteMarkStyle::Alpha retorna letras; Symbol retorna símbolos
 #[test]
 fn note_14b_mark_style_variants() {
-    let alpha = FootnoteRef { number: 1, mark_style: FootnoteMarkStyle::Alpha };
+    let alpha = FootnoteRef {
+        number: 1,
+        mark_style: FootnoteMarkStyle::Alpha,
+    };
     assert_eq!(alpha.mark_text(), "a");
 
-    let sym = FootnoteRef { number: 1, mark_style: FootnoteMarkStyle::Symbol };
+    let sym = FootnoteRef {
+        number: 1,
+        mark_style: FootnoteMarkStyle::Symbol,
+    };
     assert_eq!(sym.mark_text(), "*");
 }
 
@@ -237,7 +263,10 @@ fn note_16_accumulator_reserve_increases_height() {
     assert_eq!(acc.reserved_height_mm, 0.0);
     let h = acc.reserve(1, vec!["First note text.".to_string()], 5.0);
     assert!(h > 0.0, "reserve() must return positive height");
-    assert!(acc.reserved_height_mm > 0.0, "reserved_height_mm must increase");
+    assert!(
+        acc.reserved_height_mm > 0.0,
+        "reserved_height_mm must increase"
+    );
 }
 
 // 17. PageFlow::would_overflow_with_footnotes considera reserva de footnotes
@@ -304,7 +333,11 @@ fn toc_22_document_with_toc_and_3_sections_renders() {
         .expect("document with TOC and 3 sections must render");
     assert!(bytes.starts_with(b"%PDF-"));
     // PDF must be substantial (TOC + 3 sections produce real content)
-    assert!(bytes.len() > 5000, "PDF must be > 5 KB, got {} bytes", bytes.len());
+    assert!(
+        bytes.len() > 5000,
+        "PDF must be > 5 KB, got {} bytes",
+        bytes.len()
+    );
 }
 
 // 23. TOC com max_level=1 não inclui secções de nível 2
@@ -393,7 +426,10 @@ fn toc_29_single_pass_document_renders() {
 #[test]
 fn header_35_minimal_renders_without_panic() {
     let bytes = DocumentBuilder::new("test")
-        .push(InstitutionalHeader::new("Entidade Pública", "Ofício nº 1/2026"))
+        .push(InstitutionalHeader::new(
+            "Entidade Pública",
+            "Ofício nº 1/2026",
+        ))
         .push(Paragraph::new("Corpo do documento."))
         .render_to_bytes()
         .expect("minimal header must render");
@@ -421,8 +457,8 @@ fn header_36_full_fields_renders_without_panic() {
 fn header_37_subtitle_advances_cursor_more() {
     use normordis_pdf::elements::Element;
     let h_no_sub = InstitutionalHeader::new("Ent", "Título");
-    let h_with_sub = InstitutionalHeader::new("Ent", "Título")
-        .with_subtitle("Subtítulo informativo");
+    let h_with_sub =
+        InstitutionalHeader::new("Ent", "Título").with_subtitle("Subtítulo informativo");
     assert!(
         h_with_sub.estimated_height_mm() >= h_no_sub.estimated_height_mm(),
         "estimated_height must not shrink when subtitle is present"
@@ -469,15 +505,21 @@ fn nested_30_nested_table_sets_field() {
         .row(vec![TableCell::new("a"), TableCell::new("b")])
         .build();
     let cell = TableCell::new("").nested_table(inner);
-    assert!(cell.nested_table.is_some(), "nested_table must be Some after .nested_table()");
+    assert!(
+        cell.nested_table.is_some(),
+        "nested_table must be Some after .nested_table()"
+    );
 }
 
 // 31. Tabela com célula aninhada renderiza sem panic
 #[test]
 fn nested_31_table_with_nested_cell_renders() {
     let inner = Table::builder()
-        .row(vec![TableCell::new("Email"), TableCell::new("info@example.com")])
-        .row(vec![TableCell::new("Tel."),  TableCell::new("21 000 0000")])
+        .row(vec![
+            TableCell::new("Email"),
+            TableCell::new("info@example.com"),
+        ])
+        .row(vec![TableCell::new("Tel."), TableCell::new("21 000 0000")])
         .build();
 
     let outer = Table::builder()
@@ -499,12 +541,17 @@ fn nested_31_table_with_nested_cell_renders() {
 fn nested_32_padding_reduces_inner_width() {
     use normordis_pdf::CellPadding;
     let inner = Table::builder()
-        .row(vec![TableCell::new("Nested content fits within padded cell")])
+        .row(vec![TableCell::new(
+            "Nested content fits within padded cell",
+        )])
         .build();
 
-    let cell = TableCell::new("")
-        .nested_table(inner)
-        .padding(CellPadding { top_mm: 2.0, bottom_mm: 2.0, left_mm: 4.0, right_mm: 4.0 });
+    let cell = TableCell::new("").nested_table(inner).padding(CellPadding {
+        top_mm: 2.0,
+        bottom_mm: 2.0,
+        left_mm: 4.0,
+        right_mm: 4.0,
+    });
 
     // Verify no panic when rendering with padding
     let bytes = DocumentBuilder::new("nested padding test")
@@ -518,14 +565,27 @@ fn nested_32_padding_reduces_inner_width() {
 #[test]
 fn nested_33_multi_column_nested_table_renders() {
     let inner = Table::builder()
-        .row(vec![TableCell::new("A"), TableCell::new("B"), TableCell::new("C")])
-        .row(vec![TableCell::new("1"), TableCell::new("2"), TableCell::new("3")])
+        .row(vec![
+            TableCell::new("A"),
+            TableCell::new("B"),
+            TableCell::new("C"),
+        ])
+        .row(vec![
+            TableCell::new("1"),
+            TableCell::new("2"),
+            TableCell::new("3"),
+        ])
         .build();
 
     let bytes = DocumentBuilder::new("multi-col nested test")
-        .push(Table::builder()
-            .row(vec![TableCell::new("Outer"), TableCell::new("").nested_table(inner)])
-            .build())
+        .push(
+            Table::builder()
+                .row(vec![
+                    TableCell::new("Outer"),
+                    TableCell::new("").nested_table(inner),
+                ])
+                .build(),
+        )
         .render_to_bytes()
         .expect("multi-column nested table must render");
     assert!(bytes.starts_with(b"%PDF-"));
@@ -548,9 +608,11 @@ fn nested_34_large_nested_table_no_panic() {
     let inner = inner_builder.build();
 
     let bytes = DocumentBuilder::new("large nested test")
-        .push(Table::builder()
-            .row(vec![TableCell::new("").nested_table(inner)])
-            .build())
+        .push(
+            Table::builder()
+                .row(vec![TableCell::new("").nested_table(inner)])
+                .build(),
+        )
         .render_to_bytes()
         .expect("large nested table must not panic");
     assert!(bytes.starts_with(b"%PDF-"));
@@ -571,7 +633,12 @@ fn form_35_text_field_renders() {
             max_length: Some(100),
             readonly: false,
             required: true,
-            rect: FieldRect { x_mm: 25.0, y_mm: 240.0, width_mm: 120.0, height_mm: 8.0 },
+            rect: FieldRect {
+                x_mm: 25.0,
+                y_mm: 240.0,
+                width_mm: 120.0,
+                height_mm: 8.0,
+            },
             font_size: 11.0,
         }))
         .render_to_bytes()
@@ -587,7 +654,12 @@ fn form_36_checkbox_renders() {
             name: "aceitar".into(),
             checked_by_default: true,
             tooltip: None,
-            rect: FieldRect { x_mm: 20.0, y_mm: 220.0, width_mm: 5.0, height_mm: 5.0 },
+            rect: FieldRect {
+                x_mm: 20.0,
+                y_mm: 220.0,
+                width_mm: 5.0,
+                height_mm: 5.0,
+            },
         }))
         .render_to_bytes()
         .expect("CheckBox must render");
@@ -604,7 +676,12 @@ fn form_37_combobox_renders() {
             default_value: Some("Lisboa".into()),
             editable: false,
             tooltip: None,
-            rect: FieldRect { x_mm: 25.0, y_mm: 200.0, width_mm: 60.0, height_mm: 8.0 },
+            rect: FieldRect {
+                x_mm: 25.0,
+                y_mm: 200.0,
+                width_mm: 60.0,
+                height_mm: 8.0,
+            },
             font_size: 10.0,
         }))
         .render_to_bytes()
@@ -625,14 +702,24 @@ fn form_38_document_with_three_fields_renders() {
             max_length: None,
             readonly: false,
             required: true,
-            rect: FieldRect { x_mm: 25.0, y_mm: 230.0, width_mm: 100.0, height_mm: 8.0 },
+            rect: FieldRect {
+                x_mm: 25.0,
+                y_mm: 230.0,
+                width_mm: 100.0,
+                height_mm: 8.0,
+            },
             font_size: 11.0,
         }))
         .form_field(FormField::CheckBox(CheckBoxDef {
             name: "termos".into(),
             checked_by_default: false,
             tooltip: None,
-            rect: FieldRect { x_mm: 25.0, y_mm: 210.0, width_mm: 5.0, height_mm: 5.0 },
+            rect: FieldRect {
+                x_mm: 25.0,
+                y_mm: 210.0,
+                width_mm: 5.0,
+                height_mm: 5.0,
+            },
         }))
         .form_field(FormField::ComboBox(ComboBoxDef {
             name: "categoria".into(),
@@ -640,7 +727,12 @@ fn form_38_document_with_three_fields_renders() {
             default_value: None,
             editable: false,
             tooltip: None,
-            rect: FieldRect { x_mm: 25.0, y_mm: 190.0, width_mm: 40.0, height_mm: 8.0 },
+            rect: FieldRect {
+                x_mm: 25.0,
+                y_mm: 190.0,
+                width_mm: 40.0,
+                height_mm: 8.0,
+            },
             font_size: 10.0,
         }))
         .render_to_bytes()
@@ -656,7 +748,12 @@ fn form_39_minimal_field_rect_no_panic() {
             name: "mini".into(),
             checked_by_default: false,
             tooltip: None,
-            rect: FieldRect { x_mm: 1.0, y_mm: 1.0, width_mm: 3.0, height_mm: 3.0 },
+            rect: FieldRect {
+                x_mm: 1.0,
+                y_mm: 1.0,
+                width_mm: 3.0,
+                height_mm: 3.0,
+            },
         }))
         .render_to_bytes()
         .expect("minimal FieldRect must not panic");

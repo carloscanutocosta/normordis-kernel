@@ -6,40 +6,30 @@ use crate::{NormaxisPdfError, Result};
 // Libertinus Serif — kept for backward compatibility.
 const LIBERTINUS_SERIF_REGULAR: &[u8] =
     include_bytes!("../assets/fonts/LibertinusSerif-Regular.ttf");
-const LIBERTINUS_SERIF_BOLD: &[u8] =
-    include_bytes!("../assets/fonts/LibertinusSerif-Bold.ttf");
-const LIBERTINUS_SERIF_ITALIC: &[u8] =
-    include_bytes!("../assets/fonts/LibertinusSerif-Italic.ttf");
+const LIBERTINUS_SERIF_BOLD: &[u8] = include_bytes!("../assets/fonts/LibertinusSerif-Bold.ttf");
+const LIBERTINUS_SERIF_ITALIC: &[u8] = include_bytes!("../assets/fonts/LibertinusSerif-Italic.ttf");
 const LIBERTINUS_SERIF_BOLD_ITALIC: &[u8] =
     include_bytes!("../assets/fonts/LibertinusSerif-BoldItalic.ttf");
 
 // Liberation Sans — metrically identical to Arial/Calibri.
-const LIBERATION_SANS_REGULAR: &[u8] =
-    include_bytes!("../assets/fonts/LiberationSans-Regular.ttf");
-const LIBERATION_SANS_BOLD: &[u8] =
-    include_bytes!("../assets/fonts/LiberationSans-Bold.ttf");
-const LIBERATION_SANS_ITALIC: &[u8] =
-    include_bytes!("../assets/fonts/LiberationSans-Italic.ttf");
+const LIBERATION_SANS_REGULAR: &[u8] = include_bytes!("../assets/fonts/LiberationSans-Regular.ttf");
+const LIBERATION_SANS_BOLD: &[u8] = include_bytes!("../assets/fonts/LiberationSans-Bold.ttf");
+const LIBERATION_SANS_ITALIC: &[u8] = include_bytes!("../assets/fonts/LiberationSans-Italic.ttf");
 const LIBERATION_SANS_BOLD_ITALIC: &[u8] =
     include_bytes!("../assets/fonts/LiberationSans-BoldItalic.ttf");
 
 // Liberation Serif — Times New Roman equivalent.
 const LIBERATION_SERIF_REGULAR: &[u8] =
     include_bytes!("../assets/fonts/LiberationSerif-Regular.ttf");
-const LIBERATION_SERIF_BOLD: &[u8] =
-    include_bytes!("../assets/fonts/LiberationSerif-Bold.ttf");
-const LIBERATION_SERIF_ITALIC: &[u8] =
-    include_bytes!("../assets/fonts/LiberationSerif-Italic.ttf");
+const LIBERATION_SERIF_BOLD: &[u8] = include_bytes!("../assets/fonts/LiberationSerif-Bold.ttf");
+const LIBERATION_SERIF_ITALIC: &[u8] = include_bytes!("../assets/fonts/LiberationSerif-Italic.ttf");
 const LIBERATION_SERIF_BOLD_ITALIC: &[u8] =
     include_bytes!("../assets/fonts/LiberationSerif-BoldItalic.ttf");
 
 // Liberation Mono — Courier New equivalent.
-const LIBERATION_MONO_REGULAR: &[u8] =
-    include_bytes!("../assets/fonts/LiberationMono-Regular.ttf");
-const LIBERATION_MONO_BOLD: &[u8] =
-    include_bytes!("../assets/fonts/LiberationMono-Bold.ttf");
-const LIBERATION_MONO_ITALIC: &[u8] =
-    include_bytes!("../assets/fonts/LiberationMono-Italic.ttf");
+const LIBERATION_MONO_REGULAR: &[u8] = include_bytes!("../assets/fonts/LiberationMono-Regular.ttf");
+const LIBERATION_MONO_BOLD: &[u8] = include_bytes!("../assets/fonts/LiberationMono-Bold.ttf");
+const LIBERATION_MONO_ITALIC: &[u8] = include_bytes!("../assets/fonts/LiberationMono-Italic.ttf");
 const LIBERATION_MONO_BOLD_ITALIC: &[u8] =
     include_bytes!("../assets/fonts/LiberationMono-BoldItalic.ttf");
 
@@ -74,7 +64,10 @@ impl FontData {
         let face = ttf_parser::Face::parse(&bytes, 0)
             .map_err(|e| NormaxisPdfError::FontLoadError(e.to_string()))?;
         let units_per_em = face.units_per_em();
-        Ok(Self { bytes, units_per_em })
+        Ok(Self {
+            bytes,
+            units_per_em,
+        })
     }
 
     /// Shape `text` with the given OpenType features and return per-glyph metrics.
@@ -110,8 +103,7 @@ impl FontData {
         }
         let glyphs = self.shape(text, &[]);
         let total_advance: i32 = glyphs.iter().map(|g| g.x_advance).sum();
-        let advance_pts =
-            (total_advance as f64 / self.units_per_em as f64) * font_size;
+        let advance_pts = (total_advance as f64 / self.units_per_em as f64) * font_size;
         advance_pts / 72.0 * 25.4
     }
 
@@ -179,9 +171,8 @@ impl FontVariants {
         italic: Option<&Path>,
         bold_italic: Option<&Path>,
     ) -> Result<Self> {
-        let read = |p: &Path| -> Result<Vec<u8>> {
-            std::fs::read(p).map_err(NormaxisPdfError::IoError)
-        };
+        let read =
+            |p: &Path| -> Result<Vec<u8>> { std::fs::read(p).map_err(NormaxisPdfError::IoError) };
         Self::from_bytes(
             name,
             read(regular)?,
@@ -218,7 +209,8 @@ impl FontVariants {
 
     /// Line height in mm for `font_size` (pt) and a multiplier.
     pub fn line_height_mm(&self, font_size: f64, line_height_multiplier: f64) -> f64 {
-        self.regular.line_height_mm(font_size, line_height_multiplier)
+        self.regular
+            .line_height_mm(font_size, line_height_multiplier)
     }
 }
 
@@ -374,7 +366,8 @@ impl FontRegistry {
         bold: bool,
         italic: bool,
     ) -> f64 {
-        self.get_family(family).measure_text_mm(text, font_size, bold, italic)
+        self.get_family(family)
+            .measure_text_mm(text, font_size, bold, italic)
     }
 }
 
@@ -436,7 +429,12 @@ impl FontRegistry {
             )));
         }
 
-        Ok(FontRegistry { families, aliases: HashMap::new(), default_family, monospace_family: None })
+        Ok(FontRegistry {
+            families,
+            aliases: HashMap::new(),
+            default_family,
+            monospace_family: None,
+        })
     }
 
     /// Load a [`FontRegistry`] populated with all fonts found on the host system.
@@ -455,8 +453,7 @@ impl FontRegistry {
                 _ => continue,
             };
             let is_bold = face.weight.0 >= 600;
-            let is_italic =
-                matches!(face.style, fontdb::Style::Italic | fontdb::Style::Oblique);
+            let is_italic = matches!(face.style, fontdb::Style::Italic | fontdb::Style::Oblique);
             let bytes = match db.with_face_data(face.id, |data, _| data.to_vec()) {
                 Some(b) => b,
                 None => continue,
@@ -492,7 +489,12 @@ impl FontRegistry {
             ));
         }
 
-        Ok(FontRegistry { families, aliases: HashMap::new(), default_family, monospace_family: None })
+        Ok(FontRegistry {
+            families,
+            aliases: HashMap::new(),
+            default_family,
+            monospace_family: None,
+        })
     }
 }
 
@@ -539,14 +541,14 @@ impl Default for FontRegistry {
         );
 
         // Word font aliases → Liberation equivalents
-        registry.add_alias("Arial",           "LiberationSans");
-        registry.add_alias("Calibri",         "LiberationSans");
-        registry.add_alias("Helvetica",       "LiberationSans");
+        registry.add_alias("Arial", "LiberationSans");
+        registry.add_alias("Calibri", "LiberationSans");
+        registry.add_alias("Helvetica", "LiberationSans");
         registry.add_alias("Times New Roman", "LiberationSerif");
-        registry.add_alias("Cambria",         "LiberationSerif");
-        registry.add_alias("Georgia",         "LiberationSerif");
-        registry.add_alias("Courier New",     "LiberationMono");
-        registry.add_alias("Consolas",        "LiberationMono");
+        registry.add_alias("Cambria", "LiberationSerif");
+        registry.add_alias("Georgia", "LiberationSerif");
+        registry.add_alias("Courier New", "LiberationMono");
+        registry.add_alias("Consolas", "LiberationMono");
 
         let _ = registry.set_default("LiberationSans");
         let _ = registry.set_monospace("LiberationMono");

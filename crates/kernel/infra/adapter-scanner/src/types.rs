@@ -234,11 +234,26 @@ pub struct ScanRegion {
 
 impl ScanRegion {
     /// A4 portrait (210 × 297 mm → 2480 × 3508 unidades a 300 dpi).
-    pub const A4_PORTRAIT: Self = Self { x_offset: 0, y_offset: 0, width: 2480, height: 3508 };
+    pub const A4_PORTRAIT: Self = Self {
+        x_offset: 0,
+        y_offset: 0,
+        width: 2480,
+        height: 3508,
+    };
     /// A4 landscape.
-    pub const A4_LANDSCAPE: Self = Self { x_offset: 0, y_offset: 0, width: 3508, height: 2480 };
+    pub const A4_LANDSCAPE: Self = Self {
+        x_offset: 0,
+        y_offset: 0,
+        width: 3508,
+        height: 2480,
+    };
     /// Letter portrait (8.5 × 11 polegadas).
-    pub const LETTER_PORTRAIT: Self = Self { x_offset: 0, y_offset: 0, width: 2550, height: 3300 };
+    pub const LETTER_PORTRAIT: Self = Self {
+        x_offset: 0,
+        y_offset: 0,
+        width: 2550,
+        height: 3300,
+    };
 }
 
 // ── Pedido de scan ─────────────────────────────────────────────────────────────

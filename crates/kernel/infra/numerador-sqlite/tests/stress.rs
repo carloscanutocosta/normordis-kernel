@@ -19,7 +19,7 @@ use std::time::{Duration, Instant};
 
 use chrono::{NaiveDate, Utc};
 use domain_numerador::{
-    ActorRef, AssignmentFilter, AssignNumberRequest, FormatPart, NumberFormat, NumberingKind,
+    ActorRef, AssignNumberRequest, AssignmentFilter, FormatPart, NumberFormat, NumberingKind,
     NumberingSequence, NumberingSequenceRepository, NumberingStore, ResetPolicy, TargetRef,
 };
 use numerador_sqlite::NumeradorDb;
@@ -57,10 +57,7 @@ fn test_sequence() -> NumberingSequence {
         reset_policy: ResetPolicy::Never,
         format: NumberFormat {
             separator: String::new(),
-            parts: vec![
-                FormatPart::Literal("STR".into()),
-                FormatPart::Sequence,
-            ],
+            parts: vec![FormatPart::Literal("STR".into()), FormatPart::Sequence],
         },
         valid_from: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
         valid_to: None,

@@ -7,7 +7,6 @@ pub use error::RegistryError;
 pub use ports::AppRegistryRepository;
 pub use service::AppRegistryService;
 pub use types::{
-    AppId, AppRegistration, AppRegistryFilter, AppState,
-    AppStateTransition, AppVisibility, RegisterAppRequest,
-    RoleId, TransitionStateRequest, UpdateAppMetadataRequest,
+    AppId, AppRegistration, AppRegistryFilter, AppState, AppStateTransition, AppVisibility,
+    RegisterAppRequest, RoleId, TransitionStateRequest, UpdateAppMetadataRequest,
 };

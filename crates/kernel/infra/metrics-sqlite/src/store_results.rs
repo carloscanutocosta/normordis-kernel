@@ -51,8 +51,8 @@ impl MeasurementResultStore for MetricsSqliteStore {
         let tx = conn.transaction().map_err(MetricsSqliteError::Sqlite)?;
         for res in results {
             res.validate()?;
-            let quality_json =
-                serde_json::to_string(&res.quality_flags).map_err(|_| MetricError::MarshalFailed)?;
+            let quality_json = serde_json::to_string(&res.quality_flags)
+                .map_err(|_| MetricError::MarshalFailed)?;
             let payload_json = res
                 .payload
                 .as_ref()
@@ -88,7 +88,8 @@ impl MeasurementResultStore for MetricsSqliteStore {
     }
 
     fn get_result(&self, id: &str) -> Result<MeasurementResult, MetricError> {
-        let row = self.db()
+        let row = self
+            .db()
             .query_row(
                 "SELECT id, indicator_instance_id, metric_version_id,
                         value, unit, status, calculated_at, calculated_by,
@@ -132,7 +133,8 @@ impl MeasurementResultStore for MetricsSqliteStore {
         &self,
         indicator_instance_id: &str,
     ) -> Result<Option<MeasurementResult>, MetricError> {
-        let row = self.db()
+        let row = self
+            .db()
             .query_row(
                 "SELECT id, indicator_instance_id, metric_version_id,
                         value, unit, status, calculated_at, calculated_by,
@@ -156,7 +158,8 @@ impl MeasurementResultStore for MetricsSqliteStore {
         status: &MeasurementStatus,
         _updated_by: &str,
     ) -> Result<(), MetricError> {
-        let n = self.db()
+        let n = self
+            .db()
             .execute(
                 "UPDATE measurement_results SET status = ?1 WHERE id = ?2",
                 params![status.as_str(), id],
@@ -412,7 +415,9 @@ mod tests {
         seed(&s);
         s.save_result(&result("r-001")).unwrap();
         s.save_result(&result("r-002")).unwrap();
-        let list = s.list_results_for_instance("i-001", ListOptions::default()).unwrap();
+        let list = s
+            .list_results_for_instance("i-001", ListOptions::default())
+            .unwrap();
         assert_eq!(list.len(), 2);
     }
 
@@ -444,7 +449,9 @@ mod tests {
             linked_at: Utc::now(),
         };
         s.save_evidence_link(&link).unwrap();
-        let links = s.list_evidence_for_result("r-001", ListOptions::default()).unwrap();
+        let links = s
+            .list_evidence_for_result("r-001", ListOptions::default())
+            .unwrap();
         assert_eq!(links.len(), 1);
         assert_eq!(links[0].core_ref, "core-audit");
         assert_eq!(links[0].evidence_type, EvidenceType::AuditEvent);
@@ -469,7 +476,9 @@ mod tests {
         seed(&s);
         let batch = vec![result("r-001"), result("r-002"), result("r-003")];
         s.save_results_batch(&batch).unwrap();
-        let list = s.list_results_for_instance("i-001", ListOptions::default()).unwrap();
+        let list = s
+            .list_results_for_instance("i-001", ListOptions::default())
+            .unwrap();
         assert_eq!(list.len(), 3);
     }
 

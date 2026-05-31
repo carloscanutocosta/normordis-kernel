@@ -62,9 +62,7 @@ fn check_sync(db_path: &str) -> Result<HealthStatus, BackupServiceError> {
 
     // Verificar tamanho do WAL
     let wal_path = format!("{db_path}-wal");
-    let wal_size = std::fs::metadata(&wal_path)
-        .map(|m| m.len())
-        .unwrap_or(0);
+    let wal_size = std::fs::metadata(&wal_path).map(|m| m.len()).unwrap_or(0);
 
     if wal_size > WAL_WARN_BYTES {
         return Ok(HealthStatus::Warning(format!(

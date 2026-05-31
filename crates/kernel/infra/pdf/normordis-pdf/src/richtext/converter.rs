@@ -24,15 +24,20 @@ use crate::{
 };
 
 // Dark navy used for hyperlinks.
-const LINK_COLOR: RgbColor = RgbColor { r: 0.0, g: 0.2, b: 0.6 };
+const LINK_COLOR: RgbColor = RgbColor {
+    r: 0.0,
+    g: 0.2,
+    b: 0.6,
+};
 // Mid-grey used for blockquote text.
-const BLOCKQUOTE_COLOR: RgbColor = RgbColor { r: 0.47, g: 0.47, b: 0.47 };
+const BLOCKQUOTE_COLOR: RgbColor = RgbColor {
+    r: 0.47,
+    g: 0.47,
+    b: 0.47,
+};
 
 /// Convert a parsed `NcrtfDocument` into a flat list of `normordis-pdf` elements.
-pub fn ncrtf_to_elements(
-    doc: &NcrtfDocument,
-    _style: &DocumentStyle,
-) -> Vec<Box<dyn Element>> {
+pub fn ncrtf_to_elements(doc: &NcrtfDocument, _style: &DocumentStyle) -> Vec<Box<dyn Element>> {
     let mut elements: Vec<Box<dyn Element>> = Vec::new();
 
     for block in &doc.blocks {
@@ -102,10 +107,17 @@ pub fn ncrtf_to_elements(
             Block::CodeBlock(cb) => {
                 let run = TextRun {
                     text: cb.code.clone(),
-                    style: AppliedStyle { code: true, ..Default::default() },
+                    style: AppliedStyle {
+                        code: true,
+                        ..Default::default()
+                    },
                     ..Default::default()
                 };
-                elements.push(Box::new(Paragraph::from_runs(vec![run], TextAlign::Left, None)));
+                elements.push(Box::new(Paragraph::from_runs(
+                    vec![run],
+                    TextAlign::Left,
+                    None,
+                )));
             }
             Block::Image(img) => elements.push(image_block_to_element(img)),
             Block::HorizontalRule => {
@@ -146,7 +158,10 @@ fn table_block_to_elements(t: &TableBlock, out: &mut Vec<Box<dyn Element>>) {
     if let Some(ref cap) = t.caption {
         let run = TextRun {
             text: cap.clone(),
-            style: AppliedStyle { italic: true, ..Default::default() },
+            style: AppliedStyle {
+                italic: true,
+                ..Default::default()
+            },
             ..Default::default()
         };
         let mut cap_para = Paragraph::from_runs(vec![run], TextAlign::Left, None);
@@ -191,7 +206,10 @@ fn ncrtf_cell_to_table_cell(
     let col_span = c.col_span.unwrap_or(1).max(1) as u16;
     let row_span = c.row_span.unwrap_or(1).max(1) as u16;
 
-    let mut cell = TableCell::new(text).align(alignment).col_span(col_span).row_span(row_span);
+    let mut cell = TableCell::new(text)
+        .align(alignment)
+        .col_span(col_span)
+        .row_span(row_span);
     if is_header {
         cell.style_ref = Some("table_header".into());
     }
@@ -202,9 +220,9 @@ fn image_block_to_element(img: &ImageBlock) -> Box<dyn Element> {
     let data = decode_data_uri(&img.src);
 
     let alignment = match img.alignment.as_ref().unwrap_or(&ImageAlign::Center) {
-        ImageAlign::Left   => ImageAlignment::Left,
+        ImageAlign::Left => ImageAlignment::Left,
         ImageAlign::Center => ImageAlignment::Center,
-        ImageAlign::Right  => ImageAlignment::Right,
+        ImageAlign::Right => ImageAlignment::Right,
     };
 
     let mut element = ImageElement::new(data).align(alignment);
@@ -288,7 +306,10 @@ fn inlines_to_runs_colored(inlines: &[Inline], base_color: &RgbColor) -> Vec<Tex
                 }
             }
             Inline::HardBreak => {
-                runs.push(TextRun { text: "\n".into(), ..Default::default() });
+                runs.push(TextRun {
+                    text: "\n".into(),
+                    ..Default::default()
+                });
             }
             Inline::FootnoteRef(r) => {
                 runs.push(TextRun::footnote_ref(r.number));
@@ -307,22 +328,21 @@ fn convert_alignment(a: Option<&TextAlign>) -> TextAlign {
 
 fn fixed_box_to_element(fb: &FixedBoxBlock) -> Box<dyn Element> {
     let overflow = match fb.overflow.as_deref() {
-        Some("clip")     => OverflowPolicy::Clip,
-        Some("shrink")   => OverflowPolicy::Shrink,
+        Some("clip") => OverflowPolicy::Clip,
+        Some("shrink") => OverflowPolicy::Shrink,
         Some("overflow") => OverflowPolicy::Overflow,
-        _                => OverflowPolicy::Truncate,
+        _ => OverflowPolicy::Truncate,
     };
 
     let border = fb.border.as_ref().map(|b| {
         let style = match b.style.as_deref() {
             Some("dashed") => BorderStyle::Dashed,
             Some("dotted") => BorderStyle::Dotted,
-            _              => BorderStyle::Solid,
+            _ => BorderStyle::Solid,
         };
         BoxBorder {
             width_mm: b.width_mm,
-            color: RgbColor::from_hex(&b.color)
-                .unwrap_or(RgbColor::new(0.0, 0.0, 0.0)),
+            color: RgbColor::from_hex(&b.color).unwrap_or(RgbColor::new(0.0, 0.0, 0.0)),
             style,
         }
     });

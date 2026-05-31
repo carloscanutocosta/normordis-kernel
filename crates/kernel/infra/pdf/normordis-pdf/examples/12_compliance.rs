@@ -2,10 +2,9 @@
 //! Run: cargo run --example 12_compliance -p normordis-pdf
 
 use normordis_pdf::{
-    BulletList, CompressionLevel, DocumentBuilder, InstitutionalHeader,
-    ListItemElement, PageFooter, Paragraph, PdfStandard, RgbColor, Result, Section,
-    SecurityClassification, Spacer, TraceabilityMetadata, Watermark, NDT_VERSION,
-    PDF_BACKEND, VERSION,
+    BulletList, CompressionLevel, DocumentBuilder, InstitutionalHeader, ListItemElement,
+    PageFooter, Paragraph, PdfStandard, Result, RgbColor, Section, SecurityClassification, Spacer,
+    TraceabilityMetadata, Watermark, NDT_VERSION, PDF_BACKEND, VERSION,
 };
 
 fn main() -> Result<()> {
@@ -29,13 +28,15 @@ fn main() -> Result<()> {
                 .with_reference("ACT/2026/001")
                 .with_date("29 de Abril de 2026"),
         )
-        .footer(PageFooter::new()
-            .left("ACT/2026/001 — INTERNO")
-            .right("Pág. {{page}} / {{total_pages}}"))
+        .footer(
+            PageFooter::new()
+                .left("ACT/2026/001 — INTERNO")
+                .right("Pág. {{page}} / {{total_pages}}"),
+        )
         .push(Section::new("1. Abertura da Sessão", 1))
         .push(Paragraph::new(
             "Reuniu a Câmara Municipal de Lisboa, em sessão ordinária, \
-             na sala de reuniões dos Paços do Concelho, pelas 10h00."
+             na sala de reuniões dos Paços do Concelho, pelas 10h00.",
         ))
         .push(Spacer::new(4.0))
         .push(Section::new("2. Ordem do Dia", 1))
@@ -48,26 +49,40 @@ fn main() -> Result<()> {
 
     let path_a = out_dir.join("normordis_pdfa.pdf");
     std::fs::write(&path_a, &pdf_a)?;
-    println!("PDF/A-1b:       {} ({} KB)", path_a.display(), pdf_a.len() / 1024);
+    println!(
+        "PDF/A-1b:       {} ({} KB)",
+        path_a.display(),
+        pdf_a.len() / 1024
+    );
 
     // ── Opacidade real na marca de água ───────────────────────────────
     let pdf_opacity = DocumentBuilder::new("Rascunho")
         .watermark(
             Watermark::new("RASCUNHO")
                 .opacity(0.15)
-                .color(RgbColor { r: 0.8, g: 0.0, b: 0.0 })
+                .color(RgbColor {
+                    r: 0.8,
+                    g: 0.0,
+                    b: 0.0,
+                })
                 .font_size(80.0),
         )
-        .push(Paragraph::new("Este documento usa opacidade real via ExtGState."))
+        .push(Paragraph::new(
+            "Este documento usa opacidade real via ExtGState.",
+        ))
         .push(Paragraph::new(
             "A marca de água RASCUNHO é renderizada com alfa 0.15 sem \
-             simulação de cor — funciona correctamente sobre qualquer fundo."
+             simulação de cor — funciona correctamente sobre qualquer fundo.",
         ))
         .render_to_bytes()?;
 
     let path_o = out_dir.join("normaxis_opacity.pdf");
     std::fs::write(&path_o, &pdf_opacity)?;
-    println!("Opacidade real: {} ({} KB)", path_o.display(), pdf_opacity.len() / 1024);
+    println!(
+        "Opacidade real: {} ({} KB)",
+        path_o.display(),
+        pdf_opacity.len() / 1024
+    );
 
     // ── Classificação automática via NDT 2.0.0 output block ──────────
     let ndt_template = r#"{
@@ -91,7 +106,11 @@ fn main() -> Result<()> {
 
     let path_n = out_dir.join("normaxis_ndt200.pdf");
     std::fs::write(&path_n, &pdf_ndt)?;
-    println!("NDT 2.0.0:      {} ({} KB)", path_n.display(), pdf_ndt.len() / 1024);
+    println!(
+        "NDT 2.0.0:      {} ({} KB)",
+        path_n.display(),
+        pdf_ndt.len() / 1024
+    );
 
     println!("\nChecklist visual:");
     println!("  □ PDF/A: verificar com veraPDF — zero erros");

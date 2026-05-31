@@ -14,11 +14,13 @@ use chrono::{DateTime, Utc};
 use rusqlite::{params, types::Value, Connection, OptionalExtension};
 use thiserror::Error;
 
-use adapter_sqlite::{open_relational_connection, run_relational_migrations, SqliteRelationalConfig};
+use adapter_sqlite::{
+    open_relational_connection, run_relational_migrations, SqliteRelationalConfig,
+};
 use domain_registry::{
-    AppId, AppRegistration, AppRegistryFilter, AppRegistryRepository,
-    AppState, AppStateTransition, AppVisibility, RegisterAppRequest,
-    RegistryError, RoleId, TransitionStateRequest, UpdateAppMetadataRequest,
+    AppId, AppRegistration, AppRegistryFilter, AppRegistryRepository, AppState, AppStateTransition,
+    AppVisibility, RegisterAppRequest, RegistryError, RoleId, TransitionStateRequest,
+    UpdateAppMetadataRequest,
 };
 use support_errors::MiniError;
 
@@ -128,7 +130,7 @@ impl RegistrySqliteStore {
 /// Cada chamada a `set_allowed_roles` produz um destes registos (append-only).
 #[derive(Debug, Clone)]
 pub struct RoleChangeRecord {
-    pub roles:  Vec<RoleId>,
+    pub roles: Vec<RoleId>,
     pub set_by: String,
     pub set_at: DateTime<Utc>,
 }
@@ -138,9 +140,9 @@ pub struct RoleChangeRecord {
 /// registos (append-only). `None` representa ausência de valor (campo nulo).
 #[derive(Debug, Clone)]
 pub struct MetadataChangeRecord {
-    pub field:      String,
-    pub old_value:  Option<String>,
-    pub new_value:  Option<String>,
+    pub field: String,
+    pub old_value: Option<String>,
+    pub new_value: Option<String>,
     pub changed_by: String,
     pub changed_at: DateTime<Utc>,
 }
@@ -162,34 +164,33 @@ fn escape_like(s: &str) -> String {
 }
 
 struct AppRow {
-    app_id:            String,
-    name:              String,
-    version:           String,
-    owner:             String,
-    domain:            String,
-    description:       Option<String>,
+    app_id: String,
+    name: String,
+    version: String,
+    owner: String,
+    domain: String,
+    description: Option<String>,
     capabilities_json: String,
-    visibility_str:    String,
+    visibility_str: String,
     registered_at_str: String,
-    registered_by:     String,
+    registered_by: String,
 }
 
-const SELECT_COLS: &str =
-    "app_id, name, version, owner, domain, description, \
+const SELECT_COLS: &str = "app_id, name, version, owner, domain, description, \
      capabilities, visibility, registered_at, registered_by";
 
 fn row_to_app_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<AppRow> {
     Ok(AppRow {
-        app_id:            row.get(0)?,
-        name:              row.get(1)?,
-        version:           row.get(2)?,
-        owner:             row.get(3)?,
-        domain:            row.get(4)?,
-        description:       row.get(5)?,
+        app_id: row.get(0)?,
+        name: row.get(1)?,
+        version: row.get(2)?,
+        owner: row.get(3)?,
+        domain: row.get(4)?,
+        description: row.get(5)?,
         capabilities_json: row.get(6)?,
-        visibility_str:    row.get(7)?,
+        visibility_str: row.get(7)?,
         registered_at_str: row.get(8)?,
-        registered_by:     row.get(9)?,
+        registered_by: row.get(9)?,
     })
 }
 
@@ -203,11 +204,11 @@ fn build_registration(
     let id = AppId::new(row.app_id)?;
     Ok(AppRegistration {
         id,
-        name:          row.name,
-        version:       row.version,
-        owner:         row.owner,
-        domain:        row.domain,
-        description:   row.description,
+        name: row.name,
+        version: row.version,
+        owner: row.owner,
+        domain: row.domain,
+        description: row.description,
         capabilities,
         visibility,
         allowed_roles,
@@ -244,20 +245,17 @@ fn load_transitions_for(
         .collect()
 }
 
-fn load_roles_for(
-    conn: &Connection,
-    app_id: &str,
-) -> Result<Vec<RoleId>, RegistrySqliteError> {
-    let mut stmt = conn.prepare(
-        "SELECT role_id FROM platform_app_allowed_roles WHERE app_id = ?1",
-    )?;
+fn load_roles_for(conn: &Connection, app_id: &str) -> Result<Vec<RoleId>, RegistrySqliteError> {
+    let mut stmt =
+        conn.prepare("SELECT role_id FROM platform_app_allowed_roles WHERE app_id = ?1")?;
     let raw: Vec<String> = stmt
         .query_map(params![app_id], |row| row.get(0))?
         .collect::<Result<Vec<_>, _>>()?;
     raw.into_iter()
-        .map(|s| RoleId::new(s).map_err(|e| {
-            RegistrySqliteError::Domain(RegistryError::Storage(e.to_string()))
-        }))
+        .map(|s| {
+            RoleId::new(s)
+                .map_err(|e| RegistrySqliteError::Domain(RegistryError::Storage(e.to_string())))
+        })
         .collect()
 }
 
@@ -284,9 +282,7 @@ fn insert_role_change_log(
     set_by: &str,
     set_at: DateTime<Utc>,
 ) -> Result<(), RegistrySqliteError> {
-    let roles_json = serde_json::to_string(
-        &roles.iter().map(RoleId::as_str).collect::<Vec<_>>(),
-    )?;
+    let roles_json = serde_json::to_string(&roles.iter().map(RoleId::as_str).collect::<Vec<_>>())?;
     conn.execute(
         "INSERT INTO platform_app_role_changes (app_id, roles_json, set_by, set_at) \
          VALUES (?1, ?2, ?3, ?4)",
@@ -346,13 +342,21 @@ impl AppRegistryRepository for RegistrySqliteStore {
 
             let outcome: Result<(), RegistrySqliteError> = (|| {
                 self.conn.execute(
-                    &format!("INSERT INTO platform_app_registry ({SELECT_COLS}) \
-                              VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10)"),
+                    &format!(
+                        "INSERT INTO platform_app_registry ({SELECT_COLS}) \
+                              VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10)"
+                    ),
                     params![
-                        request.id.as_str(), request.name, request.version,
-                        request.owner, request.domain, request.description,
-                        capabilities_json, request.visibility.as_str(),
-                        at_str, request.registered_by,
+                        request.id.as_str(),
+                        request.name,
+                        request.version,
+                        request.owner,
+                        request.domain,
+                        request.description,
+                        capabilities_json,
+                        request.visibility.as_str(),
+                        at_str,
+                        request.registered_by,
                     ],
                 )?;
                 self.conn.execute(
@@ -360,8 +364,10 @@ impl AppRegistryRepository for RegistrySqliteStore {
                      (app_id, state, transitioned_at, transitioned_by, reason) \
                      VALUES (?1, ?2, ?3, ?4, NULL)",
                     params![
-                        request.id.as_str(), AppState::Draft.as_str(),
-                        at_str, request.registered_by,
+                        request.id.as_str(),
+                        AppState::Draft.as_str(),
+                        at_str,
+                        request.registered_by,
                     ],
                 )?;
                 insert_roles(&self.conn, request.id.as_str(), &request.allowed_roles)?;
@@ -378,7 +384,10 @@ impl AppRegistryRepository for RegistrySqliteStore {
             })();
 
             match outcome {
-                Ok(()) => self.conn.execute_batch("RELEASE SAVEPOINT sp_register").map_err(Into::into),
+                Ok(()) => self
+                    .conn
+                    .execute_batch("RELEASE SAVEPOINT sp_register")
+                    .map_err(Into::into),
                 Err(e) => {
                     let _ = self.conn.execute_batch("ROLLBACK TO SAVEPOINT sp_register");
                     let _ = self.conn.execute_batch("RELEASE SAVEPOINT sp_register");
@@ -398,8 +407,11 @@ impl AppRegistryRepository for RegistrySqliteStore {
              (app_id, state, transitioned_at, transitioned_by, reason) \
              VALUES (?1, ?2, ?3, ?4, ?5)",
             params![
-                request.app_id.as_str(), request.to_state.as_str(),
-                transitioned_at.to_rfc3339(), request.transitioned_by, request.reason,
+                request.app_id.as_str(),
+                request.to_state.as_str(),
+                transitioned_at.to_rfc3339(),
+                request.transitioned_by,
+                request.reason,
             ],
         )?;
         Ok(())
@@ -431,7 +443,15 @@ impl AppRegistryRepository for RegistrySqliteStore {
                         "SELECT version, description, capabilities, visibility, owner \
                          FROM platform_app_registry WHERE app_id = ?1",
                         params![request.app_id.as_str()],
-                        |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?, row.get(4)?)),
+                        |row| {
+                            Ok((
+                                row.get(0)?,
+                                row.get(1)?,
+                                row.get(2)?,
+                                row.get(3)?,
+                                row.get(4)?,
+                            ))
+                        },
                     )
                     .optional()?;
 
@@ -459,13 +479,20 @@ impl AppRegistryRepository for RegistrySqliteStore {
                         audits.push(("description", cur_desc.clone(), d.clone()));
                     }
                     set_parts.push(format!("description = ?{idx}"));
-                    values.push(match d { Some(s) => Value::Text(s.clone()), None => Value::Null });
+                    values.push(match d {
+                        Some(s) => Value::Text(s.clone()),
+                        None => Value::Null,
+                    });
                     idx += 1;
                 }
                 if let Some(caps) = &request.capabilities {
                     let new_json = serde_json::to_string(caps)?;
                     if new_json != cur_caps {
-                        audits.push(("capabilities", Some(cur_caps.clone()), Some(new_json.clone())));
+                        audits.push((
+                            "capabilities",
+                            Some(cur_caps.clone()),
+                            Some(new_json.clone()),
+                        ));
                     }
                     set_parts.push(format!("capabilities = ?{idx}"));
                     values.push(Value::Text(new_json));
@@ -507,14 +534,24 @@ impl AppRegistryRepository for RegistrySqliteStore {
                         "INSERT INTO platform_app_metadata_changes \
                          (app_id, field, old_value, new_value, changed_by, changed_at) \
                          VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
-                        params![request.app_id.as_str(), field, old, new, request.updated_by, at_str],
+                        params![
+                            request.app_id.as_str(),
+                            field,
+                            old,
+                            new,
+                            request.updated_by,
+                            at_str
+                        ],
                     )?;
                 }
                 Ok(())
             })();
 
             match outcome {
-                Ok(()) => self.conn.execute_batch("RELEASE SAVEPOINT sp_meta").map_err(Into::into),
+                Ok(()) => self
+                    .conn
+                    .execute_batch("RELEASE SAVEPOINT sp_meta")
+                    .map_err(Into::into),
                 Err(e) => {
                     let _ = self.conn.execute_batch("ROLLBACK TO SAVEPOINT sp_meta");
                     let _ = self.conn.execute_batch("RELEASE SAVEPOINT sp_meta");
@@ -546,7 +583,10 @@ impl AppRegistryRepository for RegistrySqliteStore {
             })();
 
             match outcome {
-                Ok(()) => self.conn.execute_batch("RELEASE SAVEPOINT sp_roles").map_err(Into::into),
+                Ok(()) => self
+                    .conn
+                    .execute_batch("RELEASE SAVEPOINT sp_roles")
+                    .map_err(Into::into),
                 Err(e) => {
                     let _ = self.conn.execute_batch("ROLLBACK TO SAVEPOINT sp_roles");
                     let _ = self.conn.execute_batch("RELEASE SAVEPOINT sp_roles");
@@ -597,8 +637,10 @@ impl AppRegistryRepository for RegistrySqliteStore {
         for r in roles {
             params_vals.push(Value::Text(r.as_str().to_owned()));
         }
-        let params_refs: Vec<&dyn rusqlite::ToSql> =
-            params_vals.iter().map(|v| v as &dyn rusqlite::ToSql).collect();
+        let params_refs: Vec<&dyn rusqlite::ToSql> = params_vals
+            .iter()
+            .map(|v| v as &dyn rusqlite::ToSql)
+            .collect();
 
         let mut stmt = self.conn.prepare(&sql)?;
         let app_rows: Vec<AppRow> = stmt
@@ -609,7 +651,8 @@ impl AppRegistryRepository for RegistrySqliteStore {
     }
 
     fn get(&self, id: &AppId) -> Result<Option<AppRegistration>, Self::Error> {
-        let row_opt = self.conn
+        let row_opt = self
+            .conn
             .query_row(
                 &format!("SELECT {SELECT_COLS} FROM platform_app_registry WHERE app_id = ?1"),
                 params![id.as_str()],
@@ -617,10 +660,12 @@ impl AppRegistryRepository for RegistrySqliteStore {
             )
             .optional()?;
 
-        let Some(row) = row_opt else { return Ok(None); };
+        let Some(row) = row_opt else {
+            return Ok(None);
+        };
 
-        let state_history  = load_transitions_for(&self.conn, &row.app_id)?;
-        let allowed_roles  = load_roles_for(&self.conn, &row.app_id)?;
+        let state_history = load_transitions_for(&self.conn, &row.app_id)?;
+        let allowed_roles = load_roles_for(&self.conn, &row.app_id)?;
         build_registration(row, state_history, allowed_roles).map(Some)
     }
 
@@ -630,7 +675,9 @@ impl AppRegistryRepository for RegistrySqliteStore {
         limit: usize,
     ) -> Result<Vec<AppRegistration>, Self::Error> {
         let state_str = filter.state.as_ref().map(AppState::as_str);
-        let name_pattern = filter.name_contains.as_ref()
+        let name_pattern = filter
+            .name_contains
+            .as_ref()
             .map(|n| format!("%{}%", escape_like(&n.to_lowercase())));
 
         let sql = format!(
@@ -708,11 +755,17 @@ impl RegistrySqliteStore {
                 let role_strs: Vec<String> = serde_json::from_str(&roles_json)?;
                 let roles = role_strs
                     .into_iter()
-                    .map(|s| RoleId::new(s).map_err(|e| {
-                        RegistrySqliteError::Domain(RegistryError::Storage(e.to_string()))
-                    }))
+                    .map(|s| {
+                        RoleId::new(s).map_err(|e| {
+                            RegistrySqliteError::Domain(RegistryError::Storage(e.to_string()))
+                        })
+                    })
                     .collect::<Result<Vec<_>, _>>()?;
-                Ok(RoleChangeRecord { roles, set_by, set_at: decode_datetime(&set_at) })
+                Ok(RoleChangeRecord {
+                    roles,
+                    set_by,
+                    set_at: decode_datetime(&set_at),
+                })
             })
             .collect()
     }
@@ -731,9 +784,9 @@ impl RegistrySqliteStore {
         let rows = stmt
             .query_map(params![app_id.as_str()], |row| {
                 Ok(MetadataChangeRecord {
-                    field:      row.get(0)?,
-                    old_value:  row.get(1)?,
-                    new_value:  row.get(2)?,
+                    field: row.get(0)?,
+                    old_value: row.get(1)?,
+                    new_value: row.get(2)?,
                     changed_by: row.get(3)?,
                     changed_at: decode_datetime(&row.get::<_, String>(4)?),
                 })
@@ -752,7 +805,10 @@ impl RegistrySqliteStore {
         }
 
         let n = app_rows.len();
-        let ph: String = (1..=n).map(|i| format!("?{i}")).collect::<Vec<_>>().join(", ");
+        let ph: String = (1..=n)
+            .map(|i| format!("?{i}"))
+            .collect::<Vec<_>>()
+            .join(", ");
         let id_strs: Vec<String> = app_rows.iter().map(|r| r.app_id.clone()).collect();
         let id_params: Vec<&dyn rusqlite::ToSql> =
             id_strs.iter().map(|s| s as &dyn rusqlite::ToSql).collect();
@@ -765,7 +821,13 @@ impl RegistrySqliteStore {
         ))?;
         let raw_t: Vec<(String, String, String, String, Option<String>)> = stmt
             .query_map(id_params.as_slice(), |row| {
-                Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?, row.get(4)?))
+                Ok((
+                    row.get(0)?,
+                    row.get(1)?,
+                    row.get(2)?,
+                    row.get(3)?,
+                    row.get(4)?,
+                ))
             })?
             .collect::<Result<Vec<_>, _>>()?;
 
@@ -773,9 +835,15 @@ impl RegistrySqliteStore {
             std::collections::HashMap::new();
         for (aid, s, at, by, reason) in raw_t {
             let state = AppState::from_str(&s)?;
-            by_transitions.entry(aid).or_default().push(AppStateTransition {
-                state, transitioned_at: decode_datetime(&at), transitioned_by: by, reason,
-            });
+            by_transitions
+                .entry(aid)
+                .or_default()
+                .push(AppStateTransition {
+                    state,
+                    transitioned_at: decode_datetime(&at),
+                    transitioned_by: by,
+                    reason,
+                });
         }
 
         // Roles
@@ -789,9 +857,8 @@ impl RegistrySqliteStore {
         let mut by_roles: std::collections::HashMap<String, Vec<RoleId>> =
             std::collections::HashMap::new();
         for (aid, rid) in raw_r {
-            let role_id = RoleId::new(rid).map_err(|e| {
-                RegistrySqliteError::Domain(RegistryError::Storage(e.to_string()))
-            })?;
+            let role_id = RoleId::new(rid)
+                .map_err(|e| RegistrySqliteError::Domain(RegistryError::Storage(e.to_string())))?;
             by_roles.entry(aid).or_default().push(role_id);
         }
 
@@ -800,7 +867,7 @@ impl RegistrySqliteStore {
             .map(|row| {
                 let aid = row.app_id.clone();
                 let history = by_transitions.remove(&aid).unwrap_or_default();
-                let roles   = by_roles.remove(&aid).unwrap_or_default();
+                let roles = by_roles.remove(&aid).unwrap_or_default();
                 build_registration(row, history, roles)
             })
             .collect()
@@ -830,10 +897,18 @@ mod tests {
         fn get(&self, id: &RoleId) -> Result<Option<Role>, RhError> {
             Ok(Some(Role::new(id.as_str(), "Mock Role", None, true)?))
         }
-        fn list_active(&self) -> Result<Vec<Role>, RhError> { Ok(vec![]) }
-        fn exists_and_active(&self, _: &RoleId) -> Result<bool, RhError> { Ok(true) }
-        fn upsert(&self, _: &Role) -> Result<(), RhError> { Ok(()) }
-        fn deactivate(&self, _: &RoleId) -> Result<(), RhError> { Ok(()) }
+        fn list_active(&self) -> Result<Vec<Role>, RhError> {
+            Ok(vec![])
+        }
+        fn exists_and_active(&self, _: &RoleId) -> Result<bool, RhError> {
+            Ok(true)
+        }
+        fn upsert(&self, _: &Role) -> Result<(), RhError> {
+            Ok(())
+        }
+        fn deactivate(&self, _: &RoleId) -> Result<(), RhError> {
+            Ok(())
+        }
     }
 
     /// Nenhum role existe.
@@ -841,11 +916,21 @@ mod tests {
 
     impl RoleRepository for NoRolesExist {
         type Error = RhError;
-        fn get(&self, _: &RoleId) -> Result<Option<Role>, RhError> { Ok(None) }
-        fn list_active(&self) -> Result<Vec<Role>, RhError> { Ok(vec![]) }
-        fn exists_and_active(&self, _: &RoleId) -> Result<bool, RhError> { Ok(false) }
-        fn upsert(&self, _: &Role) -> Result<(), RhError> { Ok(()) }
-        fn deactivate(&self, _: &RoleId) -> Result<(), RhError> { Ok(()) }
+        fn get(&self, _: &RoleId) -> Result<Option<Role>, RhError> {
+            Ok(None)
+        }
+        fn list_active(&self) -> Result<Vec<Role>, RhError> {
+            Ok(vec![])
+        }
+        fn exists_and_active(&self, _: &RoleId) -> Result<bool, RhError> {
+            Ok(false)
+        }
+        fn upsert(&self, _: &Role) -> Result<(), RhError> {
+            Ok(())
+        }
+        fn deactivate(&self, _: &RoleId) -> Result<(), RhError> {
+            Ok(())
+        }
     }
 
     /// O role existe mas está inactivo.
@@ -856,10 +941,18 @@ mod tests {
         fn get(&self, id: &RoleId) -> Result<Option<Role>, RhError> {
             Ok(Some(Role::new(id.as_str(), "Inactive Role", None, false)?))
         }
-        fn list_active(&self) -> Result<Vec<Role>, RhError> { Ok(vec![]) }
-        fn exists_and_active(&self, _: &RoleId) -> Result<bool, RhError> { Ok(false) }
-        fn upsert(&self, _: &Role) -> Result<(), RhError> { Ok(()) }
-        fn deactivate(&self, _: &RoleId) -> Result<(), RhError> { Ok(()) }
+        fn list_active(&self) -> Result<Vec<Role>, RhError> {
+            Ok(vec![])
+        }
+        fn exists_and_active(&self, _: &RoleId) -> Result<bool, RhError> {
+            Ok(false)
+        }
+        fn upsert(&self, _: &Role) -> Result<(), RhError> {
+            Ok(())
+        }
+        fn deactivate(&self, _: &RoleId) -> Result<(), RhError> {
+            Ok(())
+        }
     }
 
     // ── Helpers ──────────────────────────────────────────────────────────────
@@ -867,43 +960,50 @@ mod tests {
     fn open_tmp() -> (tempfile::TempDir, RegistrySqliteStore) {
         let dir = tempdir().unwrap();
         let path = dir.path().join("registry.db");
-        let store = RegistrySqliteStore::open(
-            &SqliteRelationalConfig::read_write_create(&path),
-        ).unwrap();
+        let store =
+            RegistrySqliteStore::open(&SqliteRelationalConfig::read_write_create(&path)).unwrap();
         (dir, store)
     }
 
-    fn aid(s: &str) -> AppId { AppId::new(s).unwrap() }
-    fn rid(s: &str) -> RoleId { RoleId::new(s).unwrap() }
+    fn aid(s: &str) -> AppId {
+        AppId::new(s).unwrap()
+    }
+    fn rid(s: &str) -> RoleId {
+        RoleId::new(s).unwrap()
+    }
 
     fn req(id: &str, domain: &str) -> RegisterAppRequest {
         RegisterAppRequest {
-            id:            aid(id),
-            name:          format!("App {id}"),
-            version:       "1.0.0".into(),
-            owner:         "equipa".into(),
-            domain:        domain.into(),
-            description:   None,
-            capabilities:  vec![],
-            visibility:    AppVisibility::Internal,
+            id: aid(id),
+            name: format!("App {id}"),
+            version: "1.0.0".into(),
+            owner: "equipa".into(),
+            domain: domain.into(),
+            description: None,
+            capabilities: vec![],
+            visibility: AppVisibility::Internal,
             allowed_roles: vec![],
             registered_by: "admin".into(),
         }
     }
 
-    fn now() -> DateTime<Utc> { Utc::now() }
+    fn now() -> DateTime<Utc> {
+        Utc::now()
+    }
 
     /// Transita uma app Draft → Active (para testes de list_for_roles, que só devolve apps activas).
     fn activate(store: &RegistrySqliteStore, id: &str) {
-        store.transition(
-            &TransitionStateRequest {
-                app_id:          aid(id),
-                to_state:        AppState::Active,
-                transitioned_by: "admin".into(),
-                reason:          None,
-            },
-            now() + chrono::Duration::milliseconds(1),
-        ).unwrap();
+        store
+            .transition(
+                &TransitionStateRequest {
+                    app_id: aid(id),
+                    to_state: AppState::Active,
+                    transitioned_by: "admin".into(),
+                    reason: None,
+                },
+                now() + chrono::Duration::milliseconds(1),
+            )
+            .unwrap();
     }
 
     // ── Testes básicos ───────────────────────────────────────────────────────
@@ -937,10 +1037,20 @@ mod tests {
         r.allowed_roles = vec![rid("role_a")];
         store.register(&r, now()).unwrap();
 
-        store.set_allowed_roles(&aid("app-s"), &[rid("role_b"), rid("role_c")], "admin", now()).unwrap();
+        store
+            .set_allowed_roles(
+                &aid("app-s"),
+                &[rid("role_b"), rid("role_c")],
+                "admin",
+                now(),
+            )
+            .unwrap();
 
         let app = store.get(&aid("app-s")).unwrap().unwrap();
-        assert!(!app.allowed_roles.contains(&rid("role_a")), "role_a deve ter sido removido");
+        assert!(
+            !app.allowed_roles.contains(&rid("role_a")),
+            "role_a deve ter sido removido"
+        );
         assert!(app.allowed_roles.contains(&rid("role_b")));
         assert!(app.allowed_roles.contains(&rid("role_c")));
     }
@@ -952,7 +1062,9 @@ mod tests {
         r.allowed_roles = vec![rid("role_x")];
         store.register(&r, now()).unwrap();
 
-        store.set_allowed_roles(&aid("app-e"), &[], "admin", now()).unwrap();
+        store
+            .set_allowed_roles(&aid("app-e"), &[], "admin", now())
+            .unwrap();
 
         let app = store.get(&aid("app-e")).unwrap().unwrap();
         assert!(app.allowed_roles.is_empty());
@@ -978,9 +1090,15 @@ mod tests {
 
         let visible = store.list_for_roles(&[rid("gestor_rh")], 100).unwrap();
         let ids: Vec<&str> = visible.iter().map(|a| a.id.as_str()).collect();
-        assert!(ids.contains(&"app-open"),       "app sem restrição deve aparecer");
-        assert!(ids.contains(&"app-restricted"), "app com role do utilizador deve aparecer");
-        assert!(!ids.contains(&"app-other"),     "app com role diferente não deve aparecer");
+        assert!(ids.contains(&"app-open"), "app sem restrição deve aparecer");
+        assert!(
+            ids.contains(&"app-restricted"),
+            "app com role do utilizador deve aparecer"
+        );
+        assert!(
+            !ids.contains(&"app-other"),
+            "app com role diferente não deve aparecer"
+        );
     }
 
     #[test]
@@ -1009,13 +1127,17 @@ mod tests {
         // Suspender uma app activada — deixa de ser navegável
         store.register(&req("app-susp", "rh"), now()).unwrap();
         activate(&store, "app-susp");
-        store.transition(
-            &TransitionStateRequest {
-                app_id: aid("app-susp"), to_state: AppState::Suspended,
-                transitioned_by: "admin".into(), reason: None,
-            },
-            now() + chrono::Duration::milliseconds(5),
-        ).unwrap();
+        store
+            .transition(
+                &TransitionStateRequest {
+                    app_id: aid("app-susp"),
+                    to_state: AppState::Suspended,
+                    transitioned_by: "admin".into(),
+                    reason: None,
+                },
+                now() + chrono::Duration::milliseconds(5),
+            )
+            .unwrap();
 
         let visible = store.list_for_roles(&[], 100).unwrap();
         let ids: Vec<&str> = visible.iter().map(|a| a.id.as_str()).collect();
@@ -1025,15 +1147,22 @@ mod tests {
     #[test]
     fn list_with_name_contains_filter() {
         let (_dir, store) = open_tmp();
-        let mut r1 = req("app-rh", "rh");   r1.name = "Gestão RH".into();
-        let mut r2 = req("app-doc", "rh");  r2.name = "Documental".into();
+        let mut r1 = req("app-rh", "rh");
+        r1.name = "Gestão RH".into();
+        let mut r2 = req("app-doc", "rh");
+        r2.name = "Documental".into();
         store.register(&r1, now()).unwrap();
         store.register(&r2, now()).unwrap();
 
-        let result = store.list(
-            &AppRegistryFilter { name_contains: Some("gestão".into()), ..Default::default() },
-            100,
-        ).unwrap();
+        let result = store
+            .list(
+                &AppRegistryFilter {
+                    name_contains: Some("gestão".into()),
+                    ..Default::default()
+                },
+                100,
+            )
+            .unwrap();
         assert_eq!(result.len(), 1);
         assert_eq!(result[0].id.as_str(), "app-rh");
     }
@@ -1071,7 +1200,10 @@ mod tests {
         let err = svc.register(r, now()).unwrap_err();
         let msg = err.to_string();
         // Distingue de RoleNotFound: a mensagem indica que o role está inactivo.
-        assert!(msg.contains("inactivo"), "esperava erro de role inactivo, obtido: {msg}");
+        assert!(
+            msg.contains("inactivo"),
+            "esperava erro de role inactivo, obtido: {msg}"
+        );
         assert!(msg.contains("role_desativado"));
     }
 
@@ -1082,9 +1214,18 @@ mod tests {
         store.register(&req("app-audit", "rh"), now()).unwrap();
 
         let t1 = now() + chrono::Duration::seconds(1);
-        store.set_allowed_roles(&aid("app-audit"), &[rid("role_a")], "alice", t1).unwrap();
+        store
+            .set_allowed_roles(&aid("app-audit"), &[rid("role_a")], "alice", t1)
+            .unwrap();
         let t2 = now() + chrono::Duration::seconds(2);
-        store.set_allowed_roles(&aid("app-audit"), &[rid("role_b"), rid("role_c")], "bob", t2).unwrap();
+        store
+            .set_allowed_roles(
+                &aid("app-audit"),
+                &[rid("role_b"), rid("role_c")],
+                "bob",
+                t2,
+            )
+            .unwrap();
 
         let log = store.role_change_log(&aid("app-audit")).unwrap();
         assert_eq!(log.len(), 3, "baseline do registo + duas mudanças");
@@ -1126,13 +1267,18 @@ mod tests {
     #[test]
     fn is_busy_detects_sqlite_busy() {
         assert!(is_busy(&busy_err()));
-        assert!(!is_busy(&RegistrySqliteError::Domain(RegistryError::AppNotFound("x".into()))));
+        assert!(!is_busy(&RegistrySqliteError::Domain(
+            RegistryError::AppNotFound("x".into())
+        )));
     }
 
     #[test]
     fn with_busy_retry_succeeds_first_try() {
         let mut calls = 0;
-        let r: Result<i32, _> = with_busy_retry(|| { calls += 1; Ok(7) });
+        let r: Result<i32, _> = with_busy_retry(|| {
+            calls += 1;
+            Ok(7)
+        });
         assert_eq!(r.unwrap(), 7);
         assert_eq!(calls, 1, "sem retries quando a primeira tentativa passa");
     }
@@ -1142,7 +1288,9 @@ mod tests {
         let mut calls = 0;
         let r: Result<(), _> = with_busy_retry(|| {
             calls += 1;
-            Err(RegistrySqliteError::Domain(RegistryError::AppNotFound("x".into())))
+            Err(RegistrySqliteError::Domain(RegistryError::AppNotFound(
+                "x".into(),
+            )))
         });
         assert!(r.is_err());
         assert_eq!(calls, 1, "erro não-busy não deve ser repetido");
@@ -1153,7 +1301,11 @@ mod tests {
         let mut calls = 0;
         let r: Result<&str, _> = with_busy_retry(|| {
             calls += 1;
-            if calls < 3 { Err(busy_err()) } else { Ok("ok") }
+            if calls < 3 {
+                Err(busy_err())
+            } else {
+                Ok("ok")
+            }
         });
         assert_eq!(r.unwrap(), "ok");
         assert_eq!(calls, 3, "duas falhas busy seguidas de sucesso");
@@ -1162,7 +1314,10 @@ mod tests {
     #[test]
     fn with_busy_retry_exhausts_and_returns_busy() {
         let mut calls = 0;
-        let r: Result<(), _> = with_busy_retry(|| { calls += 1; Err(busy_err()) });
+        let r: Result<(), _> = with_busy_retry(|| {
+            calls += 1;
+            Err(busy_err())
+        });
         assert!(r.is_err());
         assert!(is_busy(&r.unwrap_err()));
         assert_eq!(calls, 6, "1 inicial + 5 retries");
@@ -1171,17 +1326,24 @@ mod tests {
     #[test]
     fn name_contains_escapes_like_wildcards() {
         let (_dir, store) = open_tmp();
-        let mut r1 = req("app-pct", "rh");  r1.name = "Taxa 50% anual".into();
-        let mut r2 = req("app-doc", "rh");  r2.name = "Documental".into();
+        let mut r1 = req("app-pct", "rh");
+        r1.name = "Taxa 50% anual".into();
+        let mut r2 = req("app-doc", "rh");
+        r2.name = "Documental".into();
         store.register(&r1, now()).unwrap();
         store.register(&r2, now()).unwrap();
 
         // Pesquisar "%" literal deve encontrar apenas a app com "%" no nome,
         // não todas as apps (que seria o comportamento se % fosse wildcard).
-        let result = store.list(
-            &AppRegistryFilter { name_contains: Some("%".into()), ..Default::default() },
-            100,
-        ).unwrap();
+        let result = store
+            .list(
+                &AppRegistryFilter {
+                    name_contains: Some("%".into()),
+                    ..Default::default()
+                },
+                100,
+            )
+            .unwrap();
         assert_eq!(result.len(), 1);
         assert_eq!(result[0].id.as_str(), "app-pct");
     }
@@ -1198,13 +1360,17 @@ mod tests {
     fn transition_records_new_state() {
         let (_dir, store) = open_tmp();
         store.register(&req("app-z", "rh"), now()).unwrap();
-        store.transition(
-            &TransitionStateRequest {
-                app_id: aid("app-z"), to_state: AppState::Active,
-                transitioned_by: "admin".into(), reason: None,
-            },
-            now() + chrono::Duration::milliseconds(1),
-        ).unwrap();
+        store
+            .transition(
+                &TransitionStateRequest {
+                    app_id: aid("app-z"),
+                    to_state: AppState::Active,
+                    transitioned_by: "admin".into(),
+                    reason: None,
+                },
+                now() + chrono::Duration::milliseconds(1),
+            )
+            .unwrap();
         let app = store.get(&aid("app-z")).unwrap().unwrap();
         assert_eq!(app.current_state(), Some(&AppState::Active));
     }
@@ -1214,17 +1380,27 @@ mod tests {
         let (_dir, store) = open_tmp();
         store.register(&req("app-a", "rh"), now()).unwrap();
         store.register(&req("app-b", "doc"), now()).unwrap();
-        store.transition(
-            &TransitionStateRequest {
-                app_id: aid("app-a"), to_state: AppState::Active,
-                transitioned_by: "admin".into(), reason: None,
-            },
-            now() + chrono::Duration::milliseconds(1),
-        ).unwrap();
+        store
+            .transition(
+                &TransitionStateRequest {
+                    app_id: aid("app-a"),
+                    to_state: AppState::Active,
+                    transitioned_by: "admin".into(),
+                    reason: None,
+                },
+                now() + chrono::Duration::milliseconds(1),
+            )
+            .unwrap();
 
-        let active = store.list(
-            &AppRegistryFilter { state: Some(AppState::Active), ..Default::default() }, 100,
-        ).unwrap();
+        let active = store
+            .list(
+                &AppRegistryFilter {
+                    state: Some(AppState::Active),
+                    ..Default::default()
+                },
+                100,
+            )
+            .unwrap();
         assert_eq!(active.len(), 1);
         assert_eq!(active[0].id.as_str(), "app-a");
     }
@@ -1233,11 +1409,20 @@ mod tests {
     fn update_metadata_version() {
         let (_dir, store) = open_tmp();
         store.register(&req("app-u", "rh"), now()).unwrap();
-        store.update_metadata(&UpdateAppMetadataRequest {
-            app_id: aid("app-u"), version: Some("2.0.0".into()),
-            description: None, capabilities: None, visibility: None,
-            owner: None, updated_by: "admin".into(),
-        }, now()).unwrap();
+        store
+            .update_metadata(
+                &UpdateAppMetadataRequest {
+                    app_id: aid("app-u"),
+                    version: Some("2.0.0".into()),
+                    description: None,
+                    capabilities: None,
+                    visibility: None,
+                    owner: None,
+                    updated_by: "admin".into(),
+                },
+                now(),
+            )
+            .unwrap();
         let app = store.get(&aid("app-u")).unwrap().unwrap();
         assert_eq!(app.version, "2.0.0");
     }
@@ -1248,15 +1433,20 @@ mod tests {
         store.register(&req("app-m", "rh"), now()).unwrap(); // version 1.0.0, owner "equipa"
         let t = now() + chrono::Duration::seconds(1);
 
-        store.update_metadata(&UpdateAppMetadataRequest {
-            app_id:       aid("app-m"),
-            version:      Some("2.0.0".into()),
-            description:  Some(Some("Nova descrição".into())),
-            capabilities: None,
-            visibility:   None,
-            owner:        Some("nova-equipa".into()),
-            updated_by:   "deploy-bot".into(),
-        }, t).unwrap();
+        store
+            .update_metadata(
+                &UpdateAppMetadataRequest {
+                    app_id: aid("app-m"),
+                    version: Some("2.0.0".into()),
+                    description: Some(Some("Nova descrição".into())),
+                    capabilities: None,
+                    visibility: None,
+                    owner: Some("nova-equipa".into()),
+                    updated_by: "deploy-bot".into(),
+                },
+                t,
+            )
+            .unwrap();
 
         let log = store.metadata_change_log(&aid("app-m")).unwrap();
         // 3 campos efectivamente alterados: version, description, owner
@@ -1281,42 +1471,82 @@ mod tests {
         store.register(&req("app-noop", "rh"), now()).unwrap(); // version já é 1.0.0
 
         // "Alterar" a versão para o mesmo valor — não deve gerar entrada de auditoria.
-        store.update_metadata(&UpdateAppMetadataRequest {
-            app_id: aid("app-noop"), version: Some("1.0.0".into()),
-            description: None, capabilities: None, visibility: None,
-            owner: None, updated_by: "admin".into(),
-        }, now()).unwrap();
+        store
+            .update_metadata(
+                &UpdateAppMetadataRequest {
+                    app_id: aid("app-noop"),
+                    version: Some("1.0.0".into()),
+                    description: None,
+                    capabilities: None,
+                    visibility: None,
+                    owner: None,
+                    updated_by: "admin".into(),
+                },
+                now(),
+            )
+            .unwrap();
 
-        assert!(store.metadata_change_log(&aid("app-noop")).unwrap().is_empty(),
-            "valor inalterado não deve gerar auditoria");
+        assert!(
+            store
+                .metadata_change_log(&aid("app-noop"))
+                .unwrap()
+                .is_empty(),
+            "valor inalterado não deve gerar auditoria"
+        );
     }
 
     #[test]
     fn update_metadata_empty_request_is_noop() {
         let (_dir, store) = open_tmp();
         store.register(&req("app-empty", "rh"), now()).unwrap();
-        store.update_metadata(&UpdateAppMetadataRequest {
-            app_id: aid("app-empty"), version: None, description: None,
-            capabilities: None, visibility: None, owner: None,
-            updated_by: "admin".into(),
-        }, now()).unwrap();
-        assert!(store.metadata_change_log(&aid("app-empty")).unwrap().is_empty());
+        store
+            .update_metadata(
+                &UpdateAppMetadataRequest {
+                    app_id: aid("app-empty"),
+                    version: None,
+                    description: None,
+                    capabilities: None,
+                    visibility: None,
+                    owner: None,
+                    updated_by: "admin".into(),
+                },
+                now(),
+            )
+            .unwrap();
+        assert!(store
+            .metadata_change_log(&aid("app-empty"))
+            .unwrap()
+            .is_empty());
     }
 
     #[test]
     fn build_registrations_loads_roles_in_batch() {
         let (_dir, store) = open_tmp();
-        let mut r1 = req("app-1", "rh");  r1.allowed_roles = vec![rid("role_a")];
-        let mut r2 = req("app-2", "rh");  r2.allowed_roles = vec![rid("role_b")];
+        let mut r1 = req("app-1", "rh");
+        r1.allowed_roles = vec![rid("role_a")];
+        let mut r2 = req("app-2", "rh");
+        r2.allowed_roles = vec![rid("role_b")];
         store.register(&r1, now()).unwrap();
         store.register(&r2, now()).unwrap();
 
         let all = store.list(&AppRegistryFilter::default(), 100).unwrap();
         assert_eq!(all.len(), 2);
-        let roles_1: Vec<&str> = all.iter().find(|a| a.id.as_str()=="app-1")
-            .unwrap().allowed_roles.iter().map(|r| r.as_str()).collect();
-        let roles_2: Vec<&str> = all.iter().find(|a| a.id.as_str()=="app-2")
-            .unwrap().allowed_roles.iter().map(|r| r.as_str()).collect();
+        let roles_1: Vec<&str> = all
+            .iter()
+            .find(|a| a.id.as_str() == "app-1")
+            .unwrap()
+            .allowed_roles
+            .iter()
+            .map(|r| r.as_str())
+            .collect();
+        let roles_2: Vec<&str> = all
+            .iter()
+            .find(|a| a.id.as_str() == "app-2")
+            .unwrap()
+            .allowed_roles
+            .iter()
+            .map(|r| r.as_str())
+            .collect();
         assert_eq!(roles_1, vec!["role_a"]);
         assert_eq!(roles_2, vec!["role_b"]);
     }

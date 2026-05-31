@@ -67,14 +67,23 @@ fn parse_args() -> Result<Args, String> {
         .filter(|k| !k.is_empty())
         .ok_or("chave de encriptação em falta: usa --key ou NORMAXIS_DB_KEY")?;
 
-    Ok(Args { source, data_dir, key, sensitive_tables })
+    Ok(Args {
+        source,
+        data_dir,
+        key,
+        sensitive_tables,
+    })
 }
 
 fn run() -> Result<(), BoxError> {
     let args = parse_args()?;
 
     if !args.source.exists() {
-        return Err(format!("ficheiro de origem não encontrado: {}", args.source.display()).into());
+        return Err(format!(
+            "ficheiro de origem não encontrado: {}",
+            args.source.display()
+        )
+        .into());
     }
 
     std::fs::create_dir_all(&args.data_dir)?;
@@ -137,7 +146,10 @@ fn run() -> Result<(), BoxError> {
         println!("{status} {table:<30} → app.secure.db  ({migrated:>7} registos)");
     }
 
-    for table in all_tables.iter().filter(|t| !sensitive_set.contains(t.as_str())) {
+    for table in all_tables
+        .iter()
+        .filter(|t| !sensitive_set.contains(t.as_str()))
+    {
         let migrated = count_rows_plain(&plain_path, table)?;
         let original = count_rows_plain(&args.source, table)?;
         let ok = migrated == original;
@@ -153,16 +165,23 @@ fn run() -> Result<(), BoxError> {
         .duration_since(UNIX_EPOCH)
         .unwrap_or_default()
         .as_secs();
-    let stem = args.source.file_stem().unwrap_or_default().to_string_lossy();
-    let backup_path = args
+    let stem = args
         .source
-        .with_file_name(format!("{stem}_backup_{ts}.db"));
+        .file_stem()
+        .unwrap_or_default()
+        .to_string_lossy();
+    let backup_path = args.source.with_file_name(format!("{stem}_backup_{ts}.db"));
     std::fs::rename(&args.source, &backup_path)?;
 
-    println!("\nMigração concluída. DB original não foi removida: {}", backup_path.display());
+    println!(
+        "\nMigração concluída. DB original não foi removida: {}",
+        backup_path.display()
+    );
 
     if mismatches > 0 {
-        return Err(format!("validação falhou: {mismatches} tabela(s) com contagem divergente").into());
+        return Err(
+            format!("validação falhou: {mismatches} tabela(s) com contagem divergente").into(),
+        );
     }
 
     Ok(())
@@ -186,7 +205,9 @@ fn open_encrypted(path: &Path, key: &str) -> Result<Connection, BoxError> {
     let key_esc = key.replace('\'', "''");
     conn.execute_batch(&format!("PRAGMA key = '{key_esc}';"))?;
     conn.execute_batch("SELECT count(*) FROM sqlite_master;")
-        .map_err(|_| -> BoxError { "chave de encriptação inválida ou base corrompida".into() })?;
+        .map_err(|_| -> BoxError {
+            "chave de encriptação inválida ou base corrompida".into()
+        })?;
     Ok(conn)
 }
 
@@ -201,15 +222,17 @@ fn drop_tables(conn: &Connection, tables: &[&str]) -> Result<(), rusqlite::Error
 fn count_rows_plain(path: &Path, table: &str) -> Result<i64, BoxError> {
     let conn = Connection::open(path)?;
     let quoted = table.replace('"', "\"\"");
-    let count =
-        conn.query_row(&format!("SELECT count(*) FROM \"{quoted}\""), [], |row| row.get(0))?;
+    let count = conn.query_row(&format!("SELECT count(*) FROM \"{quoted}\""), [], |row| {
+        row.get(0)
+    })?;
     Ok(count)
 }
 
 fn count_rows_encrypted(path: &Path, key: &str, table: &str) -> Result<i64, BoxError> {
     let conn = open_encrypted(path, key)?;
     let quoted = table.replace('"', "\"\"");
-    let count =
-        conn.query_row(&format!("SELECT count(*) FROM \"{quoted}\""), [], |row| row.get(0))?;
+    let count = conn.query_row(&format!("SELECT count(*) FROM \"{quoted}\""), [], |row| {
+        row.get(0)
+    })?;
     Ok(count)
 }

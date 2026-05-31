@@ -20,8 +20,7 @@ use tempfile::tempdir;
 const PHASE_DURATION: Duration = Duration::from_secs(5 * 60);
 const WRITER_THREADS: usize = 4;
 const REPORT_INTERVAL: Duration = Duration::from_secs(30);
-const PAYLOAD_BYTES: &str =
-    r#"{"writer":0,"revision":0,"data":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"}"#;
+const PAYLOAD_BYTES: &str = r#"{"writer":0,"revision":0,"data":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"}"#;
 
 // ---------------------------------------------------------------------------
 // Structs de resultado
@@ -61,11 +60,19 @@ impl PhaseResult {
 #[test]
 #[ignore = "stress test de 5 min com SQLCipher; correr com cargo test -p adapter-sqlite --features encrypted --test encrypted_write_stress_tests -- --ignored --nocapture"]
 fn compare_plain_vs_encrypted_write_throughput() {
-    eprintln!("\n>>> FASE 1: plain SQLite via SqliteWriteQueue ({} writers, {}s)", WRITER_THREADS, PHASE_DURATION.as_secs());
+    eprintln!(
+        "\n>>> FASE 1: plain SQLite via SqliteWriteQueue ({} writers, {}s)",
+        WRITER_THREADS,
+        PHASE_DURATION.as_secs()
+    );
     let plain = run_plain_phase();
     plain.print();
 
-    eprintln!("\n>>> FASE 2: SQLCipher via DbManager pool ({} writers, {}s)", WRITER_THREADS, PHASE_DURATION.as_secs());
+    eprintln!(
+        "\n>>> FASE 2: SQLCipher via DbManager pool ({} writers, {}s)",
+        WRITER_THREADS,
+        PHASE_DURATION.as_secs()
+    );
     let encrypted = run_encrypted_phase();
     encrypted.print();
 
@@ -80,16 +87,28 @@ fn compare_plain_vs_encrypted_write_throughput() {
     eprintln!("╔═══════════════════════════════════════════════════════╗");
     eprintln!("║  COMPARATIVO  plain vs encrypted                      ║");
     eprintln!("╠═══════════════════════════════════════════════════════╣");
-    eprintln!("║  plain     {:<10.0} writes/s  {:<10.0} writes/min ║", plain.writes_per_sec, plain.writes_per_min);
-    eprintln!("║  encrypted {:<10.0} writes/s  {:<10.0} writes/min ║", encrypted.writes_per_sec, encrypted.writes_per_min);
-    eprintln!("║  overhead de encriptação: {:.1}%                      ║", overhead_pct);
+    eprintln!(
+        "║  plain     {:<10.0} writes/s  {:<10.0} writes/min ║",
+        plain.writes_per_sec, plain.writes_per_min
+    );
+    eprintln!(
+        "║  encrypted {:<10.0} writes/s  {:<10.0} writes/min ║",
+        encrypted.writes_per_sec, encrypted.writes_per_min
+    );
+    eprintln!(
+        "║  overhead de encriptação: {:.1}%                      ║",
+        overhead_pct
+    );
     eprintln!("╚═══════════════════════════════════════════════════════╝");
     eprintln!();
 
     assert_eq!(plain.total_errors, 0, "fase plain registou erros");
     assert_eq!(encrypted.total_errors, 0, "fase encrypted registou erros");
     assert!(plain.total_writes > 0, "fase plain não produziu escritas");
-    assert!(encrypted.total_writes > 0, "fase encrypted não produziu escritas");
+    assert!(
+        encrypted.total_writes > 0,
+        "fase encrypted não produziu escritas"
+    );
 }
 
 // ---------------------------------------------------------------------------
@@ -171,7 +190,9 @@ fn run_encrypted_phase() -> PhaseResult {
     let manager = Arc::new(
         DbManager::init(
             dir.path(),
-            StorageMode::Encrypted { key: "stress-test-key-dev-32bytes!!!!!".to_owned() },
+            StorageMode::Encrypted {
+                key: "stress-test-key-dev-32bytes!!!!!".to_owned(),
+            },
         )
         .unwrap(),
     );
@@ -221,8 +242,12 @@ fn run_encrypted_phase() -> PhaseResult {
     }
 
     barrier.wait();
-    let result =
-        collect_phase_results("encrypted SQLCipher — DbManager pool", &stop, &writes, &errors);
+    let result = collect_phase_results(
+        "encrypted SQLCipher — DbManager pool",
+        &stop,
+        &writes,
+        &errors,
+    );
 
     for handle in handles {
         handle.join().unwrap();

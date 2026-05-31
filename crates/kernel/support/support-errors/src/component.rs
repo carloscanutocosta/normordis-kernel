@@ -15,6 +15,18 @@ pub enum ComponentError {
 }
 
 impl Component {
+    /// Creates a `Component` from a compile-time `&'static str` without allocation overhead.
+    /// In debug builds, panics if the value does not meet `Component` requirements.
+    /// Only use with string literals whose validity is guaranteed by the caller.
+    pub fn new_static(value: &'static str) -> Self {
+        debug_assert!(!value.is_empty(), "component cannot be empty");
+        debug_assert!(
+            !value.chars().any(char::is_whitespace),
+            "component cannot contain spaces"
+        );
+        Self(value.to_owned())
+    }
+
     pub fn new(value: impl Into<String>) -> Result<Self, ComponentError> {
         let value = value.into();
 
@@ -66,5 +78,12 @@ mod tests {
         let err = serde_json::from_str::<Component>(r#""adapter sqlite""#).unwrap_err();
 
         assert!(err.to_string().contains("spaces"));
+    }
+
+    #[test]
+    fn new_static_accepts_valid_component() {
+        let component = Component::new_static("core-config");
+
+        assert_eq!(component.as_str(), "core-config");
     }
 }

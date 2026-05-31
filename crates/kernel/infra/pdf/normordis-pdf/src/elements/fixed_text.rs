@@ -1,7 +1,4 @@
-use super::{
-    paragraph::ParagraphContent,
-    Element, LayoutMode, RenderContext,
-};
+use super::{paragraph::ParagraphContent, Element, LayoutMode, RenderContext};
 use crate::{
     layout::{FixedBox, OverflowPolicy, TextAlign},
     richtext::marks::TextRun,
@@ -57,7 +54,9 @@ impl FixedTextBox {
         let runs = self.content_runs();
         let mut fs = base_fs;
         loop {
-            let r = ctx.layout_engine.layout_runs(&ctx.fonts, &runs, inner_w, self.alignment, fs, &[]);
+            let r =
+                ctx.layout_engine
+                    .layout_runs(&ctx.fonts, &runs, inner_w, self.alignment, fs, &[]);
             if r.total_height_mm <= inner_h || fs <= 6.0 {
                 return fs;
             }
@@ -93,7 +92,8 @@ impl Element for FixedTextBox {
             match &self.text_box.ua_role {
                 Some(tag) => {
                     let mcid = ctx.ua_tag_element(tag.clone(), self.text_box.ua_alt.clone());
-                    ctx.backend.begin_tagged_content(tag.pdf_name().as_bytes(), mcid);
+                    ctx.backend
+                        .begin_tagged_content(tag.pdf_name().as_bytes(), mcid);
                 }
                 None => {
                     ctx.backend.begin_artifact_content();
@@ -102,7 +102,12 @@ impl Element for FixedTextBox {
         }
 
         let result = ctx.layout_engine.layout_runs(
-            &ctx.fonts, &runs, inner_w, self.alignment, effective_fs, &[],
+            &ctx.fonts,
+            &runs,
+            inner_w,
+            self.alignment,
+            effective_fs,
+            &[],
         );
         let y_start = self.content_y_start_mm(result.total_height_mm);
 
@@ -128,7 +133,9 @@ impl Element for FixedTextBox {
             y -= line_h;
         }
 
-        if ua { ctx.backend.end_tagged_content(); }
+        if ua {
+            ctx.backend.end_tagged_content();
+        }
         Ok(super::RenderResult::done())
     }
 }
