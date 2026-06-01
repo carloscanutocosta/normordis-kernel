@@ -39,6 +39,10 @@ docs/
 - [NDF](pdf/NDF.md) — NORMAXIS Document Format
 - [NDT](pdf/NDT.md) — NORMAXIS Document Template
 
+## Trabalho planeado
+
+- [TODO.md](TODO.md) — itens de versão futura organizados por módulo
+
 ## Relação com outros documentos
 
 | Ficheiro | Propósito |

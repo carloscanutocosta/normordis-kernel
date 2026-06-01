@@ -4,10 +4,136 @@ use serde_json::Value;
 use crate::actor::AuditActor;
 use crate::error::AuditError;
 use crate::event::AuditEvent;
+use crate::outcome::AuditOutcome;
 use crate::signature::{sign_manifest, AuditSigningKey, SignedAuditExportManifest};
 use crate::store::AuditStore;
 use crate::target::AuditTarget;
 
+/// Pedido de gravação de um evento de auditoria.
+///
+/// # Enquadramento COSO
+///
+/// O `RecordAuditEventRequest` formaliza todos os elementos necessários para que
+/// um evento constitua evidência COSO válida:
+///
+/// - **Quem actuou** → `actor`
+/// - **Sobre quê** → `target`
+/// - **Que acção** → `event_type`
+/// - **Com que resultado** → `outcome`
+/// - **Que controlo exerceu** → `control_id` (opcional)
+/// - **Com que contexto** → `details_json` (opcional)
+///
+/// O timestamp (`occurred_at_utc`) é gerado automaticamente pelo serviço no
+/// momento da gravação.
+///
+/// # Exemplo
+///
+/// ```rust
+/// use core_audit::{AuditActor, AuditOutcome, AuditTarget, RecordAuditEventRequest};
+///
+/// // Evento simples sem controlo associado
+/// let req = RecordAuditEventRequest::new(
+///     "user.session.started",
+///     AuditActor::new("user-42").unwrap(),
+///     AuditTarget::new("session", "sess-001").unwrap(),
+///     AuditOutcome::Success,
+/// );
+///
+/// // Evento ligado a um controlo COSO e com contexto adicional
+/// let req = RecordAuditEventRequest::new(
+///     "document.classification.changed",
+///     AuditActor::new("inspector-7").unwrap(),
+///     AuditTarget::new("document", "doc-123").unwrap(),
+///     AuditOutcome::Success,
+/// )
+/// .with_control_id("CTRL-014")
+/// .with_details(serde_json::json!({
+///     "from": "restricted",
+///     "to": "confidential"
+/// }));
+/// ```
+#[derive(Debug)]
+pub struct RecordAuditEventRequest {
+    /// Classificação semântica do acontecimento (ex.: `document.classification.changed`).
+    pub event_type: String,
+    /// Actor que realizou a acção.
+    pub actor: AuditActor,
+    /// Entidade sobre a qual a acção incidiu.
+    pub target: AuditTarget,
+    /// Resultado observável da operação.
+    pub outcome: AuditOutcome,
+    /// Referência ao controlo COSO exercido, se aplicável.
+    pub control_id: Option<String>,
+    /// Contexto adicional em JSON livre, sem dados sensíveis.
+    pub details_json: Option<Value>,
+}
+
+impl RecordAuditEventRequest {
+    /// Constrói um pedido com os campos obrigatórios.
+    ///
+    /// `control_id` e `details_json` são `None` por omissão; use os métodos
+    /// de builder [`with_control_id`] e [`with_details`] para os definir.
+    ///
+    /// [`with_control_id`]: RecordAuditEventRequest::with_control_id
+    /// [`with_details`]: RecordAuditEventRequest::with_details
+    pub fn new(
+        event_type: impl Into<String>,
+        actor: AuditActor,
+        target: AuditTarget,
+        outcome: AuditOutcome,
+    ) -> Self {
+        Self {
+            event_type: event_type.into(),
+            actor,
+            target,
+            outcome,
+            control_id: None,
+            details_json: None,
+        }
+    }
+
+    /// Associa este evento a um controlo do Registo de Controlos.
+    ///
+    /// O `control_id` é uma referência externa; o `core-audit` não valida a
+    /// existência do controlo no registo, apenas o formato da referência.
+    pub fn with_control_id(mut self, control_id: impl Into<String>) -> Self {
+        self.control_id = Some(control_id.into());
+        self
+    }
+
+    /// Adiciona contexto adicional ao evento em formato JSON livre.
+    ///
+    /// O valor não deve conter chaves sensíveis (passwords, tokens, etc.).
+    /// A política de validação rejeita o evento se as encontrar.
+    pub fn with_details(mut self, details: Value) -> Self {
+        self.details_json = Some(details);
+        self
+    }
+}
+
+/// Serviço de auditoria — ponto de entrada para gravação e consulta de eventos.
+///
+/// `AuditService` é uma fachada sobre [`AuditStore`] que centraliza a criação
+/// de eventos (geração de UUID e timestamp) e delega toda a persistência ao
+/// store configurado.
+///
+/// # Uso típico
+///
+/// ```rust,ignore
+/// use core_audit::{AuditService, AuditOutcome, RecordAuditEventRequest};
+///
+/// let service = AuditService::new(store);
+///
+/// service.record_event(
+///     RecordAuditEventRequest::new(
+///         "document.created",
+///         actor,
+///         target,
+///         AuditOutcome::Success,
+///     )
+///     .with_control_id("CTRL-001"),
+/// )?;
+/// ```
 #[derive(Debug)]
 pub struct AuditService<S>
 where
@@ -24,14 +150,26 @@ where
         Self { store }
     }
 
+    /// Cria e grava um evento de auditoria a partir de um [`RecordAuditEventRequest`].
+    ///
+    /// O `event_id` e o `occurred_at_utc` são gerados automaticamente.
+    ///
+    /// # Erros
+    ///
+    /// Devolve [`AuditError`] se a validação do evento falhar ou se a gravação
+    /// no store falhar.
     pub fn record_event(
         &self,
-        event_type: impl Into<String>,
-        actor: AuditActor,
-        target: AuditTarget,
-        details_json: Option<Value>,
+        request: RecordAuditEventRequest,
     ) -> Result<AuditEvent, AuditError> {
-        let event = AuditEvent::new(event_type, actor, target, details_json)?;
+        let event = AuditEvent::new(
+            request.event_type,
+            request.actor,
+            request.target,
+            request.outcome,
+            request.control_id,
+            request.details_json,
+        )?;
         self.store.record(&event)?;
         Ok(event)
     }
@@ -250,16 +388,20 @@ mod tests {
         }
     }
 
+    fn simple_request(event_type: &str, actor_id: &str, target_id: &str) -> RecordAuditEventRequest {
+        RecordAuditEventRequest::new(
+            event_type,
+            AuditActor::new(actor_id).unwrap(),
+            AuditTarget::new("document", target_id).unwrap(),
+            AuditOutcome::Success,
+        )
+    }
+
     #[test]
     fn record_event_generates_uuid() {
         let service = AuditService::new(RecordingStore::default());
         let event = service
-            .record_event(
-                "document.created",
-                AuditActor::new("user-1").unwrap(),
-                AuditTarget::new("document", "doc-1").unwrap(),
-                None,
-            )
+            .record_event(simple_request("document.created", "user-1", "doc-1"))
             .unwrap();
 
         uuid::Uuid::parse_str(&event.event_id).unwrap();
@@ -269,35 +411,57 @@ mod tests {
     fn record_event_writes_to_store() {
         let service = AuditService::new(RecordingStore::default());
         let event = service
-            .record_event(
-                "document.created",
-                AuditActor::new("user-1").unwrap(),
-                AuditTarget::new("document", "doc-1").unwrap(),
-                None,
-            )
+            .record_event(simple_request("document.created", "user-1", "doc-1"))
             .unwrap();
 
         assert_eq!(service.store().get(&event.event_id).unwrap(), Some(event));
     }
 
     #[test]
+    fn record_event_preserves_outcome() {
+        let service = AuditService::new(RecordingStore::default());
+        let req = RecordAuditEventRequest::new(
+            "document.deleted",
+            AuditActor::new("user-1").unwrap(),
+            AuditTarget::new("document", "doc-1").unwrap(),
+            AuditOutcome::Failure,
+        );
+        let event = service.record_event(req).unwrap();
+
+        assert_eq!(event.outcome, AuditOutcome::Failure);
+    }
+
+    #[test]
+    fn record_event_preserves_control_id() {
+        let service = AuditService::new(RecordingStore::default());
+        let req = simple_request("document.approved", "user-1", "doc-1")
+            .with_control_id("CTRL-014");
+        let event = service.record_event(req).unwrap();
+
+        assert_eq!(event.control_id, Some("CTRL-014".to_string()));
+    }
+
+    #[test]
+    fn record_event_preserves_details() {
+        let service = AuditService::new(RecordingStore::default());
+        let req = simple_request("document.created", "user-1", "doc-1")
+            .with_details(serde_json::json!({"ip": "127.0.0.1"}));
+        let event = service.record_event(req).unwrap();
+
+        assert_eq!(
+            event.details_json,
+            Some(serde_json::json!({"ip": "127.0.0.1"}))
+        );
+    }
+
+    #[test]
     fn list_all_delegates_to_store() {
         let service = AuditService::new(RecordingStore::default());
         service
-            .record_event(
-                "document.created",
-                AuditActor::new("user-1").unwrap(),
-                AuditTarget::new("document", "doc-1").unwrap(),
-                None,
-            )
+            .record_event(simple_request("document.created", "user-1", "doc-1"))
             .unwrap();
         service
-            .record_event(
-                "document.updated",
-                AuditActor::new("user-2").unwrap(),
-                AuditTarget::new("document", "doc-2").unwrap(),
-                None,
-            )
+            .record_event(simple_request("document.updated", "user-2", "doc-2"))
             .unwrap();
 
         assert_eq!(service.list_all(10, 0).unwrap().len(), 2);
@@ -312,12 +476,7 @@ mod tests {
 
         let service = AuditService::new(RecordingStore::default());
         service
-            .record_event(
-                "document.created",
-                AuditActor::new("user-1").unwrap(),
-                AuditTarget::new("document", "doc-1").unwrap(),
-                None,
-            )
+            .record_event(simple_request("document.created", "user-1", "doc-1"))
             .unwrap();
 
         let key = AuditSigningKey::from_bytes([42; 32]);
@@ -334,16 +493,13 @@ mod tests {
         let service = AuditService::new(RecordingStore::default());
         for h in 1u32..=4 {
             service
-                .record_event(
+                .record_event(simple_request(
                     "document.created",
-                    AuditActor::new(format!("user-{h}")).unwrap(),
-                    AuditTarget::new("document", format!("doc-{h}")).unwrap(),
-                    None,
-                )
+                    &format!("user-{h}"),
+                    &format!("doc-{h}"),
+                ))
                 .unwrap();
         }
-        // RecordingStore usa Utc::now() para occurred_at — verificamos apenas que
-        // o método delega sem pânico e devolve um Vec.
         let from = Utc::now() - chrono::Duration::hours(1);
         let to = Utc::now() + chrono::Duration::hours(1);
         let events = service.list_by_date_range(from, to, 10, 0).unwrap();
@@ -355,15 +511,14 @@ mod tests {
         let service = AuditService::new(RecordingStore::default());
         for i in 0..5 {
             service
-                .record_event(
+                .record_event(simple_request(
                     "document.created",
-                    AuditActor::new(format!("user-{i}")).unwrap(),
-                    AuditTarget::new("document", format!("doc-{i}")).unwrap(),
-                    None,
-                )
+                    &format!("user-{i}"),
+                    &format!("doc-{i}"),
+                ))
                 .unwrap();
         }
         let report = service.verify_chain_since(3).unwrap();
-        assert_eq!(report.checked_events, 3); // eventos 3, 4, 5
+        assert_eq!(report.checked_events, 3);
     }
 }
