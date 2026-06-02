@@ -151,7 +151,7 @@ fn spawn_writer(
                 "payload": {
                     "checksum_hint": state,
                     "items": [revision, revision + 1, revision + 2],
-                    "active": revision % 2 == 0
+                    "active": revision.is_multiple_of(2)
                 }
             });
 

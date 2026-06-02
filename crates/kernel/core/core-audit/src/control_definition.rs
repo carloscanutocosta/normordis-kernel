@@ -143,7 +143,7 @@ impl ControlDefinition {
     /// Um controlo está vigente se `valid_from <= at` e
     /// `valid_to.is_none() || valid_to > at`.
     pub fn is_valid_at(&self, at: DateTime<Utc>) -> bool {
-        self.valid_from <= at && self.valid_to.map_or(true, |t| t > at)
+        self.valid_from <= at && self.valid_to.is_none_or(|t| t > at)
     }
 }
 

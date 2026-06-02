@@ -174,7 +174,7 @@ fn stress_nns_concurrent_writes_and_reads() {
                     }
                 }
                 // list a cada 20 ticks
-                if tick % 20 == 0 {
+                if tick.is_multiple_of(20) {
                     match db.list_assignments(&filter, 100) {
                         Ok(_) => {
                             total_read_ops.fetch_add(1, Ordering::Relaxed);

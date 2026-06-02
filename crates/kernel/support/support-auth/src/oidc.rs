@@ -446,10 +446,11 @@ struct JwtHeader {
     key_id: String,
 }
 
+/// (header, claims_map, signing_input, signature_bytes) devolvido por `parse_jwt`.
+type ParsedJwt = (JwtHeader, serde_json::Map<String, Value>, String, Vec<u8>);
+
 /// Devolve (header, claims_map, signing_input, signature_bytes).
-fn parse_jwt(
-    token: &str,
-) -> Result<(JwtHeader, serde_json::Map<String, Value>, String, Vec<u8>), AuthError> {
+fn parse_jwt(token: &str) -> Result<ParsedJwt, AuthError> {
     let parts: Vec<&str> = token.splitn(4, '.').collect();
     if parts.len() != 3 {
         return Err(AuthError::TokenInvalid("formato JWT inválido".into()));

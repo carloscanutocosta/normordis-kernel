@@ -291,8 +291,10 @@ mod tests {
     #[test]
     fn validate_settings_rejects_zero_resolution() {
         let client = ScannerClient::new(sample_device(), ScannerClientConfig::default());
-        let mut s = ScanSettings::default();
-        s.resolution = 0;
+        let s = ScanSettings {
+            resolution: 0,
+            ..Default::default()
+        };
         let err = client.validate_settings(&s).unwrap_err();
         assert!(matches!(err, ScannerError::InvalidConfig(_)));
     }

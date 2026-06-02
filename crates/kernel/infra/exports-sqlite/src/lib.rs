@@ -113,6 +113,7 @@ fn str_to_dt(s: &str) -> Result<DateTime<Utc>, ExportsSqliteError> {
         .map_err(|_| ExportsSqliteError::InvalidDateTime(s.to_string()))
 }
 
+#[allow(clippy::too_many_arguments)]
 fn row_to_snapshot(
     snapshot_id: String,
     exported_at_s: String,

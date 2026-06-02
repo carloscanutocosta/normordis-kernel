@@ -47,6 +47,11 @@ use crate::{
 };
 
 /// Prova selada de que `SecurityService::authorize()` foi chamado com sucesso.
+///
+/// O campo privado `_sealed` impede a construção fora deste módulo (sela a prova
+/// à passagem por `authorize`). É deliberadamente mais forte que `#[non_exhaustive]`,
+/// que não impediria a construção dentro do próprio crate.
+#[allow(clippy::manual_non_exhaustive)]
 #[derive(Debug, Clone)]
 pub struct AuthorizationToken {
     pub principal: String,

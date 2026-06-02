@@ -35,7 +35,7 @@ fn size_01_bytes_not_empty() {
 #[test]
 fn size_02_total_bytes_greater_than_zero() {
     let bytes = simple_doc(CompressionLevel::Default);
-    assert!(bytes.len() > 0);
+    assert!(!bytes.is_empty());
 }
 
 #[test]
@@ -101,7 +101,7 @@ fn size_07_best_le_default() {
 #[test]
 fn size_08_none_produces_valid_pdf() {
     let bytes = simple_doc(CompressionLevel::None);
-    assert!(bytes.len() > 0);
+    assert!(!bytes.is_empty());
     let doc = load_lopdf(&bytes);
     assert!(!doc.objects.is_empty());
 }
@@ -135,7 +135,7 @@ fn size_11_object_count_reasonable() {
     let bytes = simple_doc(CompressionLevel::Default);
     let doc = load_lopdf(&bytes);
     // After prune_objects(), should have far fewer objects than an unoptimized PDF
-    assert!(doc.objects.len() > 0, "must have some objects");
+    assert!(!doc.objects.is_empty(), "must have some objects");
     assert!(
         doc.objects.len() < 10_000,
         "unexpectedly many objects: {}",

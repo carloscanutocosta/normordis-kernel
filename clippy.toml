@@ -1,0 +1,8 @@
+# O tipo de erro canónico do kernel, `support_errors::MiniError`, é
+# deliberadamente rico (code + component + message + details JSON) e usado por
+# valor em todo o workspace. Excede o limiar default (128 bytes) do lint
+# `clippy::result_large_err`; boxá-lo em toda a parte seria uma mudança de API
+# massiva sem benefício real. Elevamos o limiar para acomodar MiniError e os
+# erros de domínio equivalentes, mantendo o lint activo para erros realmente
+# enormes.
+large-error-threshold = 256

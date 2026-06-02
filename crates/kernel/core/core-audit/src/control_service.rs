@@ -262,7 +262,7 @@ mod tests {
         for i in 1..=3u32 {
             svc.record_control_execution(
                 "CTRL-AUTH-001",
-                &format!("event-{i}"),
+                format!("event-{i}"),
                 ControlExecutionResult::Passed,
                 None,
                 None,

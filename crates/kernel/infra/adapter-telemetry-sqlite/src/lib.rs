@@ -136,6 +136,19 @@ fn period_to_range(period: &UsagePeriod) -> (String, String) {
     (start.to_rfc3339(), end.to_rfc3339())
 }
 
+/// Linha bruta de `usage_events` lida pela query de listagem.
+type EventRow = (
+    String,
+    String,
+    String,
+    String,
+    Option<String>,
+    String,
+    String,
+    String,
+);
+
+#[allow(clippy::too_many_arguments)]
 fn row_to_event(
     event_id: String,
     app_id: String,
@@ -212,16 +225,7 @@ impl TelemetryRepository for TelemetrySqliteStore {
              LIMIT ?8 OFFSET ?9",
         )?;
 
-        let raw: Vec<(
-            String,
-            String,
-            String,
-            String,
-            Option<String>,
-            String,
-            String,
-            String,
-        )> = stmt
+        let raw: Vec<EventRow> = stmt
             .query_map(
                 params![
                     filter.app_id.as_deref(),
