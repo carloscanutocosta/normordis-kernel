@@ -1,19 +1,27 @@
 //! Domínio de estrutura orgânica institucional do Mini-Kernel RS.
 //!
 //! Cobre a hierarquia de unidades orgânicas, cargos, competências, delegações
-//! e instrumentos jurídicos que as fundamentam. Exporta tipos, invariantes e
-//! ports de persistência. Não conhece SQLite, filesystem, Tauri ou UI.
+//! e instrumentos jurídicos que as fundamentam. Exporta tipos, invariantes,
+//! ports de persistência, camada de serviço, porto de auditoria e porto de
+//! eventos de domínio. Não conhece SQLite, filesystem, Tauri ou UI.
 
 #[cfg(test)]
 mod tests;
 
+pub mod audit;
 pub mod competency;
 pub mod delegation;
+pub mod domain_events;
 pub mod error;
 pub mod instrument;
+pub mod pagination;
 pub mod ports;
 pub mod position;
+pub mod service;
 pub mod unit;
+
+// ── audit ─────────────────────────────────────────────────────────────────────
+pub use audit::{OrgAuditAction, OrgAuditEvent, OrgAuditPort, OrgNoopAudit};
 
 // ── competency ────────────────────────────────────────────────────────────────
 pub use competency::{Competency, CompetencyId};
@@ -21,11 +29,17 @@ pub use competency::{Competency, CompetencyId};
 // ── delegation ────────────────────────────────────────────────────────────────
 pub use delegation::{Delegation, DelegationId};
 
+// ── domain_events ─────────────────────────────────────────────────────────────
+pub use domain_events::{OrgDomainEvent, OrgDomainEventPort, OrgNoopDomainEvents};
+
 // ── error ─────────────────────────────────────────────────────────────────────
 pub use error::{OrgError, COMPONENT};
 
 // ── instrument ────────────────────────────────────────────────────────────────
 pub use instrument::{InstrumentKind, LegalInstrument, LegalInstrumentId};
+
+// ── pagination ────────────────────────────────────────────────────────────────
+pub use pagination::{OrgPage, PagedResult};
 
 // ── ports ─────────────────────────────────────────────────────────────────────
 pub use ports::{
@@ -34,7 +48,10 @@ pub use ports::{
 };
 
 // ── position ──────────────────────────────────────────────────────────────────
-pub use position::{OrgPosition, OrgPositionId};
+pub use position::{OrgPosition, OrgPositionId, OrgPositionStatus, PositionKind};
+
+// ── service ───────────────────────────────────────────────────────────────────
+pub use service::{OrgPositionService, OrgUnitService};
 
 // ── unit ──────────────────────────────────────────────────────────────────────
 pub use unit::{OrgAddress, OrgContacts, OrgLevel, OrgUnit, OrgUnitId, OrgUnitStatus};

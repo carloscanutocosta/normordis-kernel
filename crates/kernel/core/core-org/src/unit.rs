@@ -1,11 +1,11 @@
-//! Unidade orgânica: hierarquia, validade temporal e máquina de estados de status.
+//! Unidade orgânica: hierarquia, validade temporal, máquina de estados e validações.
 
 use chrono::NaiveDate;
 use serde::{Deserialize, Serialize};
 
 use crate::{LegalInstrumentId, OrgError, OrgPositionId};
 
-/// Nível hierárquico de uma unidade orgânica (1 = topo, máximo 5).
+/// Nível hierárquico de uma unidade orgânica (1 = raiz, sem limite máximo).
 /// Nível 1 não tem pai. O pai de nível N tem sempre nível N-1.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(transparent)]
@@ -13,10 +13,9 @@ pub struct OrgLevel(pub u8);
 
 impl OrgLevel {
     pub const MIN: u8 = 1;
-    pub const MAX: u8 = 5;
 
     pub fn new(n: u8) -> Result<Self, OrgError> {
-        if n >= Self::MIN && n <= Self::MAX {
+        if n >= Self::MIN {
             Ok(Self(n))
         } else {
             Err(OrgError::InvalidLevel(n.to_string()))
@@ -80,10 +79,7 @@ impl OrgUnitStatus {
         }
     }
 
-    /// Transições válidas:
-    /// - Active → Suspended | Extinct
-    /// - Suspended → Active | Extinct
-    /// - Extinct é estado terminal
+    /// Active → Suspended|Extinct · Suspended → Active|Extinct · Extinct é terminal.
     pub fn can_transition_to(&self, next: &OrgUnitStatus) -> bool {
         use OrgUnitStatus::*;
         matches!(
@@ -100,6 +96,8 @@ impl TryFrom<&str> for OrgUnitStatus {
             .ok_or_else(|| OrgError::OperationFailed(format!("status desconhecido: {s}")))
     }
 }
+
+// ── Contactos e morada ────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub struct OrgAddress {
@@ -122,6 +120,24 @@ impl OrgAddress {
             _ => None,
         }
     }
+
+    pub fn validate(&self) -> Result<(), OrgError> {
+        if let Some(ref cp4) = self.cp4 {
+            if !is_cp4_valid(cp4) {
+                return Err(OrgError::InvalidContactField(format!(
+                    "cp4 inválido: '{cp4}' (deve ter exactamente 4 dígitos)"
+                )));
+            }
+        }
+        if let Some(ref cp3) = self.cp3 {
+            if !is_cp3_valid(cp3) {
+                return Err(OrgError::InvalidContactField(format!(
+                    "cp3 inválido: '{cp3}' (deve ter exactamente 3 dígitos)"
+                )));
+            }
+        }
+        Ok(())
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
@@ -132,22 +148,48 @@ pub struct OrgContacts {
     pub address: OrgAddress,
 }
 
-/// Unidade orgânica com validade temporal.
+impl OrgContacts {
+    pub fn validate(&self) -> Result<(), OrgError> {
+        if let Some(ref email) = self.email {
+            if !is_email_valid(email) {
+                return Err(OrgError::InvalidContactField(format!(
+                    "email inválido: '{email}'"
+                )));
+            }
+        }
+        if let Some(ref phone) = self.phone {
+            if !is_phone_valid(phone) {
+                return Err(OrgError::InvalidContactField(format!(
+                    "telefone inválido: '{phone}' (mínimo 7 dígitos)"
+                )));
+            }
+        }
+        if let Some(ref fax) = self.fax {
+            if !is_phone_valid(fax) {
+                return Err(OrgError::InvalidContactField(format!(
+                    "fax inválido: '{fax}' (mínimo 7 dígitos)"
+                )));
+            }
+        }
+        self.address.validate()
+    }
+}
+
+// ── Agregado OrgUnit ──────────────────────────────────────────────────────────
+
+/// Unidade orgânica com validade temporal e controlo de concorrência optimista.
 ///
 /// `created_by` referencia o instrumento jurídico que criou ou alterou a unidade.
-/// É opcional para permitir importação de dados históricos sem instrumento formal
-/// registado; idealmente deve ser preenchido.
+/// `legal_reference` preserva o texto livre da referência legal para unidades sem
+/// instrumento formal registado no sistema.
 ///
-/// `legal_reference` preserva o texto livre da referência legal (ex: "Portaria n.º 150/2024")
-/// para unidades sem instrumento formal registado no sistema.
+/// `version` é incrementado pelo repositório em cada `update()` e serve de guarda
+/// contra escritas concorrentes (OCC — Optimistic Concurrency Control).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct OrgUnit {
     pub id: OrgUnitId,
-    /// Nome abreviado / identificador curto (ex: "SF Beja")
     pub short_name: String,
-    /// Nome completo (ex: "Serviço de Finanças de Beja")
     pub full_name: String,
-    /// Código de serviço externo (ex: "0312" para SF Beja na AT)
     pub service_code: Option<String>,
     pub level: OrgLevel,
     pub parent_id: Option<OrgUnitId>,
@@ -157,9 +199,12 @@ pub struct OrgUnit {
     pub valid_from: NaiveDate,
     pub valid_until: Option<NaiveDate>,
     pub status: OrgUnitStatus,
+    /// Versão para OCC — deve ser 0 em novas entidades.
+    pub version: u32,
 }
 
 impl OrgUnit {
+    /// Validação base: nomes, temporalidade, consistência hierárquica, contactos.
     pub fn validate(&self) -> Result<(), OrgError> {
         if self.short_name.trim().is_empty() {
             return Err(OrgError::EmptyField("short_name".into()));
@@ -174,8 +219,28 @@ impl OrgUnit {
         }
         match (self.level.0, &self.parent_id) {
             (1, Some(_)) => return Err(OrgError::InconsistentLevel),
-            (2..=5, None) => return Err(OrgError::InconsistentLevel),
+            (n, None) if n > 1 => return Err(OrgError::InconsistentLevel),
             _ => {}
+        }
+        self.contacts.validate()?;
+        Ok(())
+    }
+
+    /// Validação estrita (modo operacional): exige `created_by` ou `legal_reference`.
+    /// Usar em `create`/`update` via serviço. `import` usa `validate()` directamente.
+    pub fn validate_strict(&self) -> Result<(), OrgError> {
+        self.validate()?;
+        if self.created_by.is_none() {
+            let has_ref = self
+                .legal_reference
+                .as_deref()
+                .map(|s| !s.trim().is_empty())
+                .unwrap_or(false);
+            if !has_ref {
+                return Err(OrgError::EmptyField(
+                    "created_by ou legal_reference obrigatório em modo operacional".into(),
+                ));
+            }
         }
         Ok(())
     }
@@ -190,8 +255,7 @@ impl OrgUnit {
         matches!(self.status, OrgUnitStatus::Extinct)
     }
 
-    /// Valida a transição de status. O novo status não é aplicado ao agregado —
-    /// cabe ao port persistir a mudança com o status devolvido.
+    /// Valida a transição de status. Não muta o agregado.
     pub fn transition_status(&self, next: OrgUnitStatus) -> Result<OrgUnitStatus, OrgError> {
         if !self.status.can_transition_to(&next) {
             return Err(OrgError::OperationFailed(format!(
@@ -203,9 +267,7 @@ impl OrgUnit {
         Ok(next)
     }
 
-    /// Verifica que esta unidade não aparece na cadeia de ancestrais fornecida
-    /// (prevenção de hierarquia circular). A cadeia deve ser obtida pelo chamador
-    /// antes de persistir a unidade.
+    /// Verifica que esta unidade não aparece na cadeia de ancestrais (ciclo).
     pub fn validate_parent_chain(&self, ancestors: &[&OrgUnitId]) -> Result<(), OrgError> {
         if ancestors.iter().any(|a| *a == &self.id) {
             return Err(OrgError::CircularHierarchy);
@@ -213,8 +275,15 @@ impl OrgUnit {
         Ok(())
     }
 
+    /// Verifica que o nível desta unidade é exactamente `parent.level + 1`.
+    pub fn validate_level_against_parent(&self, parent: &OrgUnit) -> Result<(), OrgError> {
+        match parent.level.0.checked_add(1) {
+            Some(expected) if self.level.0 == expected => Ok(()),
+            _ => Err(OrgError::InconsistentLevel),
+        }
+    }
+
     /// Verifica que a unidade pode ser desactivada.
-    /// O chamador deve fornecer os IDs das sub-unidades e posições ainda activas.
     pub fn can_deactivate(
         &self,
         active_child_ids: &[&OrgUnitId],
@@ -228,4 +297,32 @@ impl OrgUnit {
         }
         Ok(())
     }
+}
+
+// ── Helpers de validação de contactos ────────────────────────────────────────
+
+fn is_email_valid(email: &str) -> bool {
+    let parts: Vec<&str> = email.splitn(2, '@').collect();
+    if parts.len() != 2 {
+        return false;
+    }
+    let (local, domain) = (parts[0], parts[1]);
+    !local.is_empty()
+        && !domain.is_empty()
+        && domain.contains('.')
+        && !domain.starts_with('.')
+        && !domain.ends_with('.')
+}
+
+fn is_phone_valid(phone: &str) -> bool {
+    let digits = phone.chars().filter(|c| c.is_ascii_digit()).count();
+    digits >= 7
+}
+
+fn is_cp4_valid(cp4: &str) -> bool {
+    cp4.len() == 4 && cp4.chars().all(|c| c.is_ascii_digit())
+}
+
+fn is_cp3_valid(cp3: &str) -> bool {
+    cp3.len() == 3 && cp3.chars().all(|c| c.is_ascii_digit())
 }

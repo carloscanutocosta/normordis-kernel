@@ -763,6 +763,7 @@ dependencies = [
  "chrono",
  "core-validation",
  "serde",
+ "serde_json",
  "support-errors",
  "thiserror",
  "uuid",
@@ -3061,8 +3062,10 @@ version = "0.3.0"
 dependencies = [
  "adapter-sqlite",
  "chrono",
+ "core-audit",
  "core-org",
  "rusqlite",
+ "serde_json",
  "support-errors",
  "tempfile",
  "thiserror",

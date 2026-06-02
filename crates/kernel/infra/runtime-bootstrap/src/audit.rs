@@ -130,7 +130,8 @@ impl AuditDbRuntime {
 #[cfg(test)]
 mod tests {
     use core_audit::{
-        sign_manifest, verify_signed_manifest, AuditActor, AuditSigningKey, AuditStore, AuditTarget,
+        sign_manifest, verify_signed_manifest, AuditActor, AuditOutcome, AuditSigningKey,
+        AuditStore, AuditTarget, RecordAuditEventRequest,
     };
     use serde_json::json;
     use support_crypto::{KeyId, SecretKey, StaticKeyProvider};
@@ -162,10 +163,13 @@ mod tests {
         let event = runtime
             .service()
             .record_event(
-                "document.created",
-                AuditActor::new("user-1").unwrap(),
-                AuditTarget::new("document", "doc-1").unwrap(),
-                Some(json!({"reason":"created"})),
+                RecordAuditEventRequest::new(
+                    "document.created",
+                    AuditActor::new("user-1").unwrap(),
+                    AuditTarget::new("document", "doc-1").unwrap(),
+                    AuditOutcome::Success,
+                )
+                .with_details(json!({"reason":"created"})),
             )
             .unwrap();
 
@@ -201,6 +205,8 @@ mod tests {
             "document.created",
             AuditActor::new("user-1").unwrap(),
             AuditTarget::new("document", "doc-1").unwrap(),
+            AuditOutcome::Success,
+            None,
             None,
         )
         .unwrap();
@@ -221,10 +227,13 @@ mod tests {
         let event = runtime
             .service()
             .record_event(
-                "document.created",
-                AuditActor::new("user-1").unwrap(),
-                AuditTarget::new("document", "doc-1").unwrap(),
-                Some(json!({"dado_sensivel": "valor_secreto"})),
+                RecordAuditEventRequest::new(
+                    "document.created",
+                    AuditActor::new("user-1").unwrap(),
+                    AuditTarget::new("document", "doc-1").unwrap(),
+                    AuditOutcome::Success,
+                )
+                .with_details(json!({"dado_sensivel": "valor_secreto"})),
             )
             .unwrap();
 
@@ -257,10 +266,13 @@ mod tests {
             runtime
                 .service()
                 .record_event(
-                    "document.created",
-                    AuditActor::new(format!("user-{i}")).unwrap(),
-                    AuditTarget::new("document", format!("doc-{i}")).unwrap(),
-                    Some(json!({"index": i})),
+                    RecordAuditEventRequest::new(
+                        "document.created",
+                        AuditActor::new(format!("user-{i}")).unwrap(),
+                        AuditTarget::new("document", format!("doc-{i}")).unwrap(),
+                        AuditOutcome::Success,
+                    )
+                    .with_details(json!({"index": i})),
                 )
                 .unwrap();
         }
@@ -280,12 +292,12 @@ mod tests {
         for i in 1..=5u32 {
             runtime
                 .service()
-                .record_event(
+                .record_event(RecordAuditEventRequest::new(
                     "document.created",
                     AuditActor::new(format!("user-{i}")).unwrap(),
                     AuditTarget::new("document", format!("doc-{i}")).unwrap(),
-                    None,
-                )
+                    AuditOutcome::Success,
+                ))
                 .unwrap();
         }
 

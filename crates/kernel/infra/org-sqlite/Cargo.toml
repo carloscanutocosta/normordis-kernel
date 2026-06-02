@@ -10,9 +10,11 @@ description = "Adapter SQLite para core-org (estrutura orgânica institucional)"
 rusqlite.workspace = true
 thiserror.workspace = true
 chrono.workspace = true
+serde_json.workspace = true
 
 adapter-sqlite = { path = "../adapter-sqlite" }
 core-org       = { path = "../../core/core-org" }
+core-audit     = { path = "../../core/core-audit" }
 support-errors = { path = "../../support/support-errors" }
 
 [dev-dependencies]
