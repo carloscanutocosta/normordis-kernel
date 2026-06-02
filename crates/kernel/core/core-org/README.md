@@ -174,3 +174,24 @@ auditoria **e de eventos de domínio**, dead-letter / poison messages, drainer,
 `OrgAuditAdapter` ligado ao `core-audit` com `ControlExecution`, evidência de
 falha, migração aditiva idempotente, serviços de competência e delegação) é
 coberta por 34 testes em `org-sqlite`.
+
+## Fronteiras e trabalho futuro
+
+As seguintes ressalvas são **deliberadas** (fronteiras arquitecturais) ou
+**afinações operacionais** — não comprometem a conformidade nem a integridade da
+evidência, mas estão registadas para implementação futura:
+
+1. **Autorização não verificada.** O `actor` das operações é aceite por confiança;
+   o core-org não verifica se o actor *pode* realizar a operação (COSO `CTRL-AUTH-002`
+   autorização, `CTRL-AUTH-005` segregação de funções). É fronteira de
+   `core-security` / `core-rh`. *Futuro:* um porto `OrgAuthorizationPort` (driven)
+   consultado pelo serviço antes de cada escrita, emitindo evidência de negação.
+2. **`OrgOutboxDrainer::run_forever` usa `std::thread::sleep`.** Adequado a uma
+   thread dedicada; num runtime async puro convém uma variante `async`.
+   *Futuro:* feature opcional `tokio` com `run_forever_async`.
+3. **Entrega inline sob o `Mutex`.** Cada operação tenta drenar de imediato (sob o
+   lock da ligação). É correcto e sem perda, mas penaliza throughput.
+   *Futuro:* tornar a entrega inline opcional (config) e delegar inteiramente no
+   drainer supervisionado em cargas intensas.
+
+Ver o TODO de projecto associado para o estado de cada item.

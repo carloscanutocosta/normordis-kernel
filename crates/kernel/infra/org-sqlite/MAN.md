@@ -405,3 +405,15 @@ Em testes ou contextos sem auditoria/integração, usar `OrgNoopAudit` e
 - `search_by_name` usa LIKE sem escaping de `%` e `_` — adequado para nomes de organismos portugueses.
 - Os eventos de domínio (`OrgDomainEventPort`) usam `OrgNoopDomainEvents` por
   defeito — o publisher que integra `core-rh` é fornecido pela camada de aplicação.
+
+### Fronteiras e trabalho futuro (registado em TODO de projecto)
+
+- **Autorização** não é verificada aqui (o `actor` é aceite por confiança) — é
+  fronteira de `core-security`/`core-rh`. Futuro: porto `OrgAuthorizationPort`
+  consultado pelo serviço, com evidência de negação.
+- **Entrega inline sob o `Mutex`** penaliza throughput em cargas intensas; futuro:
+  torná-la opcional e delegar no `OrgOutboxDrainer` supervisionado.
+- **`run_forever`** é síncrono (`std::thread::sleep`); futuro: variante `async`
+  opcional para runtimes Tokio.
+
+Ver `core-org/README.md` § "Fronteiras e trabalho futuro" para detalhe.
