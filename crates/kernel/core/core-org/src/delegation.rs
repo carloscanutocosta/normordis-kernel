@@ -35,6 +35,8 @@ pub struct Delegation {
     pub instrument_id: LegalInstrumentId,
     pub valid_from: NaiveDate,
     pub valid_until: Option<NaiveDate>,
+    /// Versão para OCC — deve ser 0 em novas entidades.
+    pub version: u32,
 }
 
 impl Delegation {

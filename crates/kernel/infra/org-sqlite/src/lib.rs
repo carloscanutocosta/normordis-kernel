@@ -17,14 +17,18 @@
 use adapter_sqlite::{
     open_relational_connection, run_relational_migrations, SqliteRelationalConfig,
 };
-use chrono::NaiveDate;
-use core_audit::{AuditActor, AuditEvent, AuditOutcome, AuditStore, AuditTarget};
+use chrono::{NaiveDate, TimeZone, Utc};
+use core_audit::{
+    AuditActor, AuditEvent, AuditOutcome, AuditStore, AuditTarget, ControlCategory,
+    ControlDefinition, ControlExecution, ControlExecutionResult, ControlRegistryStore,
+    ControlSeverity,
+};
 use core_org::{
     Competency, CompetencyId, CompetencyRepository, Delegation, DelegationId, DelegationRepository,
     InstrumentKind, LegalInstrument, LegalInstrumentId, LegalInstrumentRepository, OrgAddress,
-    OrgAuditEvent, OrgAuditPort, OrgContacts, OrgError, OrgLevel, OrgPage, OrgPosition,
-    OrgPositionId, OrgPositionRepository, OrgPositionStatus, OrgUnit, OrgUnitId, OrgUnitRepository,
-    OrgUnitStatus, PagedResult, PositionKind,
+    OrgAuditEvent, OrgAuditOutbox, OrgAuditPort, OrgContacts, OrgError, OrgEventOutcome, OrgLevel,
+    OrgPage, OrgPosition, OrgPositionId, OrgPositionRepository, OrgPositionStatus, OrgUnit,
+    OrgUnitId, OrgUnitRepository, OrgUnitStatus, PagedResult, PositionKind,
 };
 use rusqlite::{params, Connection, OptionalExtension, TransactionBehavior};
 use std::sync::{Arc, Mutex, MutexGuard};
@@ -90,7 +94,8 @@ pub const ORG_SQLITE_MIGRATIONS: &[&str] = &[r#"
         assigned_to     TEXT NOT NULL REFERENCES org_positions(position_id),
         granted_by      TEXT NOT NULL REFERENCES legal_instruments(instrument_id),
         valid_from      TEXT NOT NULL,
-        valid_until     TEXT
+        valid_until     TEXT,
+        version         INTEGER NOT NULL DEFAULT 0
     );
 
     CREATE TABLE IF NOT EXISTS delegations (
@@ -100,7 +105,18 @@ pub const ORG_SQLITE_MIGRATIONS: &[&str] = &[r#"
         to_position     TEXT NOT NULL REFERENCES org_positions(position_id),
         instrument_id   TEXT NOT NULL REFERENCES legal_instruments(instrument_id),
         valid_from      TEXT NOT NULL,
-        valid_until     TEXT
+        valid_until     TEXT,
+        version         INTEGER NOT NULL DEFAULT 0
+    );
+
+    -- Outbox de evidência de auditoria: capturado atomicamente com o estado,
+    -- entregue depois ao OrgAuditPort (drain idempotente). Garante que não há
+    -- mudança de estado sem evidência correspondente.
+    CREATE TABLE IF NOT EXISTS org_audit_outbox (
+        seq         INTEGER PRIMARY KEY AUTOINCREMENT,
+        event_json  TEXT NOT NULL,
+        created_at  TEXT NOT NULL,
+        delivered   INTEGER NOT NULL DEFAULT 0
     );
 
     CREATE INDEX IF NOT EXISTS idx_org_units_level     ON org_units (level);
@@ -112,6 +128,7 @@ pub const ORG_SQLITE_MIGRATIONS: &[&str] = &[r#"
     CREATE INDEX IF NOT EXISTS idx_org_positions_subs  ON org_positions (substitutes);
     CREATE INDEX IF NOT EXISTS idx_competencies_pos    ON competencies (assigned_to, valid_from, valid_until);
     CREATE INDEX IF NOT EXISTS idx_delegations_to      ON delegations (to_position, valid_from, valid_until);
+    CREATE INDEX IF NOT EXISTS idx_org_outbox_pending  ON org_audit_outbox (delivered, seq);
 "#];
 
 // ── Error ─────────────────────────────────────────────────────────────────────
@@ -487,6 +504,528 @@ macro_rules! unit_params {
     }};
 }
 
+// ── State writes reutilizáveis (Connection ou Transaction via Deref) ──────────
+
+fn outbox_insert(conn: &Connection, event: &OrgAuditEvent) -> Result<(), OrgError> {
+    let json = serde_json::to_string(event).map_err(op)?;
+    conn.execute(
+        "INSERT INTO org_audit_outbox (event_json, created_at, delivered) VALUES (?1, ?2, 0)",
+        params![json, event.occurred_at.to_rfc3339()],
+    )
+    .map_err(op)?;
+    Ok(())
+}
+
+fn unit_insert(conn: &Connection, u: &OrgUnit) -> Result<(), OrgError> {
+    let (id, sn, fn_, sc, lv, pi, cb, lr, vf, vu, st, em, ph, fx, ru, nu, po, lo, c4, c3, lc) =
+        unit_params!(u);
+    let affected = conn
+        .execute(
+            "INSERT OR IGNORE INTO org_units
+                 (unit_id, short_name, full_name, service_code, level, parent_id,
+                  created_by, legal_reference, valid_from, valid_until, status,
+                  email, phone, fax, rua, numero, porta, local, cp4, cp3, localidade)
+             VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16,?17,?18,?19,?20,?21)",
+            params![
+                id, sn, fn_, sc, lv, pi, cb, lr, vf, vu, st, em, ph, fx, ru, nu, po, lo, c4, c3, lc
+            ],
+        )
+        .map_err(op)?;
+    if affected == 0 {
+        return Err(OrgError::AlreadyExists(u.id.as_str().into()));
+    }
+    Ok(())
+}
+
+fn unit_update_occ(conn: &Connection, u: &OrgUnit) -> Result<(), OrgError> {
+    let (id, sn, fn_, sc, lv, pi, cb, lr, vf, vu, st, em, ph, fx, ru, nu, po, lo, c4, c3, lc) =
+        unit_params!(u);
+    let id_clone = id.clone();
+    let affected = conn
+        .execute(
+            "UPDATE org_units SET
+                 short_name=?2, full_name=?3, service_code=?4,
+                 level=?5, parent_id=?6, created_by=?7, legal_reference=?8,
+                 valid_from=?9, valid_until=?10, status=?11,
+                 email=?12, phone=?13, fax=?14,
+                 rua=?15, numero=?16, porta=?17, local=?18,
+                 cp4=?19, cp3=?20, localidade=?21,
+                 version=version+1
+             WHERE unit_id=?1 AND version=?22",
+            params![
+                id,
+                sn,
+                fn_,
+                sc,
+                lv,
+                pi,
+                cb,
+                lr,
+                vf,
+                vu,
+                st,
+                em,
+                ph,
+                fx,
+                ru,
+                nu,
+                po,
+                lo,
+                c4,
+                c3,
+                lc,
+                u.version as i64
+            ],
+        )
+        .map_err(op)?;
+    if affected == 0 {
+        let exists: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM org_units WHERE unit_id=?1",
+                params![id_clone],
+                |r| r.get(0),
+            )
+            .map_err(op)?;
+        return if exists > 0 {
+            Err(OrgError::VersionConflict(u.id.as_str().into()))
+        } else {
+            Err(OrgError::UnitNotFound(u.id.as_str().into()))
+        };
+    }
+    Ok(())
+}
+
+fn unit_upsert(conn: &Connection, u: &OrgUnit) -> Result<(), OrgError> {
+    let (id, sn, fn_, sc, lv, pi, cb, lr, vf, vu, st, em, ph, fx, ru, nu, po, lo, c4, c3, lc) =
+        unit_params!(u);
+    conn.execute(
+        "INSERT INTO org_units
+             (unit_id, short_name, full_name, service_code, level, parent_id,
+              created_by, legal_reference, valid_from, valid_until, status,
+              email, phone, fax, rua, numero, porta, local, cp4, cp3, localidade)
+         VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16,?17,?18,?19,?20,?21)
+         ON CONFLICT(unit_id) DO UPDATE SET
+             short_name=excluded.short_name, full_name=excluded.full_name,
+             service_code=excluded.service_code, level=excluded.level,
+             parent_id=excluded.parent_id, created_by=excluded.created_by,
+             legal_reference=excluded.legal_reference,
+             valid_from=excluded.valid_from, valid_until=excluded.valid_until,
+             status=excluded.status,
+             email=excluded.email, phone=excluded.phone, fax=excluded.fax,
+             rua=excluded.rua, numero=excluded.numero, porta=excluded.porta,
+             local=excluded.local, cp4=excluded.cp4, cp3=excluded.cp3,
+             localidade=excluded.localidade",
+        params![
+            id, sn, fn_, sc, lv, pi, cb, lr, vf, vu, st, em, ph, fx, ru, nu, po, lo, c4, c3, lc
+        ],
+    )
+    .map_err(op)?;
+    Ok(())
+}
+
+fn unit_deactivate(
+    conn: &Connection,
+    id: &OrgUnitId,
+    valid_until: NaiveDate,
+) -> Result<(), OrgError> {
+    let children: i64 = conn
+        .query_row(
+            "SELECT COUNT(*) FROM org_units WHERE parent_id=?1 AND status='active'",
+            params![id.as_str()],
+            |r| r.get(0),
+        )
+        .map_err(op)?;
+    if children > 0 {
+        return Err(OrgError::CannotDeactivateWithActiveChildren);
+    }
+    let date_s = date_to_str(valid_until);
+    let positions: i64 = conn
+        .query_row(
+            "SELECT COUNT(*) FROM org_positions
+             WHERE unit_id=?1 AND (valid_until IS NULL OR valid_until > ?2)",
+            params![id.as_str(), &date_s],
+            |r| r.get(0),
+        )
+        .map_err(op)?;
+    if positions > 0 {
+        return Err(OrgError::CannotDeactivateWithActivePositions);
+    }
+    let affected = conn
+        .execute(
+            "UPDATE org_units SET valid_until=?1, status='extinct', version=version+1
+             WHERE unit_id=?2 AND status != 'extinct'",
+            params![date_s, id.as_str()],
+        )
+        .map_err(op)?;
+    if affected == 0 {
+        return Err(OrgError::UnitNotFound(id.as_str().into()));
+    }
+    Ok(())
+}
+
+fn pos_insert(conn: &Connection, p: &OrgPosition) -> Result<(), OrgError> {
+    let affected = conn
+        .execute(
+            "INSERT OR IGNORE INTO org_positions
+                 (position_id, code, title, kind, substitutes, status,
+                  unit_id, created_by, valid_from, valid_until)
+             VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10)",
+            params![
+                p.id.as_str(),
+                p.code,
+                p.title,
+                pos_kind_to_str(&p.kind),
+                p.substitutes.as_ref().map(|s| s.as_str()),
+                pos_status_to_str(&p.status),
+                p.unit_id.as_str(),
+                p.created_by.as_str(),
+                date_to_str(p.valid_from),
+                p.valid_until.map(date_to_str),
+            ],
+        )
+        .map_err(op)?;
+    if affected == 0 {
+        return Err(OrgError::AlreadyExists(p.id.as_str().into()));
+    }
+    Ok(())
+}
+
+fn pos_update_occ(conn: &Connection, p: &OrgPosition) -> Result<(), OrgError> {
+    let affected = conn
+        .execute(
+            "UPDATE org_positions SET
+                 code=?2, title=?3, kind=?4, substitutes=?5, status=?6,
+                 unit_id=?7, created_by=?8, valid_from=?9, valid_until=?10,
+                 version=version+1
+             WHERE position_id=?1 AND version=?11",
+            params![
+                p.id.as_str(),
+                p.code,
+                p.title,
+                pos_kind_to_str(&p.kind),
+                p.substitutes.as_ref().map(|s| s.as_str()),
+                pos_status_to_str(&p.status),
+                p.unit_id.as_str(),
+                p.created_by.as_str(),
+                date_to_str(p.valid_from),
+                p.valid_until.map(date_to_str),
+                p.version as i64,
+            ],
+        )
+        .map_err(op)?;
+    if affected == 0 {
+        let exists: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM org_positions WHERE position_id=?1",
+                params![p.id.as_str()],
+                |r| r.get(0),
+            )
+            .map_err(op)?;
+        return if exists > 0 {
+            Err(OrgError::VersionConflict(p.id.as_str().into()))
+        } else {
+            Err(OrgError::PositionNotFound(p.id.as_str().into()))
+        };
+    }
+    Ok(())
+}
+
+fn pos_upsert(conn: &Connection, p: &OrgPosition) -> Result<(), OrgError> {
+    conn.execute(
+        "INSERT INTO org_positions
+             (position_id, code, title, kind, substitutes, status,
+              unit_id, created_by, valid_from, valid_until)
+         VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10)
+         ON CONFLICT(position_id) DO UPDATE SET
+             code=excluded.code, title=excluded.title,
+             kind=excluded.kind, substitutes=excluded.substitutes,
+             status=excluded.status, unit_id=excluded.unit_id,
+             created_by=excluded.created_by,
+             valid_from=excluded.valid_from, valid_until=excluded.valid_until",
+        params![
+            p.id.as_str(),
+            p.code,
+            p.title,
+            pos_kind_to_str(&p.kind),
+            p.substitutes.as_ref().map(|s| s.as_str()),
+            pos_status_to_str(&p.status),
+            p.unit_id.as_str(),
+            p.created_by.as_str(),
+            date_to_str(p.valid_from),
+            p.valid_until.map(date_to_str),
+        ],
+    )
+    .map_err(op)?;
+    Ok(())
+}
+
+fn pos_deactivate(
+    conn: &Connection,
+    id: &OrgPositionId,
+    valid_until: NaiveDate,
+) -> Result<(), OrgError> {
+    let affected = conn
+        .execute(
+            "UPDATE org_positions SET valid_until=?1, status='extinct', version=version+1
+             WHERE position_id=?2 AND status != 'extinct'",
+            params![date_to_str(valid_until), id.as_str()],
+        )
+        .map_err(op)?;
+    if affected == 0 {
+        return Err(OrgError::PositionNotFound(id.as_str().into()));
+    }
+    Ok(())
+}
+
+fn comp_upsert(conn: &Connection, c: &Competency) -> Result<(), OrgError> {
+    conn.execute(
+        "INSERT INTO competencies
+             (competency_id, code, description, scope, assigned_to, granted_by,
+              valid_from, valid_until)
+         VALUES (?1,?2,?3,?4,?5,?6,?7,?8)
+         ON CONFLICT(competency_id) DO UPDATE SET
+             code=excluded.code, description=excluded.description,
+             scope=excluded.scope, assigned_to=excluded.assigned_to,
+             granted_by=excluded.granted_by,
+             valid_from=excluded.valid_from, valid_until=excluded.valid_until",
+        params![
+            c.id.as_str(),
+            c.code,
+            c.description,
+            c.scope,
+            c.assigned_to.as_str(),
+            c.granted_by.as_str(),
+            date_to_str(c.valid_from),
+            c.valid_until.map(date_to_str),
+        ],
+    )
+    .map_err(op)?;
+    Ok(())
+}
+
+fn comp_insert(conn: &Connection, c: &Competency) -> Result<(), OrgError> {
+    let affected = conn
+        .execute(
+            "INSERT OR IGNORE INTO competencies
+                 (competency_id, code, description, scope, assigned_to, granted_by,
+                  valid_from, valid_until)
+             VALUES (?1,?2,?3,?4,?5,?6,?7,?8)",
+            params![
+                c.id.as_str(),
+                c.code,
+                c.description,
+                c.scope,
+                c.assigned_to.as_str(),
+                c.granted_by.as_str(),
+                date_to_str(c.valid_from),
+                c.valid_until.map(date_to_str),
+            ],
+        )
+        .map_err(op)?;
+    if affected == 0 {
+        return Err(OrgError::AlreadyExists(c.id.as_str().into()));
+    }
+    Ok(())
+}
+
+fn comp_update_occ(conn: &Connection, c: &Competency) -> Result<(), OrgError> {
+    let affected = conn
+        .execute(
+            "UPDATE competencies SET
+                 code=?2, description=?3, scope=?4, assigned_to=?5, granted_by=?6,
+                 valid_from=?7, valid_until=?8, version=version+1
+             WHERE competency_id=?1 AND version=?9",
+            params![
+                c.id.as_str(),
+                c.code,
+                c.description,
+                c.scope,
+                c.assigned_to.as_str(),
+                c.granted_by.as_str(),
+                date_to_str(c.valid_from),
+                c.valid_until.map(date_to_str),
+                c.version as i64,
+            ],
+        )
+        .map_err(op)?;
+    if affected == 0 {
+        let exists: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM competencies WHERE competency_id=?1",
+                params![c.id.as_str()],
+                |r| r.get(0),
+            )
+            .map_err(op)?;
+        return if exists > 0 {
+            Err(OrgError::VersionConflict(c.id.as_str().into()))
+        } else {
+            Err(OrgError::CompetencyNotFound(c.id.as_str().into()))
+        };
+    }
+    Ok(())
+}
+
+fn deleg_upsert(conn: &Connection, d: &Delegation) -> Result<(), OrgError> {
+    conn.execute(
+        "INSERT INTO delegations
+             (delegation_id, competency_id, from_position, to_position,
+              instrument_id, valid_from, valid_until)
+         VALUES (?1,?2,?3,?4,?5,?6,?7)
+         ON CONFLICT(delegation_id) DO UPDATE SET
+             competency_id=excluded.competency_id,
+             from_position=excluded.from_position,
+             to_position=excluded.to_position,
+             instrument_id=excluded.instrument_id,
+             valid_from=excluded.valid_from, valid_until=excluded.valid_until",
+        params![
+            d.id.as_str(),
+            d.competency_id.as_str(),
+            d.from_position.as_str(),
+            d.to_position.as_str(),
+            d.instrument_id.as_str(),
+            date_to_str(d.valid_from),
+            d.valid_until.map(date_to_str),
+        ],
+    )
+    .map_err(op)?;
+    Ok(())
+}
+
+fn deleg_insert(conn: &Connection, d: &Delegation) -> Result<(), OrgError> {
+    let affected = conn
+        .execute(
+            "INSERT OR IGNORE INTO delegations
+                 (delegation_id, competency_id, from_position, to_position,
+                  instrument_id, valid_from, valid_until)
+             VALUES (?1,?2,?3,?4,?5,?6,?7)",
+            params![
+                d.id.as_str(),
+                d.competency_id.as_str(),
+                d.from_position.as_str(),
+                d.to_position.as_str(),
+                d.instrument_id.as_str(),
+                date_to_str(d.valid_from),
+                d.valid_until.map(date_to_str),
+            ],
+        )
+        .map_err(op)?;
+    if affected == 0 {
+        return Err(OrgError::AlreadyExists(d.id.as_str().into()));
+    }
+    Ok(())
+}
+
+fn deleg_update_occ(conn: &Connection, d: &Delegation) -> Result<(), OrgError> {
+    let affected = conn
+        .execute(
+            "UPDATE delegations SET
+                 competency_id=?2, from_position=?3, to_position=?4,
+                 instrument_id=?5, valid_from=?6, valid_until=?7, version=version+1
+             WHERE delegation_id=?1 AND version=?8",
+            params![
+                d.id.as_str(),
+                d.competency_id.as_str(),
+                d.from_position.as_str(),
+                d.to_position.as_str(),
+                d.instrument_id.as_str(),
+                date_to_str(d.valid_from),
+                d.valid_until.map(date_to_str),
+                d.version as i64,
+            ],
+        )
+        .map_err(op)?;
+    if affected == 0 {
+        let exists: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM delegations WHERE delegation_id=?1",
+                params![d.id.as_str()],
+                |r| r.get(0),
+            )
+            .map_err(op)?;
+        return if exists > 0 {
+            Err(OrgError::VersionConflict(d.id.as_str().into()))
+        } else {
+            Err(OrgError::DelegationNotFound(d.id.as_str().into()))
+        };
+    }
+    Ok(())
+}
+
+// ── Outbox transaccional + drain idempotente ──────────────────────────────────
+
+impl OrgSqliteStore {
+    /// Executa uma escrita de estado e enfileira `event` no outbox, atomicamente
+    /// (transacção `IMMEDIATE`).
+    fn audited_tx<F>(&self, event: &OrgAuditEvent, state_write: F) -> Result<(), OrgError>
+    where
+        F: FnOnce(&Connection) -> Result<(), OrgError>,
+    {
+        let mut conn = self.lock()?;
+        let tx = conn
+            .transaction_with_behavior(TransactionBehavior::Immediate)
+            .map_err(op)?;
+        state_write(&tx)?;
+        outbox_insert(&tx, event)?;
+        tx.commit().map_err(op)?;
+        Ok(())
+    }
+}
+
+impl OrgAuditOutbox for OrgSqliteStore {
+    fn enqueue_audit(&self, event: &OrgAuditEvent) -> Result<(), OrgError> {
+        let conn = self.lock()?;
+        outbox_insert(&conn, event)
+    }
+
+    fn drain_audit_outbox(&self, audit: &dyn OrgAuditPort) -> Result<usize, OrgError> {
+        let conn = self.lock()?;
+        let mut stmt = conn
+            .prepare(
+                "SELECT seq, event_json FROM org_audit_outbox
+                 WHERE delivered = 0 ORDER BY seq",
+            )
+            .map_err(op)?;
+        let pending: Vec<(i64, String)> = stmt
+            .query_map([], |r| Ok((r.get::<_, i64>(0)?, r.get::<_, String>(1)?)))
+            .map_err(op)?
+            .collect::<Result<_, _>>()
+            .map_err(op)?;
+        drop(stmt);
+
+        let mut delivered = 0usize;
+        for (seq, json) in pending {
+            let event: OrgAuditEvent = serde_json::from_str(&json).map_err(op)?;
+            match audit.record(&event) {
+                // Entregue, ou já presente no destino (idempotência) → marca entregue.
+                Ok(()) | Err(OrgError::AlreadyExists(_)) => {
+                    conn.execute(
+                        "UPDATE org_audit_outbox SET delivered = 1 WHERE seq = ?1",
+                        params![seq],
+                    )
+                    .map_err(op)?;
+                    delivered += 1;
+                }
+                // Falha de entrega: o evento permanece no outbox (sem perda).
+                // Pára aqui para preservar a ordem; tenta na próxima drenagem.
+                Err(_) => break,
+            }
+        }
+        Ok(delivered)
+    }
+
+    fn pending_audit_count(&self) -> Result<u64, OrgError> {
+        let conn = self.lock()?;
+        let n: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM org_audit_outbox WHERE delivered = 0",
+                [],
+                |r| r.get(0),
+            )
+            .map_err(op)?;
+        Ok(n as u64)
+    }
+}
+
 // ── LegalInstrumentRepository ─────────────────────────────────────────────────
 
 impl LegalInstrumentRepository for OrgSqliteStore {
@@ -809,142 +1348,54 @@ impl OrgUnitRepository for OrgSqliteStore {
 
     fn create(&self, u: &OrgUnit) -> Result<(), OrgError> {
         u.validate()?;
-        let (id, sn, fn_, sc, lv, pi, cb, lr, vf, vu, st, em, ph, fx, ru, nu, po, lo, c4, c3, lc) =
-            unit_params!(u);
         let conn = self.lock()?;
-        let affected = conn
-            .execute(
-                "INSERT OR IGNORE INTO org_units
-                 (unit_id, short_name, full_name, service_code, level, parent_id,
-                  created_by, legal_reference, valid_from, valid_until, status,
-                  email, phone, fax, rua, numero, porta, local, cp4, cp3, localidade)
-             VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16,?17,?18,?19,?20,?21)",
-                params![
-                    id, sn, fn_, sc, lv, pi, cb, lr, vf, vu, st, em, ph, fx, ru, nu, po, lo, c4,
-                    c3, lc
-                ],
-            )
-            .map_err(op)?;
-        if affected == 0 {
-            return Err(OrgError::AlreadyExists(u.id.as_str().into()));
-        }
-        Ok(())
+        unit_insert(&conn, u)
     }
 
     fn update(&self, u: &OrgUnit) -> Result<(), OrgError> {
         u.validate()?;
-        let (id, sn, fn_, sc, lv, pi, cb, lr, vf, vu, st, em, ph, fx, ru, nu, po, lo, c4, c3, lc) =
-            unit_params!(u);
-        let ver = u.version as i64;
-        let id_clone = id.clone();
         let conn = self.lock()?;
-        let affected = conn
-            .execute(
-                "UPDATE org_units SET
-                 short_name=?2, full_name=?3, service_code=?4,
-                 level=?5, parent_id=?6, created_by=?7, legal_reference=?8,
-                 valid_from=?9, valid_until=?10, status=?11,
-                 email=?12, phone=?13, fax=?14,
-                 rua=?15, numero=?16, porta=?17, local=?18,
-                 cp4=?19, cp3=?20, localidade=?21,
-                 version=version+1
-             WHERE unit_id=?1 AND version=?22",
-                params![
-                    id, sn, fn_, sc, lv, pi, cb, lr, vf, vu, st, em, ph, fx, ru, nu, po, lo, c4,
-                    c3, lc, ver
-                ],
-            )
-            .map_err(op)?;
-        if affected == 0 {
-            let exists: i64 = conn
-                .query_row(
-                    "SELECT COUNT(*) FROM org_units WHERE unit_id=?1",
-                    params![id_clone],
-                    |r| r.get(0),
-                )
-                .map_err(op)?;
-            return if exists > 0 {
-                Err(OrgError::VersionConflict(u.id.as_str().into()))
-            } else {
-                Err(OrgError::UnitNotFound(u.id.as_str().into()))
-            };
-        }
-        Ok(())
+        unit_update_occ(&conn, u)
     }
 
     fn save(&self, u: &OrgUnit) -> Result<(), OrgError> {
         u.validate()?;
-        let (id, sn, fn_, sc, lv, pi, cb, lr, vf, vu, st, em, ph, fx, ru, nu, po, lo, c4, c3, lc) =
-            unit_params!(u);
         let conn = self.lock()?;
-        conn.execute(
-            "INSERT INTO org_units
-                 (unit_id, short_name, full_name, service_code, level, parent_id,
-                  created_by, legal_reference, valid_from, valid_until, status,
-                  email, phone, fax, rua, numero, porta, local, cp4, cp3, localidade)
-             VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16,?17,?18,?19,?20,?21)
-             ON CONFLICT(unit_id) DO UPDATE SET
-                 short_name=excluded.short_name, full_name=excluded.full_name,
-                 service_code=excluded.service_code, level=excluded.level,
-                 parent_id=excluded.parent_id, created_by=excluded.created_by,
-                 legal_reference=excluded.legal_reference,
-                 valid_from=excluded.valid_from, valid_until=excluded.valid_until,
-                 status=excluded.status,
-                 email=excluded.email, phone=excluded.phone, fax=excluded.fax,
-                 rua=excluded.rua, numero=excluded.numero, porta=excluded.porta,
-                 local=excluded.local, cp4=excluded.cp4, cp3=excluded.cp3,
-                 localidade=excluded.localidade",
-            params![
-                id, sn, fn_, sc, lv, pi, cb, lr, vf, vu, st, em, ph, fx, ru, nu, po, lo, c4, c3, lc
-            ],
-        )
-        .map_err(op)?;
-        Ok(())
+        unit_upsert(&conn, u)
     }
 
     fn deactivate(&self, id: &OrgUnitId, valid_until: NaiveDate) -> Result<(), OrgError> {
-        // Operação multi-passo: BEGIN IMMEDIATE garante atomicidade
+        // Operação multi-passo: BEGIN IMMEDIATE garante atomicidade dos guardas.
         let mut conn = self.lock()?;
         let tx = conn
             .transaction_with_behavior(TransactionBehavior::Immediate)
             .map_err(op)?;
-
-        let children: i64 = tx
-            .query_row(
-                "SELECT COUNT(*) FROM org_units WHERE parent_id=?1 AND status='active'",
-                params![id.as_str()],
-                |r| r.get(0),
-            )
-            .map_err(op)?;
-        if children > 0 {
-            return Err(OrgError::CannotDeactivateWithActiveChildren);
-        }
-
-        let date_s = date_to_str(valid_until);
-        let positions: i64 = tx
-            .query_row(
-                "SELECT COUNT(*) FROM org_positions
-             WHERE unit_id=?1 AND (valid_until IS NULL OR valid_until > ?2)",
-                params![id.as_str(), &date_s],
-                |r| r.get(0),
-            )
-            .map_err(op)?;
-        if positions > 0 {
-            return Err(OrgError::CannotDeactivateWithActivePositions);
-        }
-
-        let affected = tx
-            .execute(
-                "UPDATE org_units SET valid_until=?1, status='extinct', version=version+1
-             WHERE unit_id=?2 AND status != 'extinct'",
-                params![date_s, id.as_str()],
-            )
-            .map_err(op)?;
-        if affected == 0 {
-            return Err(OrgError::UnitNotFound(id.as_str().into()));
-        }
-
+        unit_deactivate(&tx, id, valid_until)?;
         tx.commit().map_err(op)
+    }
+
+    fn create_audited(&self, u: &OrgUnit, event: &OrgAuditEvent) -> Result<(), OrgError> {
+        u.validate()?;
+        self.audited_tx(event, |tx| unit_insert(tx, u))
+    }
+
+    fn update_audited(&self, u: &OrgUnit, event: &OrgAuditEvent) -> Result<(), OrgError> {
+        u.validate()?;
+        self.audited_tx(event, |tx| unit_update_occ(tx, u))
+    }
+
+    fn save_audited(&self, u: &OrgUnit, event: &OrgAuditEvent) -> Result<(), OrgError> {
+        u.validate()?;
+        self.audited_tx(event, |tx| unit_upsert(tx, u))
+    }
+
+    fn deactivate_audited(
+        &self,
+        id: &OrgUnitId,
+        valid_until: NaiveDate,
+        event: &OrgAuditEvent,
+    ) -> Result<(), OrgError> {
+        self.audited_tx(event, |tx| unit_deactivate(tx, id, valid_until))
     }
 }
 
@@ -1056,120 +1507,43 @@ impl OrgPositionRepository for OrgSqliteStore {
     fn create(&self, p: &OrgPosition) -> Result<(), OrgError> {
         p.validate()?;
         let conn = self.lock()?;
-        let affected = conn
-            .execute(
-                "INSERT OR IGNORE INTO org_positions
-                 (position_id, code, title, kind, substitutes, status,
-                  unit_id, created_by, valid_from, valid_until)
-             VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10)",
-                params![
-                    p.id.as_str(),
-                    p.code,
-                    p.title,
-                    pos_kind_to_str(&p.kind),
-                    p.substitutes.as_ref().map(|s| s.as_str()),
-                    pos_status_to_str(&p.status),
-                    p.unit_id.as_str(),
-                    p.created_by.as_str(),
-                    date_to_str(p.valid_from),
-                    p.valid_until.map(date_to_str),
-                ],
-            )
-            .map_err(op)?;
-        if affected == 0 {
-            return Err(OrgError::AlreadyExists(p.id.as_str().into()));
-        }
-        Ok(())
+        pos_insert(&conn, p)
     }
 
     fn update(&self, p: &OrgPosition) -> Result<(), OrgError> {
         p.validate()?;
-        let id_s = p.id.as_str().to_string();
         let conn = self.lock()?;
-        let affected = conn
-            .execute(
-                "UPDATE org_positions SET
-                 code=?2, title=?3, kind=?4, substitutes=?5, status=?6,
-                 unit_id=?7, created_by=?8, valid_from=?9, valid_until=?10,
-                 version=version+1
-             WHERE position_id=?1 AND version=?11",
-                params![
-                    p.id.as_str(),
-                    p.code,
-                    p.title,
-                    pos_kind_to_str(&p.kind),
-                    p.substitutes.as_ref().map(|s| s.as_str()),
-                    pos_status_to_str(&p.status),
-                    p.unit_id.as_str(),
-                    p.created_by.as_str(),
-                    date_to_str(p.valid_from),
-                    p.valid_until.map(date_to_str),
-                    p.version as i64,
-                ],
-            )
-            .map_err(op)?;
-        if affected == 0 {
-            let exists: i64 = conn
-                .query_row(
-                    "SELECT COUNT(*) FROM org_positions WHERE position_id=?1",
-                    params![id_s],
-                    |r| r.get(0),
-                )
-                .map_err(op)?;
-            return if exists > 0 {
-                Err(OrgError::VersionConflict(p.id.as_str().into()))
-            } else {
-                Err(OrgError::PositionNotFound(p.id.as_str().into()))
-            };
-        }
-        Ok(())
+        pos_update_occ(&conn, p)
     }
 
     fn save(&self, p: &OrgPosition) -> Result<(), OrgError> {
         p.validate()?;
         let conn = self.lock()?;
-        conn.execute(
-            "INSERT INTO org_positions
-                 (position_id, code, title, kind, substitutes, status,
-                  unit_id, created_by, valid_from, valid_until)
-             VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10)
-             ON CONFLICT(position_id) DO UPDATE SET
-                 code=excluded.code, title=excluded.title,
-                 kind=excluded.kind, substitutes=excluded.substitutes,
-                 status=excluded.status, unit_id=excluded.unit_id,
-                 created_by=excluded.created_by,
-                 valid_from=excluded.valid_from, valid_until=excluded.valid_until",
-            params![
-                p.id.as_str(),
-                p.code,
-                p.title,
-                pos_kind_to_str(&p.kind),
-                p.substitutes.as_ref().map(|s| s.as_str()),
-                pos_status_to_str(&p.status),
-                p.unit_id.as_str(),
-                p.created_by.as_str(),
-                date_to_str(p.valid_from),
-                p.valid_until.map(date_to_str),
-            ],
-        )
-        .map_err(op)?;
-        Ok(())
+        pos_upsert(&conn, p)
     }
 
     fn deactivate(&self, id: &OrgPositionId, valid_until: NaiveDate) -> Result<(), OrgError> {
-        let date_s = date_to_str(valid_until);
         let conn = self.lock()?;
-        let affected = conn
-            .execute(
-                "UPDATE org_positions SET valid_until=?1, status='extinct', version=version+1
-             WHERE position_id=?2 AND status != 'extinct'",
-                params![date_s, id.as_str()],
-            )
-            .map_err(op)?;
-        if affected == 0 {
-            return Err(OrgError::PositionNotFound(id.as_str().into()));
-        }
-        Ok(())
+        pos_deactivate(&conn, id, valid_until)
+    }
+
+    fn create_audited(&self, p: &OrgPosition, event: &OrgAuditEvent) -> Result<(), OrgError> {
+        p.validate()?;
+        self.audited_tx(event, |tx| pos_insert(tx, p))
+    }
+
+    fn update_audited(&self, p: &OrgPosition, event: &OrgAuditEvent) -> Result<(), OrgError> {
+        p.validate()?;
+        self.audited_tx(event, |tx| pos_update_occ(tx, p))
+    }
+
+    fn deactivate_audited(
+        &self,
+        id: &OrgPositionId,
+        valid_until: NaiveDate,
+        event: &OrgAuditEvent,
+    ) -> Result<(), OrgError> {
+        self.audited_tx(event, |tx| pos_deactivate(tx, id, valid_until))
     }
 }
 
@@ -1191,44 +1565,64 @@ impl OrgSqliteStore {
 
 // ── CompetencyRepository ──────────────────────────────────────────────────────
 
+const COMP_SELECT: &str = "competency_id, code, description, scope, assigned_to, \
+     granted_by, valid_from, valid_until, version";
+
+type CompRow = (
+    String,
+    String,
+    String,
+    String,
+    String,
+    String,
+    String,
+    Option<String>,
+    i64,
+);
+
+fn row_to_competency(r: CompRow) -> Result<Competency, OrgError> {
+    let (id_s, code, description, scope, assigned_s, granted_s, from_s, until_s, ver) = r;
+    Ok(Competency {
+        id: CompetencyId(id_s),
+        code,
+        description,
+        scope,
+        assigned_to: OrgPositionId(assigned_s),
+        granted_by: LegalInstrumentId(granted_s),
+        valid_from: str_to_date(&from_s).map_err(op)?,
+        valid_until: opt_str_to_date(until_s).map_err(op)?,
+        version: ver as u32,
+    })
+}
+
+macro_rules! read_comp_row {
+    ($r:expr) => {{
+        (
+            $r.get::<_, String>(0)?,
+            $r.get::<_, String>(1)?,
+            $r.get::<_, String>(2)?,
+            $r.get::<_, String>(3)?,
+            $r.get::<_, String>(4)?,
+            $r.get::<_, String>(5)?,
+            $r.get::<_, String>(6)?,
+            $r.get::<_, Option<String>>(7)?,
+            $r.get::<_, i64>(8)?,
+        )
+    }};
+}
+
 impl CompetencyRepository for OrgSqliteStore {
     fn get(&self, id: &CompetencyId) -> Result<Option<Competency>, OrgError> {
         let conn = self.lock()?;
         let row = conn
             .query_row(
-                "SELECT competency_id, code, description, scope, assigned_to,
-                    granted_by, valid_from, valid_until
-                 FROM competencies WHERE competency_id=?1",
+                &format!("SELECT {COMP_SELECT} FROM competencies WHERE competency_id=?1"),
                 params![id.as_str()],
-                |r| {
-                    Ok((
-                        r.get::<_, String>(0)?,
-                        r.get::<_, String>(1)?,
-                        r.get::<_, String>(2)?,
-                        r.get::<_, String>(3)?,
-                        r.get::<_, String>(4)?,
-                        r.get::<_, String>(5)?,
-                        r.get::<_, String>(6)?,
-                        r.get::<_, Option<String>>(7)?,
-                    ))
-                },
+                |r| Ok(read_comp_row!(r)),
             )
             .optional()
             .map_err(op)?;
-        let Some((id_s, code, description, scope, assigned_s, granted_s, from_s, until_s)) = row
-        else {
-            return Ok(None);
-        };
-        Ok(Some(Competency {
-            id: CompetencyId(id_s),
-            code,
-            description,
-            scope,
-            assigned_to: OrgPositionId(assigned_s),
-            granted_by: LegalInstrumentId(granted_s),
-            valid_from: str_to_date(&from_s).map_err(op)?,
-            valid_until: opt_str_to_date(until_s).map_err(op)?,
-        }))
+        row.map(row_to_competency).transpose()
     }
 
     fn list_for_position_at(
@@ -1239,43 +1633,19 @@ impl CompetencyRepository for OrgSqliteStore {
         let d = date_to_str(date);
         let conn = self.lock()?;
         let mut stmt = conn
-            .prepare(
-                "SELECT competency_id, code, description, scope, assigned_to,
-                    granted_by, valid_from, valid_until
-             FROM competencies
-             WHERE assigned_to=?1 AND valid_from<=?2
-               AND (valid_until IS NULL OR valid_until>?2)
-             ORDER BY code",
-            )
+            .prepare(&format!(
+                "SELECT {COMP_SELECT} FROM competencies
+                 WHERE assigned_to=?1 AND valid_from<=?2
+                   AND (valid_until IS NULL OR valid_until>?2)
+                 ORDER BY code"
+            ))
             .map_err(op)?;
         let rows = stmt
-            .query_map(params![position_id.as_str(), d], |r| {
-                Ok((
-                    r.get::<_, String>(0)?,
-                    r.get::<_, String>(1)?,
-                    r.get::<_, String>(2)?,
-                    r.get::<_, String>(3)?,
-                    r.get::<_, String>(4)?,
-                    r.get::<_, String>(5)?,
-                    r.get::<_, String>(6)?,
-                    r.get::<_, Option<String>>(7)?,
-                ))
-            })
+            .query_map(params![position_id.as_str(), d], |r| Ok(read_comp_row!(r)))
             .map_err(op)?;
         let mut result = Vec::new();
         for row in rows {
-            let (id_s, code, description, scope, assigned_s, granted_s, from_s, until_s) =
-                row.map_err(op)?;
-            result.push(Competency {
-                id: CompetencyId(id_s),
-                code,
-                description,
-                scope,
-                assigned_to: OrgPositionId(assigned_s),
-                granted_by: LegalInstrumentId(granted_s),
-                valid_from: str_to_date(&from_s).map_err(op)?,
-                valid_until: opt_str_to_date(until_s).map_err(op)?,
-            });
+            result.push(row_to_competency(row.map_err(op)?)?);
         }
         Ok(result)
     }
@@ -1283,69 +1653,83 @@ impl CompetencyRepository for OrgSqliteStore {
     fn save(&self, c: &Competency) -> Result<(), OrgError> {
         c.validate()?;
         let conn = self.lock()?;
-        conn.execute(
-            "INSERT INTO competencies
-                 (competency_id, code, description, scope, assigned_to, granted_by,
-                  valid_from, valid_until)
-             VALUES (?1,?2,?3,?4,?5,?6,?7,?8)
-             ON CONFLICT(competency_id) DO UPDATE SET
-                 code=excluded.code, description=excluded.description,
-                 scope=excluded.scope, assigned_to=excluded.assigned_to,
-                 granted_by=excluded.granted_by,
-                 valid_from=excluded.valid_from, valid_until=excluded.valid_until",
-            params![
-                c.id.as_str(),
-                c.code,
-                c.description,
-                c.scope,
-                c.assigned_to.as_str(),
-                c.granted_by.as_str(),
-                date_to_str(c.valid_from),
-                c.valid_until.map(date_to_str),
-            ],
-        )
-        .map_err(op)?;
-        Ok(())
+        comp_upsert(&conn, c)
+    }
+
+    fn update(&self, c: &Competency) -> Result<(), OrgError> {
+        c.validate()?;
+        let conn = self.lock()?;
+        comp_update_occ(&conn, c)
+    }
+
+    fn create_audited(&self, c: &Competency, event: &OrgAuditEvent) -> Result<(), OrgError> {
+        c.validate()?;
+        self.audited_tx(event, |tx| comp_insert(tx, c))
+    }
+
+    fn update_audited(&self, c: &Competency, event: &OrgAuditEvent) -> Result<(), OrgError> {
+        c.validate()?;
+        self.audited_tx(event, |tx| comp_update_occ(tx, c))
     }
 }
 
 // ── DelegationRepository ──────────────────────────────────────────────────────
+
+const DELEG_SELECT: &str = "delegation_id, competency_id, from_position, to_position, \
+     instrument_id, valid_from, valid_until, version";
+
+type DelegRow = (
+    String,
+    String,
+    String,
+    String,
+    String,
+    String,
+    Option<String>,
+    i64,
+);
+
+fn row_to_delegation(r: DelegRow) -> Result<Delegation, OrgError> {
+    let (id_s, comp_s, from_s, to_s, instr_s, vfrom_s, vuntil_s, ver) = r;
+    Ok(Delegation {
+        id: DelegationId(id_s),
+        competency_id: CompetencyId(comp_s),
+        from_position: OrgPositionId(from_s),
+        to_position: OrgPositionId(to_s),
+        instrument_id: LegalInstrumentId(instr_s),
+        valid_from: str_to_date(&vfrom_s).map_err(op)?,
+        valid_until: opt_str_to_date(vuntil_s).map_err(op)?,
+        version: ver as u32,
+    })
+}
+
+macro_rules! read_deleg_row {
+    ($r:expr) => {{
+        (
+            $r.get::<_, String>(0)?,
+            $r.get::<_, String>(1)?,
+            $r.get::<_, String>(2)?,
+            $r.get::<_, String>(3)?,
+            $r.get::<_, String>(4)?,
+            $r.get::<_, String>(5)?,
+            $r.get::<_, Option<String>>(6)?,
+            $r.get::<_, i64>(7)?,
+        )
+    }};
+}
 
 impl DelegationRepository for OrgSqliteStore {
     fn get(&self, id: &DelegationId) -> Result<Option<Delegation>, OrgError> {
         let conn = self.lock()?;
         let row = conn
             .query_row(
-                "SELECT delegation_id, competency_id, from_position, to_position,
-                    instrument_id, valid_from, valid_until
-                 FROM delegations WHERE delegation_id=?1",
+                &format!("SELECT {DELEG_SELECT} FROM delegations WHERE delegation_id=?1"),
                 params![id.as_str()],
-                |r| {
-                    Ok((
-                        r.get::<_, String>(0)?,
-                        r.get::<_, String>(1)?,
-                        r.get::<_, String>(2)?,
-                        r.get::<_, String>(3)?,
-                        r.get::<_, String>(4)?,
-                        r.get::<_, String>(5)?,
-                        r.get::<_, Option<String>>(6)?,
-                    ))
-                },
+                |r| Ok(read_deleg_row!(r)),
             )
             .optional()
             .map_err(op)?;
-        let Some((id_s, comp_s, from_s, to_s, instr_s, vfrom_s, vuntil_s)) = row else {
-            return Ok(None);
-        };
-        Ok(Some(Delegation {
-            id: DelegationId(id_s),
-            competency_id: CompetencyId(comp_s),
-            from_position: OrgPositionId(from_s),
-            to_position: OrgPositionId(to_s),
-            instrument_id: LegalInstrumentId(instr_s),
-            valid_from: str_to_date(&vfrom_s).map_err(op)?,
-            valid_until: opt_str_to_date(vuntil_s).map_err(op)?,
-        }))
+        row.map(row_to_delegation).transpose()
     }
 
     fn get_effective_at(
@@ -1356,39 +1740,18 @@ impl DelegationRepository for OrgSqliteStore {
         let d = date_to_str(date);
         let conn = self.lock()?;
         let mut stmt = conn
-            .prepare(
-                "SELECT delegation_id, competency_id, from_position, to_position,
-                    instrument_id, valid_from, valid_until
-             FROM delegations
-             WHERE to_position=?1 AND valid_from<=?2
-               AND (valid_until IS NULL OR valid_until>?2)",
-            )
+            .prepare(&format!(
+                "SELECT {DELEG_SELECT} FROM delegations
+                 WHERE to_position=?1 AND valid_from<=?2
+                   AND (valid_until IS NULL OR valid_until>?2)"
+            ))
             .map_err(op)?;
         let rows = stmt
-            .query_map(params![to_position.as_str(), d], |r| {
-                Ok((
-                    r.get::<_, String>(0)?,
-                    r.get::<_, String>(1)?,
-                    r.get::<_, String>(2)?,
-                    r.get::<_, String>(3)?,
-                    r.get::<_, String>(4)?,
-                    r.get::<_, String>(5)?,
-                    r.get::<_, Option<String>>(6)?,
-                ))
-            })
+            .query_map(params![to_position.as_str(), d], |r| Ok(read_deleg_row!(r)))
             .map_err(op)?;
         let mut result = Vec::new();
         for row in rows {
-            let (id_s, comp_s, from_s, to_s, instr_s, vfrom_s, vuntil_s) = row.map_err(op)?;
-            result.push(Delegation {
-                id: DelegationId(id_s),
-                competency_id: CompetencyId(comp_s),
-                from_position: OrgPositionId(from_s),
-                to_position: OrgPositionId(to_s),
-                instrument_id: LegalInstrumentId(instr_s),
-                valid_from: str_to_date(&vfrom_s).map_err(op)?,
-                valid_until: opt_str_to_date(vuntil_s).map_err(op)?,
-            });
+            result.push(row_to_delegation(row.map_err(op)?)?);
         }
         Ok(result)
     }
@@ -1396,79 +1759,200 @@ impl DelegationRepository for OrgSqliteStore {
     fn save(&self, d: &Delegation) -> Result<(), OrgError> {
         d.validate()?;
         let conn = self.lock()?;
-        conn.execute(
-            "INSERT INTO delegations
-                 (delegation_id, competency_id, from_position, to_position,
-                  instrument_id, valid_from, valid_until)
-             VALUES (?1,?2,?3,?4,?5,?6,?7)
-             ON CONFLICT(delegation_id) DO UPDATE SET
-                 competency_id=excluded.competency_id,
-                 from_position=excluded.from_position,
-                 to_position=excluded.to_position,
-                 instrument_id=excluded.instrument_id,
-                 valid_from=excluded.valid_from, valid_until=excluded.valid_until",
-            params![
-                d.id.as_str(),
-                d.competency_id.as_str(),
-                d.from_position.as_str(),
-                d.to_position.as_str(),
-                d.instrument_id.as_str(),
-                date_to_str(d.valid_from),
-                d.valid_until.map(date_to_str),
-            ],
-        )
-        .map_err(op)?;
-        Ok(())
+        deleg_upsert(&conn, d)
+    }
+
+    fn update(&self, d: &Delegation) -> Result<(), OrgError> {
+        d.validate()?;
+        let conn = self.lock()?;
+        deleg_update_occ(&conn, d)
+    }
+
+    fn create_audited(&self, d: &Delegation, event: &OrgAuditEvent) -> Result<(), OrgError> {
+        d.validate()?;
+        self.audited_tx(event, |tx| deleg_insert(tx, d))
+    }
+
+    fn update_audited(&self, d: &Delegation, event: &OrgAuditEvent) -> Result<(), OrgError> {
+        d.validate()?;
+        self.audited_tx(event, |tx| deleg_update_occ(tx, d))
     }
 }
 
 // ── OrgAuditAdapter ───────────────────────────────────────────────────────────
 
-/// Implementa `OrgAuditPort` usando `core-audit::AuditStore`.
+/// Implementa `OrgAuditPort` usando `core-audit`.
 ///
-/// Converte `OrgAuditEvent` → `core_audit::AuditEvent` com:
-/// - `event_type` = `"org.<entity_kind_lower>.<action>"`
-/// - `actor` = actor ID + actor_type = "user"
-/// - `target` = entity_kind + entity_id
-/// - `outcome` = Success
-/// - `details_json` = payload do evento
+/// Para cada `OrgAuditEvent`:
+/// 1. grava um `AuditEvent` na cadeia de hashes, com:
+///    - `event_id` = identidade estável do evento (idempotência na reentrega);
+///    - `event_type` = `"org.<entity_kind_lower>.<action>"`;
+///    - `outcome` = `Success`/`Failure` (evidência COSO de sucesso **e** falha);
+///    - `control_id` = controlo COSO primário;
+///    - `details_json` = payload (snapshot ou contexto da falha);
+/// 2. se um `ControlRegistryStore` estiver configurado e houver `control_id`,
+///    grava também uma `ControlExecution` (`Passed`/`Failed`), com `execution_id`
+///    determinístico (`<event_id>:<control_id>`) — idempotente na reentrega.
+///
+/// A reentrega de um evento já gravado (`DuplicateEvent` /
+/// `DuplicateControlExecution`) é tratada como sucesso, suportando o drain
+/// at-least-once do outbox sem duplicar evidência.
 pub struct OrgAuditAdapter {
     store: Arc<dyn AuditStore>,
+    controls: Option<Arc<dyn ControlRegistryStore>>,
 }
 
 impl OrgAuditAdapter {
+    /// Apenas grava `AuditEvent` (sem `ControlExecution`).
     pub fn new(store: Arc<dyn AuditStore>) -> Self {
-        Self { store }
+        Self {
+            store,
+            controls: None,
+        }
+    }
+
+    /// Grava `AuditEvent` **e** `ControlExecution` no registo de controlos.
+    pub fn with_controls(
+        store: Arc<dyn AuditStore>,
+        controls: Arc<dyn ControlRegistryStore>,
+    ) -> Self {
+        Self {
+            store,
+            controls: Some(controls),
+        }
     }
 }
 
 impl OrgAuditPort for OrgAuditAdapter {
-    fn record(&self, event: OrgAuditEvent) -> Result<(), OrgError> {
+    fn record(&self, event: &OrgAuditEvent) -> Result<(), OrgError> {
         let event_type = format!(
             "org.{}.{}",
             event.entity_kind.to_lowercase().replace(' ', "_"),
             event.action.as_str(),
         );
-        let audit_event = AuditEvent::new(
+        let outcome = match event.outcome {
+            OrgEventOutcome::Success => AuditOutcome::Success,
+            OrgEventOutcome::Failure => AuditOutcome::Failure,
+        };
+        let audit_event = AuditEvent::with_id_and_time(
+            event.event_id.clone(),
             event_type,
             AuditActor {
-                actor_id: event.actor,
+                actor_id: event.actor.clone(),
                 actor_type: Some("user".into()),
                 actor_name: None,
             },
             AuditTarget {
-                target_type: event.entity_kind.to_string(),
-                target_id: event.entity_id,
+                target_type: event.entity_kind.clone(),
+                target_id: event.entity_id.clone(),
             },
-            AuditOutcome::Success,
-            None,
-            event.payload,
+            event.occurred_at,
+            outcome,
+            event.control_id.clone(),
+            event.payload.clone(),
         )
         .map_err(|e| OrgError::OperationFailed(e.to_string()))?;
-        self.store
-            .record(&audit_event)
-            .map_err(|e| OrgError::OperationFailed(e.to_string()))
+
+        match self.store.record(&audit_event) {
+            Ok(()) => {}
+            // Já gravado: idempotente (reentrega do outbox).
+            Err(core_audit::AuditError::DuplicateEvent) => return Ok(()),
+            Err(e) => return Err(OrgError::OperationFailed(e.to_string())),
+        }
+
+        if let (Some(controls), Some(control_id)) = (&self.controls, &event.control_id) {
+            let result = if event.outcome.is_success() {
+                ControlExecutionResult::Passed
+            } else {
+                ControlExecutionResult::Failed
+            };
+            let execution = ControlExecution::with_id_and_time(
+                format!("{}:{}", event.event_id, control_id),
+                control_id.clone(),
+                event.event_id.clone(),
+                event.occurred_at,
+                result,
+                None,
+                None,
+            )
+            .map_err(|e| OrgError::OperationFailed(e.to_string()))?;
+            match controls.record_execution(&execution) {
+                Ok(()) | Err(core_audit::AuditError::DuplicateControlExecution) => {}
+                Err(e) => return Err(OrgError::OperationFailed(e.to_string())),
+            }
+        }
+        Ok(())
     }
+}
+
+// ── Catálogo de controlos COSO do domínio org ─────────────────────────────────
+
+/// Controlos COSO específicos do domínio orgânico, referenciados pelas operações
+/// de `core-org` (módulo `core_org::controls`). Distintos do catálogo transversal
+/// de 50 controlos (`core_audit::builtin_control_catalog`) — controlos de domínio
+/// vivem no respectivo módulo. Uma aplicação deve registá-los no
+/// `ControlRegistryService` no arranque, a par do catálogo base.
+pub fn org_control_catalog() -> Vec<ControlDefinition> {
+    use core_org::controls::*;
+    let valid_from = Utc
+        .with_ymd_and_hms(2026, 1, 1, 0, 0, 0)
+        .single()
+        .expect("valid catalog date");
+    let def = |id: &str, name: &str, description: &str, category, severity| ControlDefinition {
+        control_id: id.to_string(),
+        name: name.to_string(),
+        description: Some(description.to_string()),
+        category,
+        severity,
+        owner: None,
+        implemented_by: vec!["@core-org".to_string()],
+        references: vec!["COSO".to_string()],
+        version: "1.0.0".to_string(),
+        valid_from,
+        valid_to: None,
+        active: true,
+    };
+    vec![
+        def(
+            CTRL_ORG_UNIT_CHANGE,
+            "Alteração de unidade orgânica fundamentada",
+            "Verifica que a criação ou alteração de uma unidade orgânica é fundamentada \
+             por instrumento jurídico ou referência legal, com hierarquia consistente.",
+            ControlCategory::Auth,
+            ControlSeverity::High,
+        ),
+        def(
+            CTRL_ORG_UNIT_LIFECYCLE,
+            "Ciclo de vida de unidade orgânica controlado",
+            "Verifica que a extinção/suspensão de uma unidade respeita a máquina de \
+             estados e os guardas (sem filhos nem posições activas).",
+            ControlCategory::Integrity,
+            ControlSeverity::High,
+        ),
+        def(
+            CTRL_ORG_POSITION_CHANGE,
+            "Definição de cargo fundamentada",
+            "Verifica que a criação/alteração de um cargo é fundamentada e não introduz \
+             ciclos de substituição.",
+            ControlCategory::Auth,
+            ControlSeverity::High,
+        ),
+        def(
+            CTRL_ORG_POSITION_LIFECYCLE,
+            "Ciclo de vida de cargo controlado",
+            "Verifica que a extinção/suspensão de um cargo respeita a máquina de estados.",
+            ControlCategory::Integrity,
+            ControlSeverity::Medium,
+        ),
+        def(
+            CTRL_ORG_COMPETENCY,
+            "Atribuição de competência fundamentada",
+            "Verifica que a atribuição de competência (autoridade jurídica para actos) \
+             a um cargo é fundamentada e temporalmente válida.",
+            ControlCategory::Auth,
+            ControlSeverity::High,
+        ),
+    ]
 }
 
 // ── Convenience façade ────────────────────────────────────────────────────────
@@ -2068,5 +2552,282 @@ mod tests {
             events[0].details_json.as_ref().unwrap()["status"],
             "suspended"
         );
+    }
+
+    // ── Gap 1: evidência de FALHA ─────────────────────────────────────────────
+
+    #[test]
+    fn falha_de_criacao_gera_evento_failure() {
+        let capturing = Arc::new(CapturingAudit::default());
+        let svc = OrgUnitService::new(
+            store(),
+            OrgAuditAdapter::new(capturing.clone()),
+            OrgNoopDomainEvents,
+        );
+        // Sem created_by nem legal_reference → validate_strict falha.
+        let err = svc.create(unit("u1"), "joao").unwrap_err();
+        assert!(matches!(err, OrgError::EmptyField(_)));
+
+        let events = capturing.events.lock().unwrap();
+        assert_eq!(events.len(), 1, "a falha deve gerar evidência");
+        assert_eq!(events[0].event_type, "org.orgunit.created");
+        assert_eq!(events[0].outcome, AuditOutcome::Failure);
+        // payload contém o código de erro
+        let payload = events[0].details_json.as_ref().unwrap();
+        assert_eq!(payload["error_code"], "MINI.ORG.EMPTY_FIELD");
+    }
+
+    // ── Gap 2: ControlExecution ───────────────────────────────────────────────
+
+    #[derive(Default)]
+    struct CapturingControls {
+        executions: StdMutex<Vec<ControlExecution>>,
+    }
+
+    impl ControlRegistryStore for CapturingControls {
+        fn define_control(&self, _d: &ControlDefinition) -> Result<(), AuditError> {
+            Ok(())
+        }
+        fn get_control(&self, _id: &str) -> Result<Option<ControlDefinition>, AuditError> {
+            Ok(None)
+        }
+        fn list_controls(
+            &self,
+            _l: usize,
+            _o: usize,
+        ) -> Result<Vec<ControlDefinition>, AuditError> {
+            Ok(vec![])
+        }
+        fn list_controls_by_category(
+            &self,
+            _c: ControlCategory,
+            _l: usize,
+            _o: usize,
+        ) -> Result<Vec<ControlDefinition>, AuditError> {
+            Ok(vec![])
+        }
+        fn record_execution(&self, e: &ControlExecution) -> Result<(), AuditError> {
+            self.executions.lock().unwrap().push(e.clone());
+            Ok(())
+        }
+        fn list_executions_by_control(
+            &self,
+            _c: &str,
+            _l: usize,
+            _o: usize,
+        ) -> Result<Vec<ControlExecution>, AuditError> {
+            Ok(self.executions.lock().unwrap().clone())
+        }
+        fn list_executions_by_event(&self, _e: &str) -> Result<Vec<ControlExecution>, AuditError> {
+            Ok(self.executions.lock().unwrap().clone())
+        }
+    }
+
+    #[test]
+    fn adapter_grava_control_execution_passed_em_sucesso() {
+        let audit = Arc::new(CapturingAudit::default());
+        let controls = Arc::new(CapturingControls::default());
+        let svc = OrgUnitService::new(
+            store(),
+            OrgAuditAdapter::with_controls(audit.clone(), controls.clone()),
+            OrgNoopDomainEvents,
+        );
+        let mut u = unit("u1");
+        u.legal_reference = Some("Portaria 1/2024".into());
+        svc.create(u, "joao").unwrap();
+
+        let execs = controls.executions.lock().unwrap();
+        assert_eq!(execs.len(), 1);
+        assert_eq!(execs[0].control_id, "CTRL-ORG-UNIT-001");
+        assert_eq!(execs[0].result, ControlExecutionResult::Passed);
+        // a execução liga ao mesmo event_id do AuditEvent
+        let events = audit.events.lock().unwrap();
+        assert_eq!(execs[0].event_id, events[0].event_id);
+    }
+
+    #[test]
+    fn adapter_grava_control_execution_failed_em_falha() {
+        let audit = Arc::new(CapturingAudit::default());
+        let controls = Arc::new(CapturingControls::default());
+        let svc = OrgUnitService::new(
+            store(),
+            OrgAuditAdapter::with_controls(audit, controls.clone()),
+            OrgNoopDomainEvents,
+        );
+        let _ = svc.create(unit("u1"), "joao").unwrap_err(); // falha validate_strict
+
+        let execs = controls.executions.lock().unwrap();
+        assert_eq!(execs.len(), 1);
+        assert_eq!(execs[0].result, ControlExecutionResult::Failed);
+    }
+
+    // ── Gap 3: outbox transaccional sem perda de evidência ────────────────────
+
+    /// Porto de auditoria que falha sempre a entrega.
+    struct FailingAudit;
+    impl OrgAuditPort for FailingAudit {
+        fn record(&self, _e: &OrgAuditEvent) -> Result<(), OrgError> {
+            Err(OrgError::OperationFailed("entrega indisponível".into()))
+        }
+    }
+
+    #[test]
+    fn outbox_preserva_evidencia_quando_entrega_falha() {
+        let s = store();
+        let mut u = unit("u1");
+        u.legal_reference = Some("Port. 1/2024".into());
+        let ev = OrgAuditEvent::new(
+            "joao",
+            core_org::OrgAuditAction::Created,
+            "OrgUnit",
+            "u1",
+            chrono::Utc::now(),
+            OrgEventOutcome::Success,
+            Some("CTRL-ORG-UNIT-001".into()),
+            None,
+        );
+        // Escrita atómica: estado + evento no outbox.
+        OrgUnitRepository::create_audited(&s, &u, &ev).unwrap();
+
+        // Estado persistido mesmo sem entrega.
+        assert!(s.get_unit(&u.id).unwrap().is_some());
+        // Evidência capturada e por entregar.
+        assert_eq!(s.pending_audit_count().unwrap(), 1);
+
+        // Entrega falha → evidência permanece (sem perda).
+        let delivered = s.drain_audit_outbox(&FailingAudit).unwrap();
+        assert_eq!(delivered, 0);
+        assert_eq!(s.pending_audit_count().unwrap(), 1);
+
+        // Entrega recupera → drena e marca entregue.
+        let capturing = CapturingAudit::default();
+        let adapter = OrgAuditAdapter::new(Arc::new(capturing));
+        let delivered = s.drain_audit_outbox(&adapter).unwrap();
+        assert_eq!(delivered, 1);
+        assert_eq!(s.pending_audit_count().unwrap(), 0);
+
+        // Idempotente: nova drenagem não reentrega.
+        assert_eq!(s.drain_audit_outbox(&adapter).unwrap(), 0);
+    }
+
+    #[test]
+    fn create_audited_falha_nao_deixa_estado_nem_evidencia() {
+        let s = store();
+        let dup = unit("dup");
+        let ev = OrgAuditEvent::new(
+            "x",
+            core_org::OrgAuditAction::Created,
+            "OrgUnit",
+            "dup",
+            chrono::Utc::now(),
+            OrgEventOutcome::Success,
+            None,
+            None,
+        );
+        OrgUnitRepository::create_audited(&s, &dup, &ev).unwrap();
+        assert_eq!(s.pending_audit_count().unwrap(), 1);
+
+        // Segunda criação falha (AlreadyExists) → transação reverte, sem novo outbox.
+        let err = OrgUnitRepository::create_audited(&s, &dup, &ev).unwrap_err();
+        assert!(matches!(err, OrgError::AlreadyExists(_)));
+        assert_eq!(
+            s.pending_audit_count().unwrap(),
+            1,
+            "a falha não deve acrescentar evento ao outbox"
+        );
+    }
+
+    // ── Gap 4: CompetencyService / DelegationService ──────────────────────────
+
+    fn competency(id: &str, pos: &str, instr_id: &str) -> Competency {
+        Competency {
+            id: CompetencyId(id.into()),
+            code: id.to_uppercase(),
+            description: "Assinar".into(),
+            scope: "Nível 1".into(),
+            assigned_to: OrgPositionId(pos.into()),
+            granted_by: LegalInstrumentId(instr_id.into()),
+            valid_from: date(2020, 1, 1),
+            valid_until: None,
+            version: 0,
+        }
+    }
+
+    #[test]
+    fn competency_service_cria_com_auditoria() {
+        use core_org::CompetencyService;
+        let capturing = Arc::new(CapturingAudit::default());
+        let s = store();
+        s.save_instrument(&instr("i1")).unwrap();
+        s.save_unit(&unit("u1")).unwrap();
+        s.save_position(&position("p1", "u1", "i1")).unwrap();
+
+        let svc = CompetencyService::new(s, OrgAuditAdapter::new(capturing.clone()));
+        svc.create(competency("c1", "p1", "i1"), "admin").unwrap();
+
+        let events = capturing.events.lock().unwrap();
+        assert_eq!(events.len(), 1);
+        assert_eq!(events[0].event_type, "org.competency.created");
+        assert_eq!(events[0].control_id.as_deref(), Some("CTRL-ORG-COMP-001"));
+    }
+
+    #[test]
+    fn competency_service_occ_conflito() {
+        use core_org::CompetencyService;
+        let s = store();
+        s.save_instrument(&instr("i1")).unwrap();
+        s.save_unit(&unit("u1")).unwrap();
+        s.save_position(&position("p1", "u1", "i1")).unwrap();
+        s.save_competency(&competency("c1", "p1", "i1")).unwrap();
+
+        let svc = CompetencyService::new(s, OrgNoopAudit);
+        let c1 = competency("c1", "p1", "i1"); // version 0
+        svc.update(c1.clone(), "admin").unwrap(); // → version 1
+                                                  // segunda com version 0 → conflito
+        assert!(matches!(
+            svc.update(c1, "admin").unwrap_err(),
+            OrgError::VersionConflict(_)
+        ));
+    }
+
+    #[test]
+    fn delegation_service_cria_com_verificacao_de_competencia() {
+        use core_org::DelegationService;
+        let s = store();
+        s.save_instrument(&instr("i1")).unwrap();
+        s.save_unit(&unit("u1")).unwrap();
+        s.save_position(&position("pa", "u1", "i1")).unwrap();
+        s.save_position(&position("pb", "u1", "i1")).unwrap();
+        s.save_competency(&competency("c1", "pa", "i1")).unwrap();
+
+        let deleg = Delegation {
+            id: DelegationId("d1".into()),
+            competency_id: CompetencyId("c1".into()),
+            from_position: OrgPositionId("pa".into()),
+            to_position: OrgPositionId("pb".into()),
+            instrument_id: LegalInstrumentId("i1".into()),
+            valid_from: date(2024, 1, 1),
+            valid_until: None,
+            version: 0,
+        };
+        let capturing = Arc::new(CapturingAudit::default());
+        let svc = DelegationService::new(s, OrgAuditAdapter::new(capturing.clone()));
+
+        let comp = CompetencyId("c1".into());
+        // pa detém a competência c1 → ok
+        svc.create(deleg.clone(), &[&comp], "admin").unwrap();
+        assert_eq!(
+            capturing.events.lock().unwrap()[0].event_type,
+            "org.delegation.created"
+        );
+
+        // pa NÃO detém c2 → falha + evidência de falha
+        let mut d2 = deleg;
+        d2.id = DelegationId("d2".into());
+        let other = CompetencyId("c2".into());
+        let err = svc.create(d2, &[&other], "admin").unwrap_err();
+        assert!(matches!(err, OrgError::OperationFailed(_)));
+        let events = capturing.events.lock().unwrap();
+        assert_eq!(events.last().unwrap().outcome, AuditOutcome::Failure);
     }
 }

@@ -10,6 +10,7 @@ mod tests;
 
 pub mod audit;
 pub mod competency;
+pub mod controls;
 pub mod delegation;
 pub mod domain_events;
 pub mod error;
@@ -21,7 +22,7 @@ pub mod service;
 pub mod unit;
 
 // ── audit ─────────────────────────────────────────────────────────────────────
-pub use audit::{OrgAuditAction, OrgAuditEvent, OrgAuditPort, OrgNoopAudit};
+pub use audit::{OrgAuditAction, OrgAuditEvent, OrgAuditPort, OrgEventOutcome, OrgNoopAudit};
 
 // ── competency ────────────────────────────────────────────────────────────────
 pub use competency::{Competency, CompetencyId};
@@ -43,15 +44,15 @@ pub use pagination::{OrgPage, PagedResult};
 
 // ── ports ─────────────────────────────────────────────────────────────────────
 pub use ports::{
-    CompetencyRepository, DelegationRepository, LegalInstrumentRepository, OrgPositionRepository,
-    OrgUnitRepository,
+    CompetencyRepository, DelegationRepository, LegalInstrumentRepository, OrgAuditOutbox,
+    OrgPositionRepository, OrgUnitRepository,
 };
 
 // ── position ──────────────────────────────────────────────────────────────────
 pub use position::{OrgPosition, OrgPositionId, OrgPositionStatus, PositionKind};
 
 // ── service ───────────────────────────────────────────────────────────────────
-pub use service::{OrgPositionService, OrgUnitService};
+pub use service::{CompetencyService, DelegationService, OrgPositionService, OrgUnitService};
 
 // ── unit ──────────────────────────────────────────────────────────────────────
 pub use unit::{OrgAddress, OrgContacts, OrgLevel, OrgUnit, OrgUnitId, OrgUnitStatus};

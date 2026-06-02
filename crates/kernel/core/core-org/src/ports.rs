@@ -1,12 +1,44 @@
 //! Ports de persistência (hexagonal) para todos os agregados de `core-org`.
+//!
+//! ## Escrita governada com evidência transaccional
+//!
+//! As operações de escrita governadas (via serviço) usam variantes `*_audited`,
+//! que persistem a mudança de estado **e** enfileiram o `OrgAuditEvent` no outbox
+//! na **mesma transação** — eliminando a possibilidade de estado sem evidência.
+//! O [`OrgAuditOutbox`] entrega depois os eventos ao [`OrgAuditPort`] (drain
+//! idempotente). As variantes simples (`create`/`update`/`save`/`deactivate`)
+//! permanecem para importação e uso directo (sem evidência).
 
 use chrono::NaiveDate;
 
 use crate::{
+    audit::{OrgAuditEvent, OrgAuditPort},
     pagination::{OrgPage, PagedResult},
     Competency, CompetencyId, Delegation, DelegationId, LegalInstrument, LegalInstrumentId,
     OrgError, OrgLevel, OrgPosition, OrgPositionId, OrgUnit, OrgUnitId, PositionKind,
 };
+
+// ── OrgAuditOutbox (evidência transaccional) ──────────────────────────────────
+
+/// Outbox de evidência de auditoria, co-localizado com o estado (mesma BD).
+///
+/// Garante que a evidência é capturada atomicamente com a mudança de estado
+/// (via métodos `*_audited` das repos) e entregue de forma fiável e idempotente
+/// ao `OrgAuditPort`, mesmo que a entrega imediata falhe.
+pub trait OrgAuditOutbox {
+    /// Enfileira um evento independente (ex.: falhas — sem mudança de estado
+    /// associada, logo sem necessidade de atomicidade com estado).
+    fn enqueue_audit(&self, event: &OrgAuditEvent) -> Result<(), OrgError>;
+
+    /// Entrega os eventos pendentes ao `audit`, marcando-os entregues.
+    /// **Idempotente**: uma reentrega de evento já gravado é tratada como entregue
+    /// (o `OrgAuditPort` deve devolver `Ok` ou `AlreadyExists`). Devolve o número
+    /// de eventos entregues nesta passagem.
+    fn drain_audit_outbox(&self, audit: &dyn OrgAuditPort) -> Result<usize, OrgError>;
+
+    /// Número de eventos ainda por entregar (observabilidade / health).
+    fn pending_audit_count(&self) -> Result<u64, OrgError>;
+}
 
 // ── OrgUnitRepository ─────────────────────────────────────────────────────────
 
@@ -35,6 +67,21 @@ pub trait OrgUnitRepository {
     fn save(&self, unit: &OrgUnit) -> Result<(), OrgError>;
     /// Desactiva a unidade, definindo `valid_until` e transitando para `Extinct`.
     fn deactivate(&self, id: &OrgUnitId, valid_until: NaiveDate) -> Result<(), OrgError>;
+
+    // ── Variantes auditadas (estado + outbox numa transação) ──────────────────
+    /// Cria a unidade e enfileira `event` no outbox, atomicamente.
+    fn create_audited(&self, unit: &OrgUnit, event: &OrgAuditEvent) -> Result<(), OrgError>;
+    /// Actualiza (OCC) a unidade e enfileira `event` no outbox, atomicamente.
+    fn update_audited(&self, unit: &OrgUnit, event: &OrgAuditEvent) -> Result<(), OrgError>;
+    /// Upsert da unidade e enfileira `event` no outbox, atomicamente (importação auditada).
+    fn save_audited(&self, unit: &OrgUnit, event: &OrgAuditEvent) -> Result<(), OrgError>;
+    /// Desactiva a unidade e enfileira `event` no outbox, atomicamente.
+    fn deactivate_audited(
+        &self,
+        id: &OrgUnitId,
+        valid_until: NaiveDate,
+        event: &OrgAuditEvent,
+    ) -> Result<(), OrgError>;
 }
 
 // ── OrgPositionRepository ─────────────────────────────────────────────────────
@@ -77,6 +124,18 @@ pub trait OrgPositionRepository {
     fn save(&self, position: &OrgPosition) -> Result<(), OrgError>;
     /// Desactiva a posição, definindo `valid_until` e status `Extinct`.
     fn deactivate(&self, id: &OrgPositionId, valid_until: NaiveDate) -> Result<(), OrgError>;
+
+    // ── Variantes auditadas ───────────────────────────────────────────────────
+    fn create_audited(&self, position: &OrgPosition, event: &OrgAuditEvent)
+        -> Result<(), OrgError>;
+    fn update_audited(&self, position: &OrgPosition, event: &OrgAuditEvent)
+        -> Result<(), OrgError>;
+    fn deactivate_audited(
+        &self,
+        id: &OrgPositionId,
+        valid_until: NaiveDate,
+        event: &OrgAuditEvent,
+    ) -> Result<(), OrgError>;
 }
 
 // ── LegalInstrumentRepository ─────────────────────────────────────────────────
@@ -97,7 +156,22 @@ pub trait CompetencyRepository {
         position_id: &OrgPositionId,
         date: NaiveDate,
     ) -> Result<Vec<Competency>, OrgError>;
+    /// Upsert. Usar apenas em importações e testes.
     fn save(&self, competency: &Competency) -> Result<(), OrgError>;
+    /// Actualização com OCC — falha com `VersionConflict` ou `CompetencyNotFound`.
+    fn update(&self, competency: &Competency) -> Result<(), OrgError>;
+
+    // ── Variantes auditadas ───────────────────────────────────────────────────
+    fn create_audited(
+        &self,
+        competency: &Competency,
+        event: &OrgAuditEvent,
+    ) -> Result<(), OrgError>;
+    fn update_audited(
+        &self,
+        competency: &Competency,
+        event: &OrgAuditEvent,
+    ) -> Result<(), OrgError>;
 }
 
 // ── DelegationRepository ──────────────────────────────────────────────────────
@@ -110,5 +184,20 @@ pub trait DelegationRepository {
         to_position: &OrgPositionId,
         date: NaiveDate,
     ) -> Result<Vec<Delegation>, OrgError>;
+    /// Upsert. Usar apenas em importações e testes.
     fn save(&self, delegation: &Delegation) -> Result<(), OrgError>;
+    /// Actualização com OCC — falha com `VersionConflict` ou `DelegationNotFound`.
+    fn update(&self, delegation: &Delegation) -> Result<(), OrgError>;
+
+    // ── Variantes auditadas ───────────────────────────────────────────────────
+    fn create_audited(
+        &self,
+        delegation: &Delegation,
+        event: &OrgAuditEvent,
+    ) -> Result<(), OrgError>;
+    fn update_audited(
+        &self,
+        delegation: &Delegation,
+        event: &OrgAuditEvent,
+    ) -> Result<(), OrgError>;
 }

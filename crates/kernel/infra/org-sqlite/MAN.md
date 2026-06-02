@@ -22,18 +22,26 @@ impl OrgSqliteStore {
     pub fn migrate(&self) -> Result<(), OrgSqliteError>;
 }
 
-/// Adaptador de auditoria: OrgAuditPort → core_audit::AuditStore.
-pub struct OrgAuditAdapter { /* store: Arc<dyn AuditStore> */ }
+/// Adaptador de auditoria: OrgAuditPort → core-audit (AuditStore [+ ControlRegistry]).
+pub struct OrgAuditAdapter { /* store, controls: Option<...> */ }
 
 impl OrgAuditAdapter {
-    pub fn new(store: Arc<dyn AuditStore>) -> Self;
+    pub fn new(store: Arc<dyn AuditStore>) -> Self;                       // só AuditEvent
+    pub fn with_controls(                                                 // + ControlExecution
+        store: Arc<dyn AuditStore>,
+        controls: Arc<dyn ControlRegistryStore>,
+    ) -> Self;
 }
+
+/// Catálogo de ControlDefinition dos controlos CTRL-ORG-* (registar no arranque).
+pub fn org_control_catalog() -> Vec<ControlDefinition>;
 
 pub const ORG_SQLITE_MIGRATIONS: &[&str];
 ```
 
-`OrgSqliteStore` implementa os cinco ports de repositório de `core-org`;
-`OrgAuditAdapter` implementa o porto de auditoria:
+`OrgSqliteStore` implementa os cinco ports de repositório de `core-org` (cada um
+com variantes `*_audited`) e o `OrgAuditOutbox`; `OrgAuditAdapter` implementa o
+porto de entrega de auditoria:
 
 ```rust
 impl LegalInstrumentRepository for OrgSqliteStore { ... }
@@ -41,6 +49,7 @@ impl OrgUnitRepository         for OrgSqliteStore { ... }
 impl OrgPositionRepository     for OrgSqliteStore { ... }
 impl CompetencyRepository      for OrgSqliteStore { ... }
 impl DelegationRepository      for OrgSqliteStore { ... }
+impl OrgAuditOutbox            for OrgSqliteStore { ... }
 impl OrgAuditPort              for OrgAuditAdapter { ... }
 ```
 
@@ -140,7 +149,7 @@ CREATE TABLE IF NOT EXISTS org_positions (
     version         INTEGER NOT NULL DEFAULT 0
 );
 
--- Competências — autoridade jurídica para actos administrativos
+-- Competências — autoridade jurídica para actos administrativos (com OCC)
 CREATE TABLE IF NOT EXISTS competencies (
     competency_id   TEXT PRIMARY KEY,
     code            TEXT NOT NULL,
@@ -149,10 +158,11 @@ CREATE TABLE IF NOT EXISTS competencies (
     assigned_to     TEXT NOT NULL REFERENCES org_positions(position_id),
     granted_by      TEXT NOT NULL REFERENCES legal_instruments(instrument_id),
     valid_from      TEXT NOT NULL,
-    valid_until     TEXT
+    valid_until     TEXT,
+    version         INTEGER NOT NULL DEFAULT 0
 );
 
--- Delegações de competência entre posições
+-- Delegações de competência entre posições (com OCC)
 CREATE TABLE IF NOT EXISTS delegations (
     delegation_id   TEXT PRIMARY KEY,
     competency_id   TEXT NOT NULL REFERENCES competencies(competency_id),
@@ -160,7 +170,16 @@ CREATE TABLE IF NOT EXISTS delegations (
     to_position     TEXT NOT NULL REFERENCES org_positions(position_id),
     instrument_id   TEXT NOT NULL REFERENCES legal_instruments(instrument_id),
     valid_from      TEXT NOT NULL,
-    valid_until     TEXT
+    valid_until     TEXT,
+    version         INTEGER NOT NULL DEFAULT 0
+);
+
+-- Outbox de evidência de auditoria — capturado atomicamente com o estado
+CREATE TABLE IF NOT EXISTS org_audit_outbox (
+    seq         INTEGER PRIMARY KEY AUTOINCREMENT,
+    event_json  TEXT NOT NULL,   -- OrgAuditEvent serializado (event_id estável)
+    created_at  TEXT NOT NULL,
+    delivered   INTEGER NOT NULL DEFAULT 0
 );
 ```
 
@@ -282,21 +301,41 @@ Se ambas passarem: `UPDATE … SET status = 'extinct', valid_until = ?, version 
 
 ---
 
-## OrgAuditAdapter — ligação a core-audit
+## Evidência COSO — outbox + OrgAuditAdapter
 
-`OrgAuditAdapter` implementa `OrgAuditPort` traduzindo cada `OrgAuditEvent` para um
-`core_audit::AuditEvent`:
+### Captura atómica (outbox)
 
-| Campo `OrgAuditEvent` | Campo `core_audit::AuditEvent` |
+Os métodos `*_audited` das repos (`create_audited`, `update_audited`,
+`deactivate_audited`, `save_audited`) escrevem o estado **e** inserem o
+`OrgAuditEvent` em `org_audit_outbox` numa única transacção `IMMEDIATE` — nenhuma
+mudança de estado fica sem evidência, nem vice-versa. Falhas (rejeição, conflito)
+são enfileiradas via `enqueue_audit` (sem estado associado).
+
+### Entrega idempotente (drain)
+
+`drain_audit_outbox(&dyn OrgAuditPort)` lê os pendentes (por `seq`), entrega e
+marca `delivered=1`. Se a entrega falhar, **pára** e preserva os eventos (sem
+perda). O `event_id` estável torna a reentrega idempotente (`DuplicateEvent` no
+`AuditStore` → tratado como entregue). `pending_audit_count` expõe o atraso.
+
+### OrgAuditAdapter (OrgAuditPort → core-audit)
+
+| Campo `OrgAuditEvent` | Destino em `core-audit` |
 |---|---|
-| `entity_kind` + `action` | `event_type` = `"org.<entidade_lower>.<acção>"` (ex.: `org.orgunit.created`) |
+| `event_id` | `AuditEvent.event_id` (identidade estável → idempotência) |
+| `entity_kind` + `action` | `event_type` = `"org.<entidade_lower>.<acção>"` |
 | `actor` | `AuditActor { actor_id, actor_type: "user" }` |
 | `entity_kind` / `entity_id` | `AuditTarget { target_type, target_id }` |
-| (fixo) | `outcome = AuditOutcome::Success` |
-| `payload` | `details_json` (snapshot do estado resultante) |
+| `outcome` | `AuditOutcome::Success` \| `Failure` |
+| `control_id` | `AuditEvent.control_id` + `ControlExecution.control_id` |
+| `payload` | `details_json` (snapshot ou contexto da falha) |
 
-O evento é gravado via `AuditStore::record`, entrando na cadeia de hashes
-verificável. A dependência aponta org → audit **na infra**, nunca no domínio.
+`OrgAuditAdapter::with_controls(audit, registry)` grava também uma
+`ControlExecution` (`Passed`/`Failed`) com `execution_id` determinístico
+`<event_id>:<control_id>` (idempotente). `org_control_catalog()` expõe as
+`ControlDefinition` dos controlos `CTRL-ORG-*` para registo no arranque.
+
+A dependência aponta org → audit **na infra**, nunca no domínio.
 
 ---
 

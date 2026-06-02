@@ -49,31 +49,47 @@ a janela TOCTOU.
   posição que substitui a dada, activa na data.
 - **Status de posições** — `OrgPositionStatus` (Active / Suspended / Extinct) com
   máquina de estados homóloga à de unidades.
+- **Evidência COSO transaccional** — `OrgSqliteStore` implementa `OrgAuditOutbox`:
+  os métodos `*_audited` escrevem estado **e** evento (`org_audit_outbox`) na mesma
+  transacção; `drain_audit_outbox` entrega ao `OrgAuditPort` de forma idempotente.
 - **Auditoria ligada** — `OrgAuditAdapter` traduz cada `OrgAuditEvent` para um
-  `core_audit::AuditEvent` (cadeia de hashes, COSO `outcome`/`control_id`).
+  `core_audit::AuditEvent` (cadeia de hashes, `outcome` Success/Failure,
+  `control_id`) e grava a `ControlExecution` correspondente no registo de controlos.
 
-## Auditoria — `OrgAuditAdapter`
+## Auditoria — `OrgAuditAdapter` + outbox
 
-Liga a camada de serviço de `core-org` ao store de auditoria sem acoplar os domínios:
+Liga a camada de serviço de `core-org` ao `core-audit` sem acoplar os domínios.
+Para evidência COSO completa (evento + execução de controlo), use `with_controls`:
 
 ```rust
 use std::sync::Arc;
-use org_sqlite::{OrgSqliteStore, OrgAuditAdapter};
+use org_sqlite::{OrgSqliteStore, OrgAuditAdapter, org_control_catalog};
 use adapter_audit_sqlite::AuditSqliteStore;
+use core_audit::{ControlRegistryService, StorageControlRegistryStore};
 use core_org::{OrgUnitService, OrgNoopDomainEvents};
 
-let audit_store = Arc::new(AuditSqliteStore::open(&audit_cfg)?);
-let org_store   = OrgSqliteStore::open(&org_cfg)?;
+let audit_store    = Arc::new(AuditSqliteStore::open(&audit_cfg)?);
+let control_store  = Arc::new(/* impl ControlRegistryStore */);
+let org_store      = OrgSqliteStore::open(&org_cfg)?;
+
+// (no arranque) registar os controlos do domínio org no catálogo:
+// for c in org_control_catalog() { control_registry.define_control(&c)?; }
 
 let svc = OrgUnitService::new(
     org_store,
-    OrgAuditAdapter::new(audit_store), // OrgAuditPort → core-audit
+    OrgAuditAdapter::with_controls(audit_store, control_store),
     OrgNoopDomainEvents,
 );
 
-// Cada operação grava um AuditEvent ("org.orgunit.created", outcome=Success,
-// payload com o snapshot da unidade) na cadeia de hashes verificável.
+// Sucesso → AuditEvent (outcome=Success) + ControlExecution(Passed) na cadeia.
 svc.create(unit, "joao.silva")?;
+// Falha → AuditEvent (outcome=Failure) + ControlExecution(Failed); o erro propaga.
+let _ = svc.create(invalida, "joao.silva");
+
+// Outbox: captura atómica garante que nenhuma mudança fica sem evidência.
+// Entrega diferida fiável (job de fundo):
+let entregues = svc.drain_audit()?;
+let pendentes = svc.pending_audit()?;
 ```
 
 ## Utilização típica (repositório directo)
@@ -102,6 +118,8 @@ let chefias = store.list_positions_for_unit_and_kind(&unit_id, &PositionKind::Ch
 cargo test -p org-sqlite
 ```
 
-21 testes de integração — CRUD, OCC (`VersionConflict`), hierarquia recursiva,
-pesquisa paginada, substituto legal, queries compostas, e dois testes end-to-end
-do `OrgAuditAdapter` (criação e transição de estado geram `AuditEvent` correctos).
+29 testes de integração — CRUD, OCC (`VersionConflict`), hierarquia recursiva,
+pesquisa paginada, substituto legal, queries compostas, e a cadeia de evidência
+COSO: `AuditEvent` (criação/transição), evento de **falha** (`outcome=Failure`),
+`ControlExecution` (`Passed`/`Failed`), outbox sem perda quando a entrega falha
+(idempotente), e os serviços de competência e delegação (OCC + auditoria).

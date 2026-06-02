@@ -65,6 +65,7 @@ fn sample_competency(id: &str, position: &str) -> Competency {
         granted_by: sample_instrument_id(),
         valid_from: date(2020, 1, 1),
         valid_until: None,
+        version: 0,
     }
 }
 
@@ -77,6 +78,7 @@ fn sample_delegation(from: &str, to: &str, comp: &str) -> Delegation {
         instrument_id: sample_instrument_id(),
         valid_from: date(2024, 1, 1),
         valid_until: None,
+        version: 0,
     }
 }
 

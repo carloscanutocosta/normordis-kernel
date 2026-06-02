@@ -14,8 +14,12 @@ delegações e instrumentos jurídicos. Núcleo puro sem dependências de infra.
 | `LegalInstrument` | Portaria / Despacho / Deliberação que fundamenta cada alteração |
 | `OrgUnitService` | Orquestra invariantes + auditoria + eventos de domínio para unidades |
 | `OrgPositionService` | Orquestra invariantes + auditoria + eventos de domínio para posições |
+| `CompetencyService` | Atribuição de competências com OCC + auditoria |
+| `DelegationService` | Delegação de competências (verifica posse) com OCC + auditoria |
 | `OrgAuditPort` | Porto secundário (driven) de auditoria — implementado pelo adaptador infra |
+| `OrgAuditOutbox` | Porto de evidência transaccional (captura atómica + drain idempotente) |
 | `OrgDomainEventPort` | Porto secundário (driven) de eventos de domínio — notifica outros bounded contexts (`core-rh`) |
+| `controls` | Identificadores dos controlos COSO evidenciados (`CTRL-ORG-*`, `CTRL-AUTH-004`) |
 
 ## Não-responsabilidade
 
@@ -35,12 +39,13 @@ LegalInstrument ─── fundamenta ──→ OrgUnit (hierarquia ilimitada, OC
 
 ## Camada de serviço
 
-O serviço é o único ponto de entrada para escritas em produção. Cada operação,
-por esta ordem: (1) valida invariantes, (2) persiste no repositório, (3) emite um
-`OrgAuditEvent` (com payload do estado resultante), (4) publica um `OrgDomainEvent`.
+O serviço é o único ponto de entrada para escritas governadas. Cada operação,
+por esta ordem: (1) valida invariantes, (2) persiste o estado **e** captura a
+evidência (`OrgAuditEvent`) no outbox **atomicamente**, (3) entrega a evidência
+ao `OrgAuditPort` (drain idempotente), (4) publica um `OrgDomainEvent`.
 
-Cada serviço tem **três parâmetros genéricos** — repositório (`R`), auditoria (`A`)
-e eventos de domínio (`E`):
+Cada serviço de agregado tem **três parâmetros genéricos** — repositório (`R`),
+auditoria (`A`) e eventos de domínio (`E`):
 
 ```rust
 use core_org::{OrgUnitService, OrgNoopAudit, OrgNoopDomainEvents};
@@ -49,10 +54,29 @@ use core_org::{OrgUnitService, OrgNoopAudit, OrgNoopDomainEvents};
 // (ex.: OrgAuditAdapter de org-sqlite + um publisher de eventos).
 let svc = OrgUnitService::new(repo, OrgNoopAudit, OrgNoopDomainEvents);
 
-svc.create(unit, "joao.silva")?;  // validate_strict + hierarquia + auditoria + evento
-svc.suspend(&id, "joao.silva")?;  // transition_status + update + auditoria + evento
-svc.deactivate(&id, date, "x")?; // transition_status + deactivate + auditoria + evento
+svc.create(unit, "joao.silva")?;  // validate_strict + hierarquia + evidência + evento
+svc.suspend(&id, "joao.silva")?;  // transition_status + OCC + evidência + evento
+svc.deactivate(&id, date, "x")?; // transition_status + guardas + evidência + evento
 ```
+
+`CompetencyService` e `DelegationService` (dois genéricos: `R` + `A`) governam a
+atribuição de competências e delegações com OCC e auditoria.
+
+## Evidência COSO
+
+A camada de serviço produz **evidência COSO-grade** — não apenas um trilho de
+sucessos:
+
+- **Sucesso E falha.** Uma operação rejeitada (validação, `VersionConflict`,
+  guarda de extinção, ciclo de substituição) emite um `OrgAuditEvent` com
+  `outcome = Failure` (e o código de erro no payload) **antes** de propagar o erro.
+- **Ligação a controlos.** Cada operação refere o `control_id` COSO primário
+  (`CTRL-ORG-UNIT-001`, `CTRL-ORG-POS-001`, `CTRL-ORG-COMP-001`, `CTRL-AUTH-004`…).
+  O adaptador grava uma `ControlExecution` (`Passed`/`Failed`) ligada ao evento.
+- **Captura atómica (outbox).** O evento é escrito no `org_audit_outbox` na mesma
+  transacção do estado. Não há estado sem evidência nem evidência sem estado.
+  A entrega ao `AuditStore` é posterior e idempotente — se falhar, o evento fica
+  pendente no outbox (sem perda) e é entregue numa drenagem seguinte.
 
 ## Portos secundários (hexagonal)
 
@@ -60,21 +84,23 @@ svc.deactivate(&id, date, "x")?; // transition_status + deactivate + auditoria +
 domínio conheça `core-audit`, mensageria ou SQLite:
 
 ```
-core-org ──define──→ OrgAuditPort ─────────┐
-         ──define──→ OrgDomainEventPort ──┐ │
-                                          │ ↑
-org-sqlite ──implementa OrgAuditAdapter ──┼─┘ ──usa──→ core-audit::AuditStore
-                                          │
-camada de app ──implementa publisher ─────┘ ──→ core-rh, barramento, Tauri…
+core-org ──define──→ OrgAuditOutbox (captura + drain) ─┐
+         ──define──→ OrgAuditPort (entrega) ───────────┤
+         ──define──→ OrgDomainEventPort ──────────────┐│
+                                                       ↑│
+org-sqlite ─ OrgSqliteStore: OrgAuditOutbox ───────────┘│
+             OrgAuditAdapter: OrgAuditPort ──usa──→ core-audit (AuditStore + ControlRegistry)
+camada de app ── publisher de eventos ─────────────────┘ ──→ core-rh, barramento, Tauri…
 ```
 
-### Auditoria com payload
+### Auditoria com payload, outcome e controlo
 
-`OrgAuditEvent` transporta `actor`, `action`, `entity_kind`, `entity_id`,
-`occurred_at` e um `payload: Option<serde_json::Value>` com o estado resultante
-(snapshot/delta). O `OrgAuditAdapter` (em org-sqlite) converte-o para
-`core_audit::AuditEvent` (`event_type = "org.<entidade>.<acção>"`,
-`outcome = Success`) e grava-o no `AuditStore` com cadeia de hashes.
+`OrgAuditEvent` transporta `event_id` (identidade estável), `actor`, `action`,
+`entity_kind`, `entity_id`, `occurred_at`, `outcome` (Success/Failure),
+`control_id` e `payload: Option<serde_json::Value>`. O `OrgAuditAdapter`
+(em org-sqlite) converte-o para `core_audit::AuditEvent`
+(`event_type = "org.<entidade>.<acção>"`) na cadeia de hashes, e grava a
+`ControlExecution` correspondente no registo de controlos.
 
 ### Eventos de domínio
 
@@ -132,5 +158,7 @@ svc.create(unit, "admin")?;
 cargo test -p core-org
 ```
 
-61 testes de domínio. A integração (repositório + `OrgAuditAdapter` ligado ao
-`core-audit`) é coberta por 21 testes em `org-sqlite`.
+61 testes de domínio. A integração (repositório, OCC, outbox transaccional,
+`OrgAuditAdapter` ligado ao `core-audit` com `ControlExecution`, evidência de
+falha, serviços de competência e delegação) é coberta por 29 testes em
+`org-sqlite`.
