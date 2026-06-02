@@ -55,7 +55,7 @@ impl Delegation {
     }
 
     pub fn is_effective_at(&self, date: NaiveDate) -> bool {
-        date >= self.valid_from && self.valid_until.map_or(true, |u| date < u)
+        date >= self.valid_from && self.valid_until.is_none_or(|u| date < u)
     }
 
     /// Verifica que `from_position` detém efectivamente a competência que está
@@ -65,9 +65,7 @@ impl Delegation {
         &self,
         from_position_competencies: &[&CompetencyId],
     ) -> Result<(), OrgError> {
-        let has_competency = from_position_competencies
-            .iter()
-            .any(|c| *c == &self.competency_id);
+        let has_competency = from_position_competencies.contains(&&self.competency_id);
         if !has_competency {
             return Err(OrgError::OperationFailed(format!(
                 "posição '{}' não detém a competência '{}' que pretende delegar",

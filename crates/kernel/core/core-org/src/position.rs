@@ -46,6 +46,7 @@ impl OrgPositionStatus {
         }
     }
 
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Option<Self> {
         match s {
             "active" => Some(Self::Active),
@@ -104,6 +105,7 @@ impl PositionKind {
         }
     }
 
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Option<Self> {
         match s {
             "direcao" => Some(Self::Direcao),
@@ -177,7 +179,7 @@ impl OrgPosition {
     pub fn is_active_at(&self, date: NaiveDate) -> bool {
         matches!(self.status, OrgPositionStatus::Active)
             && date >= self.valid_from
-            && self.valid_until.map_or(true, |u| date < u)
+            && self.valid_until.is_none_or(|u| date < u)
     }
 
     pub fn is_extinct(&self) -> bool {
@@ -202,7 +204,7 @@ impl OrgPosition {
     /// Verifica que esta posição não aparece numa cadeia de substituição existente.
     /// O chamador obtém a cadeia via repositório antes de persistir.
     pub fn validate_no_substitute_cycle(&self, chain: &[&OrgPositionId]) -> Result<(), OrgError> {
-        if chain.iter().any(|id| *id == &self.id) {
+        if chain.contains(&&self.id) {
             return Err(OrgError::SubstitutionCycle);
         }
         Ok(())

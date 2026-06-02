@@ -70,6 +70,7 @@ impl OrgUnitStatus {
         }
     }
 
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Option<Self> {
         match s {
             "active" => Some(Self::Active),
@@ -248,7 +249,7 @@ impl OrgUnit {
     pub fn is_active_at(&self, date: NaiveDate) -> bool {
         matches!(self.status, OrgUnitStatus::Active)
             && date >= self.valid_from
-            && self.valid_until.map_or(true, |u| date < u)
+            && self.valid_until.is_none_or(|u| date < u)
     }
 
     pub fn is_extinct(&self) -> bool {
@@ -269,7 +270,7 @@ impl OrgUnit {
 
     /// Verifica que esta unidade não aparece na cadeia de ancestrais (ciclo).
     pub fn validate_parent_chain(&self, ancestors: &[&OrgUnitId]) -> Result<(), OrgError> {
-        if ancestors.iter().any(|a| *a == &self.id) {
+        if ancestors.contains(&&self.id) {
             return Err(OrgError::CircularHierarchy);
         }
         Ok(())
