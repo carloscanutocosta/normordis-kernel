@@ -209,28 +209,40 @@ mod tests {
     fn rejects_empty_control_id() {
         let mut def = valid_definition();
         def.control_id = String::new();
-        assert_eq!(def.validate().unwrap_err(), AuditError::InvalidControlDefinition);
+        assert_eq!(
+            def.validate().unwrap_err(),
+            AuditError::InvalidControlDefinition
+        );
     }
 
     #[test]
     fn rejects_empty_name() {
         let mut def = valid_definition();
         def.name = String::new();
-        assert_eq!(def.validate().unwrap_err(), AuditError::InvalidControlDefinition);
+        assert_eq!(
+            def.validate().unwrap_err(),
+            AuditError::InvalidControlDefinition
+        );
     }
 
     #[test]
     fn rejects_empty_version() {
         let mut def = valid_definition();
         def.version = String::new();
-        assert_eq!(def.validate().unwrap_err(), AuditError::InvalidControlDefinition);
+        assert_eq!(
+            def.validate().unwrap_err(),
+            AuditError::InvalidControlDefinition
+        );
     }
 
     #[test]
     fn rejects_valid_to_before_valid_from() {
         let mut def = valid_definition();
         def.valid_to = Some(Utc.with_ymd_and_hms(2025, 1, 1, 0, 0, 0).unwrap());
-        assert_eq!(def.validate().unwrap_err(), AuditError::InvalidControlDefinition);
+        assert_eq!(
+            def.validate().unwrap_err(),
+            AuditError::InvalidControlDefinition
+        );
     }
 
     #[test]

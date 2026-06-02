@@ -636,7 +636,9 @@ mod tests {
     use support_storage::{StorageError, StorageKey, StorageNamespace, StorageValue};
 
     use super::*;
-    use crate::{AuditActor, AuditOutcome, AuditTarget, DEFAULT_AUDIT_EVENTS_NAMESPACE, STORE_FAILED};
+    use crate::{
+        AuditActor, AuditOutcome, AuditTarget, DEFAULT_AUDIT_EVENTS_NAMESPACE, STORE_FAILED,
+    };
 
     fn storage_store() -> StorageAuditStore<JsonMemoryStorage> {
         StorageAuditStore::new(JsonMemoryStorage::default(), AuditStoreConfig::default())

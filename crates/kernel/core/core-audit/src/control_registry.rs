@@ -117,10 +117,8 @@ pub trait ControlRegistryStore: Send + Sync {
     /// realizando a query inversa à de [`list_executions_by_control`].
     ///
     /// [`list_executions_by_control`]: ControlRegistryStore::list_executions_by_control
-    fn list_executions_by_event(
-        &self,
-        event_id: &str,
-    ) -> Result<Vec<ControlExecution>, AuditError>;
+    fn list_executions_by_event(&self, event_id: &str)
+        -> Result<Vec<ControlExecution>, AuditError>;
 }
 
 // ── Implementação genérica ────────────────────────────────────────────────────
@@ -303,8 +301,7 @@ where
         execution.validate()?;
         let ns = &self.config.namespace;
         let exec_key = Self::exec_key(&execution.execution_id)?;
-        let value =
-            serde_json::to_value(execution).map_err(|_| AuditError::SerializationFailed)?;
+        let value = serde_json::to_value(execution).map_err(|_| AuditError::SerializationFailed)?;
 
         if !self.storage.put_json_if_absent(ns, &exec_key, &value)? {
             return Err(AuditError::DuplicateControlExecution);

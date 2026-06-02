@@ -83,7 +83,8 @@ where
         limit: usize,
         offset: usize,
     ) -> Result<Vec<ControlDefinition>, AuditError> {
-        self.store.list_controls_by_category(category, limit, offset)
+        self.store
+            .list_controls_by_category(category, limit, offset)
     }
 
     // ── Execuções ─────────────────────────────────────────────────────────────
@@ -106,8 +107,7 @@ where
         evidence_ref: Option<String>,
         notes: Option<String>,
     ) -> Result<ControlExecution, AuditError> {
-        let execution =
-            ControlExecution::new(control_id, event_id, result, evidence_ref, notes)?;
+        let execution = ControlExecution::new(control_id, event_id, result, evidence_ref, notes)?;
         self.store.record_execution(&execution)?;
         Ok(execution)
     }
@@ -119,7 +119,8 @@ where
         limit: usize,
         offset: usize,
     ) -> Result<Vec<ControlExecution>, AuditError> {
-        self.store.list_executions_by_control(control_id, limit, offset)
+        self.store
+            .list_executions_by_control(control_id, limit, offset)
     }
 
     /// Devolve todos os controlos verificados sobre um evento de auditoria.
@@ -140,10 +141,7 @@ where
     /// Percorre todas as execuções do controlo (sem paginação) e devolve
     /// contagens de Passed / Failed / Dispensed. Adequado para alimentar
     /// dashboards e o Balanced Scorecard.
-    pub fn conformance_summary(
-        &self,
-        control_id: &str,
-    ) -> Result<ConformanceSummary, AuditError> {
+    pub fn conformance_summary(&self, control_id: &str) -> Result<ConformanceSummary, AuditError> {
         let executions = self
             .store
             .list_executions_by_control(control_id, usize::MAX, 0)?;

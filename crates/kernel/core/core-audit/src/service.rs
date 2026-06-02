@@ -158,10 +158,7 @@ where
     ///
     /// Devolve [`AuditError`] se a validação do evento falhar ou se a gravação
     /// no store falhar.
-    pub fn record_event(
-        &self,
-        request: RecordAuditEventRequest,
-    ) -> Result<AuditEvent, AuditError> {
+    pub fn record_event(&self, request: RecordAuditEventRequest) -> Result<AuditEvent, AuditError> {
         let event = AuditEvent::new(
             request.event_type,
             request.actor,
@@ -388,7 +385,11 @@ mod tests {
         }
     }
 
-    fn simple_request(event_type: &str, actor_id: &str, target_id: &str) -> RecordAuditEventRequest {
+    fn simple_request(
+        event_type: &str,
+        actor_id: &str,
+        target_id: &str,
+    ) -> RecordAuditEventRequest {
         RecordAuditEventRequest::new(
             event_type,
             AuditActor::new(actor_id).unwrap(),
@@ -434,8 +435,8 @@ mod tests {
     #[test]
     fn record_event_preserves_control_id() {
         let service = AuditService::new(RecordingStore::default());
-        let req = simple_request("document.approved", "user-1", "doc-1")
-            .with_control_id("CTRL-014");
+        let req =
+            simple_request("document.approved", "user-1", "doc-1").with_control_id("CTRL-014");
         let event = service.record_event(req).unwrap();
 
         assert_eq!(event.control_id, Some("CTRL-014".to_string()));

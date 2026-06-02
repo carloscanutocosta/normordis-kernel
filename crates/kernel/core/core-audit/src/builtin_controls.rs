@@ -586,8 +586,7 @@ mod tests {
         for category in categories {
             let count = catalog.iter().filter(|c| c.category == category).count();
             assert_eq!(
-                count,
-                5,
+                count, 5,
                 "Categoria {:?} deve ter 5 controlos, tem {count}",
                 category
             );
@@ -619,7 +618,11 @@ mod tests {
     #[test]
     fn all_controls_are_active() {
         for ctrl in builtin_control_catalog() {
-            assert!(ctrl.active, "Controlo '{}' deve estar activo", ctrl.control_id);
+            assert!(
+                ctrl.active,
+                "Controlo '{}' deve estar activo",
+                ctrl.control_id
+            );
         }
     }
 
