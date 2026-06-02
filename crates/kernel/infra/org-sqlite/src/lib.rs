@@ -26,17 +26,28 @@ use core_audit::{
 use core_org::{
     Competency, CompetencyId, CompetencyRepository, Delegation, DelegationId, DelegationRepository,
     InstrumentKind, LegalInstrument, LegalInstrumentId, LegalInstrumentRepository, OrgAddress,
-    OrgAuditEvent, OrgAuditOutbox, OrgAuditPort, OrgContacts, OrgError, OrgEventOutcome, OrgLevel,
-    OrgPage, OrgPosition, OrgPositionId, OrgPositionRepository, OrgPositionStatus, OrgUnit,
-    OrgUnitId, OrgUnitRepository, OrgUnitStatus, PagedResult, PositionKind,
+    OrgAuditEvent, OrgAuditOutbox, OrgAuditPort, OrgContacts, OrgDomainEvent, OrgDomainEventPort,
+    OrgError, OrgEventOutcome, OrgLevel, OrgPage, OrgPosition, OrgPositionId,
+    OrgPositionRepository, OrgPositionStatus, OrgUnit, OrgUnitId, OrgUnitRepository, OrgUnitStatus,
+    PagedResult, PositionKind,
 };
 use rusqlite::{params, Connection, OptionalExtension, TransactionBehavior};
 use std::sync::{Arc, Mutex, MutexGuard};
 use thiserror::Error;
 
 // ── Migrations ────────────────────────────────────────────────────────────────
+//
+// CONTRATO DE MIGRAÇÃO — **append-only**.
+//   Cada entrada é imutável depois de existir: NUNCA editar uma migração já
+//   presente (o runner é hash-tracked; editar in-place não actualiza bases já
+//   migradas). Mudanças de schema entram SEMPRE como nova entrada no fim, com
+//   `ALTER TABLE ADD COLUMN` (colunas) ou `CREATE TABLE` (tabelas novas).
+//   M0 é a baseline de entidades; M1 acrescenta OCC a competencies/delegations
+//   e a infraestrutura de outbox (auditoria + eventos de domínio).
 
-pub const ORG_SQLITE_MIGRATIONS: &[&str] = &[r#"
+pub const ORG_SQLITE_MIGRATIONS: &[&str] = &[
+    // ── M0 — baseline de entidades ────────────────────────────────────────────
+    r#"
     CREATE TABLE IF NOT EXISTS legal_instruments (
         instrument_id   TEXT PRIMARY KEY,
         kind            TEXT NOT NULL,
@@ -94,8 +105,7 @@ pub const ORG_SQLITE_MIGRATIONS: &[&str] = &[r#"
         assigned_to     TEXT NOT NULL REFERENCES org_positions(position_id),
         granted_by      TEXT NOT NULL REFERENCES legal_instruments(instrument_id),
         valid_from      TEXT NOT NULL,
-        valid_until     TEXT,
-        version         INTEGER NOT NULL DEFAULT 0
+        valid_until     TEXT
     );
 
     CREATE TABLE IF NOT EXISTS delegations (
@@ -105,18 +115,7 @@ pub const ORG_SQLITE_MIGRATIONS: &[&str] = &[r#"
         to_position     TEXT NOT NULL REFERENCES org_positions(position_id),
         instrument_id   TEXT NOT NULL REFERENCES legal_instruments(instrument_id),
         valid_from      TEXT NOT NULL,
-        valid_until     TEXT,
-        version         INTEGER NOT NULL DEFAULT 0
-    );
-
-    -- Outbox de evidência de auditoria: capturado atomicamente com o estado,
-    -- entregue depois ao OrgAuditPort (drain idempotente). Garante que não há
-    -- mudança de estado sem evidência correspondente.
-    CREATE TABLE IF NOT EXISTS org_audit_outbox (
-        seq         INTEGER PRIMARY KEY AUTOINCREMENT,
-        event_json  TEXT NOT NULL,
-        created_at  TEXT NOT NULL,
-        delivered   INTEGER NOT NULL DEFAULT 0
+        valid_until     TEXT
     );
 
     CREATE INDEX IF NOT EXISTS idx_org_units_level     ON org_units (level);
@@ -128,8 +127,39 @@ pub const ORG_SQLITE_MIGRATIONS: &[&str] = &[r#"
     CREATE INDEX IF NOT EXISTS idx_org_positions_subs  ON org_positions (substitutes);
     CREATE INDEX IF NOT EXISTS idx_competencies_pos    ON competencies (assigned_to, valid_from, valid_until);
     CREATE INDEX IF NOT EXISTS idx_delegations_to      ON delegations (to_position, valid_from, valid_until);
-    CREATE INDEX IF NOT EXISTS idx_org_outbox_pending  ON org_audit_outbox (delivered, seq);
-"#];
+    "#,
+    // ── M1 — OCC em competencies/delegations + outbox (auditoria + eventos) ─────
+    // Aditiva: ALTER para colunas em tabelas existentes, CREATE para tabelas novas.
+    // `delivered`: 0 = pendente, 1 = entregue, 2 = dead-letter (esgotou tentativas).
+    r#"
+    ALTER TABLE competencies ADD COLUMN version INTEGER NOT NULL DEFAULT 0;
+    ALTER TABLE delegations  ADD COLUMN version INTEGER NOT NULL DEFAULT 0;
+
+    CREATE TABLE IF NOT EXISTS org_audit_outbox (
+        seq         INTEGER PRIMARY KEY AUTOINCREMENT,
+        event_json  TEXT NOT NULL,
+        created_at  TEXT NOT NULL,
+        delivered   INTEGER NOT NULL DEFAULT 0,
+        attempts    INTEGER NOT NULL DEFAULT 0,
+        last_error  TEXT
+    );
+
+    CREATE TABLE IF NOT EXISTS org_domain_outbox (
+        seq         INTEGER PRIMARY KEY AUTOINCREMENT,
+        event_json  TEXT NOT NULL,
+        created_at  TEXT NOT NULL,
+        delivered   INTEGER NOT NULL DEFAULT 0,
+        attempts    INTEGER NOT NULL DEFAULT 0,
+        last_error  TEXT
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_org_audit_outbox_pending  ON org_audit_outbox (delivered, seq);
+    CREATE INDEX IF NOT EXISTS idx_org_domain_outbox_pending ON org_domain_outbox (delivered, seq);
+    "#,
+];
+
+/// Tentativas de entrega antes de um evento ser marcado dead-letter (`delivered=2`).
+pub const MAX_OUTBOX_ATTEMPTS: i64 = 5;
 
 // ── Error ─────────────────────────────────────────────────────────────────────
 
@@ -511,6 +541,17 @@ fn outbox_insert(conn: &Connection, event: &OrgAuditEvent) -> Result<(), OrgErro
     conn.execute(
         "INSERT INTO org_audit_outbox (event_json, created_at, delivered) VALUES (?1, ?2, 0)",
         params![json, event.occurred_at.to_rfc3339()],
+    )
+    .map_err(op)?;
+    Ok(())
+}
+
+fn domain_outbox_insert(conn: &Connection, event: &OrgDomainEvent) -> Result<(), OrgError> {
+    let json = serde_json::to_string(event).map_err(op)?;
+    conn.execute(
+        "INSERT INTO org_domain_outbox (event_json, created_at, delivered)
+         VALUES (?1, ?2, 0)",
+        params![json, Utc::now().to_rfc3339()],
     )
     .map_err(op)?;
     Ok(())
@@ -954,9 +995,14 @@ fn deleg_update_occ(conn: &Connection, d: &Delegation) -> Result<(), OrgError> {
 // ── Outbox transaccional + drain idempotente ──────────────────────────────────
 
 impl OrgSqliteStore {
-    /// Executa uma escrita de estado e enfileira `event` no outbox, atomicamente
-    /// (transacção `IMMEDIATE`).
-    fn audited_tx<F>(&self, event: &OrgAuditEvent, state_write: F) -> Result<(), OrgError>
+    /// Executa uma escrita de estado e enfileira o evento de auditoria e (se
+    /// presente) o evento de domínio nos outboxes, tudo numa transacção `IMMEDIATE`.
+    fn audited_tx<F>(
+        &self,
+        event: &OrgAuditEvent,
+        domain: Option<&OrgDomainEvent>,
+        state_write: F,
+    ) -> Result<(), OrgError>
     where
         F: FnOnce(&Connection) -> Result<(), OrgError>,
     {
@@ -966,8 +1012,85 @@ impl OrgSqliteStore {
             .map_err(op)?;
         state_write(&tx)?;
         outbox_insert(&tx, event)?;
+        if let Some(d) = domain {
+            domain_outbox_insert(&tx, d)?;
+        }
         tx.commit().map_err(op)?;
         Ok(())
+    }
+
+    /// Lógica de drenagem partilhada pelos dois outboxes.
+    ///
+    /// Resiliente a *poison messages*: uma mensagem que falha vê o seu contador
+    /// `attempts` incrementado e, ao atingir `MAX_OUTBOX_ATTEMPTS`, é movida para
+    /// dead-letter (`delivered = 2`) — **sem bloquear** as restantes. A ordem de
+    /// entrega não é crítica (a sequência da cadeia de hashes é atribuída no
+    /// destino, não aqui).
+    fn drain_table<F>(&self, table: &str, mut deliver: F) -> Result<usize, OrgError>
+    where
+        F: FnMut(&str) -> Result<(), OrgError>,
+    {
+        let conn = self.lock()?;
+        let mut stmt = conn
+            .prepare(&format!(
+                "SELECT seq, event_json, attempts FROM {table}
+                 WHERE delivered = 0 ORDER BY seq"
+            ))
+            .map_err(op)?;
+        let pending: Vec<(i64, String, i64)> = stmt
+            .query_map([], |r| {
+                Ok((
+                    r.get::<_, i64>(0)?,
+                    r.get::<_, String>(1)?,
+                    r.get::<_, i64>(2)?,
+                ))
+            })
+            .map_err(op)?
+            .collect::<Result<_, _>>()
+            .map_err(op)?;
+        drop(stmt);
+
+        let mut delivered = 0usize;
+        for (seq, json, attempts) in pending {
+            match deliver(&json) {
+                // Entregue, ou já presente no destino (idempotência) → marca entregue.
+                Ok(()) | Err(OrgError::AlreadyExists(_)) => {
+                    conn.execute(
+                        &format!("UPDATE {table} SET delivered = 1 WHERE seq = ?1"),
+                        params![seq],
+                    )
+                    .map_err(op)?;
+                    delivered += 1;
+                }
+                // Falha de entrega: incrementa tentativas; dead-letter ao esgotar.
+                // Continua (não bloqueia a fila numa mensagem envenenada).
+                Err(e) => {
+                    let next = attempts + 1;
+                    let delivered_flag = if next >= MAX_OUTBOX_ATTEMPTS { 2 } else { 0 };
+                    conn.execute(
+                        &format!(
+                            "UPDATE {table} SET attempts = ?1, delivered = ?2, last_error = ?3
+                             WHERE seq = ?4"
+                        ),
+                        params![next, delivered_flag, e.to_string(), seq],
+                    )
+                    .map_err(op)?;
+                }
+            }
+        }
+        Ok(delivered)
+    }
+
+    fn count_where(&self, table: &str, delivered: i64) -> Result<u64, OrgError> {
+        let conn = self.lock()?;
+        let n: i64 = conn
+            .query_row(
+                &format!("SELECT COUNT(*) FROM {table} WHERE delivered = ?1"),
+                params![delivered],
+                |r| r.get(0),
+            )
+            .map_err(op)?;
+        Ok(n as u64)
     }
 }
 
@@ -978,51 +1101,33 @@ impl OrgAuditOutbox for OrgSqliteStore {
     }
 
     fn drain_audit_outbox(&self, audit: &dyn OrgAuditPort) -> Result<usize, OrgError> {
-        let conn = self.lock()?;
-        let mut stmt = conn
-            .prepare(
-                "SELECT seq, event_json FROM org_audit_outbox
-                 WHERE delivered = 0 ORDER BY seq",
-            )
-            .map_err(op)?;
-        let pending: Vec<(i64, String)> = stmt
-            .query_map([], |r| Ok((r.get::<_, i64>(0)?, r.get::<_, String>(1)?)))
-            .map_err(op)?
-            .collect::<Result<_, _>>()
-            .map_err(op)?;
-        drop(stmt);
+        self.drain_table("org_audit_outbox", |json| {
+            let event: OrgAuditEvent = serde_json::from_str(json).map_err(op)?;
+            audit.record(&event)
+        })
+    }
 
-        let mut delivered = 0usize;
-        for (seq, json) in pending {
-            let event: OrgAuditEvent = serde_json::from_str(&json).map_err(op)?;
-            match audit.record(&event) {
-                // Entregue, ou já presente no destino (idempotência) → marca entregue.
-                Ok(()) | Err(OrgError::AlreadyExists(_)) => {
-                    conn.execute(
-                        "UPDATE org_audit_outbox SET delivered = 1 WHERE seq = ?1",
-                        params![seq],
-                    )
-                    .map_err(op)?;
-                    delivered += 1;
-                }
-                // Falha de entrega: o evento permanece no outbox (sem perda).
-                // Pára aqui para preservar a ordem; tenta na próxima drenagem.
-                Err(_) => break,
-            }
-        }
-        Ok(delivered)
+    fn drain_domain_outbox(&self, events: &dyn OrgDomainEventPort) -> Result<usize, OrgError> {
+        self.drain_table("org_domain_outbox", |json| {
+            let event: OrgDomainEvent = serde_json::from_str(json).map_err(op)?;
+            events.publish(event)
+        })
     }
 
     fn pending_audit_count(&self) -> Result<u64, OrgError> {
-        let conn = self.lock()?;
-        let n: i64 = conn
-            .query_row(
-                "SELECT COUNT(*) FROM org_audit_outbox WHERE delivered = 0",
-                [],
-                |r| r.get(0),
-            )
-            .map_err(op)?;
-        Ok(n as u64)
+        self.count_where("org_audit_outbox", 0)
+    }
+
+    fn dead_letter_audit_count(&self) -> Result<u64, OrgError> {
+        self.count_where("org_audit_outbox", 2)
+    }
+
+    fn pending_domain_count(&self) -> Result<u64, OrgError> {
+        self.count_where("org_domain_outbox", 0)
+    }
+
+    fn dead_letter_domain_count(&self) -> Result<u64, OrgError> {
+        self.count_where("org_domain_outbox", 2)
     }
 }
 
@@ -1374,19 +1479,34 @@ impl OrgUnitRepository for OrgSqliteStore {
         tx.commit().map_err(op)
     }
 
-    fn create_audited(&self, u: &OrgUnit, event: &OrgAuditEvent) -> Result<(), OrgError> {
+    fn create_audited(
+        &self,
+        u: &OrgUnit,
+        event: &OrgAuditEvent,
+        domain: Option<&OrgDomainEvent>,
+    ) -> Result<(), OrgError> {
         u.validate()?;
-        self.audited_tx(event, |tx| unit_insert(tx, u))
+        self.audited_tx(event, domain, |tx| unit_insert(tx, u))
     }
 
-    fn update_audited(&self, u: &OrgUnit, event: &OrgAuditEvent) -> Result<(), OrgError> {
+    fn update_audited(
+        &self,
+        u: &OrgUnit,
+        event: &OrgAuditEvent,
+        domain: Option<&OrgDomainEvent>,
+    ) -> Result<(), OrgError> {
         u.validate()?;
-        self.audited_tx(event, |tx| unit_update_occ(tx, u))
+        self.audited_tx(event, domain, |tx| unit_update_occ(tx, u))
     }
 
-    fn save_audited(&self, u: &OrgUnit, event: &OrgAuditEvent) -> Result<(), OrgError> {
+    fn save_audited(
+        &self,
+        u: &OrgUnit,
+        event: &OrgAuditEvent,
+        domain: Option<&OrgDomainEvent>,
+    ) -> Result<(), OrgError> {
         u.validate()?;
-        self.audited_tx(event, |tx| unit_upsert(tx, u))
+        self.audited_tx(event, domain, |tx| unit_upsert(tx, u))
     }
 
     fn deactivate_audited(
@@ -1394,8 +1514,9 @@ impl OrgUnitRepository for OrgSqliteStore {
         id: &OrgUnitId,
         valid_until: NaiveDate,
         event: &OrgAuditEvent,
+        domain: Option<&OrgDomainEvent>,
     ) -> Result<(), OrgError> {
-        self.audited_tx(event, |tx| unit_deactivate(tx, id, valid_until))
+        self.audited_tx(event, domain, |tx| unit_deactivate(tx, id, valid_until))
     }
 }
 
@@ -1527,14 +1648,24 @@ impl OrgPositionRepository for OrgSqliteStore {
         pos_deactivate(&conn, id, valid_until)
     }
 
-    fn create_audited(&self, p: &OrgPosition, event: &OrgAuditEvent) -> Result<(), OrgError> {
+    fn create_audited(
+        &self,
+        p: &OrgPosition,
+        event: &OrgAuditEvent,
+        domain: Option<&OrgDomainEvent>,
+    ) -> Result<(), OrgError> {
         p.validate()?;
-        self.audited_tx(event, |tx| pos_insert(tx, p))
+        self.audited_tx(event, domain, |tx| pos_insert(tx, p))
     }
 
-    fn update_audited(&self, p: &OrgPosition, event: &OrgAuditEvent) -> Result<(), OrgError> {
+    fn update_audited(
+        &self,
+        p: &OrgPosition,
+        event: &OrgAuditEvent,
+        domain: Option<&OrgDomainEvent>,
+    ) -> Result<(), OrgError> {
         p.validate()?;
-        self.audited_tx(event, |tx| pos_update_occ(tx, p))
+        self.audited_tx(event, domain, |tx| pos_update_occ(tx, p))
     }
 
     fn deactivate_audited(
@@ -1542,8 +1673,9 @@ impl OrgPositionRepository for OrgSqliteStore {
         id: &OrgPositionId,
         valid_until: NaiveDate,
         event: &OrgAuditEvent,
+        domain: Option<&OrgDomainEvent>,
     ) -> Result<(), OrgError> {
-        self.audited_tx(event, |tx| pos_deactivate(tx, id, valid_until))
+        self.audited_tx(event, domain, |tx| pos_deactivate(tx, id, valid_until))
     }
 }
 
@@ -1664,12 +1796,12 @@ impl CompetencyRepository for OrgSqliteStore {
 
     fn create_audited(&self, c: &Competency, event: &OrgAuditEvent) -> Result<(), OrgError> {
         c.validate()?;
-        self.audited_tx(event, |tx| comp_insert(tx, c))
+        self.audited_tx(event, None, |tx| comp_insert(tx, c))
     }
 
     fn update_audited(&self, c: &Competency, event: &OrgAuditEvent) -> Result<(), OrgError> {
         c.validate()?;
-        self.audited_tx(event, |tx| comp_update_occ(tx, c))
+        self.audited_tx(event, None, |tx| comp_update_occ(tx, c))
     }
 }
 
@@ -1770,12 +1902,12 @@ impl DelegationRepository for OrgSqliteStore {
 
     fn create_audited(&self, d: &Delegation, event: &OrgAuditEvent) -> Result<(), OrgError> {
         d.validate()?;
-        self.audited_tx(event, |tx| deleg_insert(tx, d))
+        self.audited_tx(event, None, |tx| deleg_insert(tx, d))
     }
 
     fn update_audited(&self, d: &Delegation, event: &OrgAuditEvent) -> Result<(), OrgError> {
         d.validate()?;
-        self.audited_tx(event, |tx| deleg_update_occ(tx, d))
+        self.audited_tx(event, None, |tx| deleg_update_occ(tx, d))
     }
 }
 
@@ -2687,7 +2819,7 @@ mod tests {
             None,
         );
         // Escrita atómica: estado + evento no outbox.
-        OrgUnitRepository::create_audited(&s, &u, &ev).unwrap();
+        OrgUnitRepository::create_audited(&s, &u, &ev, None).unwrap();
 
         // Estado persistido mesmo sem entrega.
         assert!(s.get_unit(&u.id).unwrap().is_some());
@@ -2724,11 +2856,11 @@ mod tests {
             None,
             None,
         );
-        OrgUnitRepository::create_audited(&s, &dup, &ev).unwrap();
+        OrgUnitRepository::create_audited(&s, &dup, &ev, None).unwrap();
         assert_eq!(s.pending_audit_count().unwrap(), 1);
 
         // Segunda criação falha (AlreadyExists) → transação reverte, sem novo outbox.
-        let err = OrgUnitRepository::create_audited(&s, &dup, &ev).unwrap_err();
+        let err = OrgUnitRepository::create_audited(&s, &dup, &ev, None).unwrap_err();
         assert!(matches!(err, OrgError::AlreadyExists(_)));
         assert_eq!(
             s.pending_audit_count().unwrap(),
@@ -2829,5 +2961,176 @@ mod tests {
         assert!(matches!(err, OrgError::OperationFailed(_)));
         let events = capturing.events.lock().unwrap();
         assert_eq!(events.last().unwrap().outcome, AuditOutcome::Failure);
+    }
+
+    // ── Gap 1: migração aditiva idempotente ───────────────────────────────────
+
+    #[test]
+    fn migracao_idempotente_e_com_colunas_novas() {
+        let s = store();
+        // Re-migrar é seguro (idempotente).
+        s.migrate().unwrap();
+
+        // Coluna version em competencies/delegations (M1 via ALTER) funciona.
+        s.save_instrument(&instr("i1")).unwrap();
+        s.save_unit(&unit("u1")).unwrap();
+        s.save_position(&position("p1", "u1", "i1")).unwrap();
+        s.save_competency(&competency("c1", "p1", "i1")).unwrap();
+        assert_eq!(
+            CompetencyRepository::get(&s, &CompetencyId("c1".into()))
+                .unwrap()
+                .unwrap()
+                .version,
+            0
+        );
+        // Tabelas de outbox (M1) existem.
+        assert_eq!(s.pending_audit_count().unwrap(), 0);
+        assert_eq!(s.pending_domain_count().unwrap(), 0);
+        assert_eq!(s.dead_letter_audit_count().unwrap(), 0);
+    }
+
+    // ── Gap 2: dead-letter / poison message ───────────────────────────────────
+
+    /// Falha a entrega de eventos cujo actor começa por "poison".
+    struct SelectiveFailingAudit {
+        captured: StdMutex<Vec<String>>,
+    }
+    impl OrgAuditPort for SelectiveFailingAudit {
+        fn record(&self, e: &OrgAuditEvent) -> Result<(), OrgError> {
+            if e.actor.starts_with("poison") {
+                return Err(OrgError::OperationFailed("destino rejeita".into()));
+            }
+            self.captured.lock().unwrap().push(e.entity_id.clone());
+            Ok(())
+        }
+    }
+
+    fn audit_ev(actor: &str, id: &str) -> OrgAuditEvent {
+        OrgAuditEvent::new(
+            actor,
+            core_org::OrgAuditAction::Created,
+            "OrgUnit",
+            id,
+            chrono::Utc::now(),
+            OrgEventOutcome::Success,
+            None,
+            None,
+        )
+    }
+
+    #[test]
+    fn poison_message_vai_para_dead_letter_sem_bloquear_a_fila() {
+        let s = store();
+        let port = SelectiveFailingAudit {
+            captured: StdMutex::new(vec![]),
+        };
+
+        // Um envenenado (sempre falha) à frente de um saudável.
+        s.enqueue_audit(&audit_ev("poison", "bad")).unwrap();
+        s.enqueue_audit(&audit_ev("joao", "good")).unwrap();
+
+        // Primeira drenagem: o saudável é entregue apesar do envenenado à frente.
+        let delivered = s.drain_audit_outbox(&port).unwrap();
+        assert_eq!(delivered, 1);
+        assert_eq!(
+            port.captured.lock().unwrap().as_slice(),
+            &["good".to_string()]
+        );
+        assert_eq!(s.pending_audit_count().unwrap(), 1); // o envenenado continua pendente
+
+        // Drenar até esgotar tentativas → dead-letter, sem nunca bloquear.
+        for _ in 0..MAX_OUTBOX_ATTEMPTS {
+            s.drain_audit_outbox(&port).unwrap();
+        }
+        assert_eq!(s.pending_audit_count().unwrap(), 0);
+        assert_eq!(s.dead_letter_audit_count().unwrap(), 1);
+    }
+
+    // ── Gap 3: outbox de eventos de domínio (sem perda) ───────────────────────
+
+    #[derive(Default)]
+    struct CapturingDomain {
+        events: StdMutex<Vec<OrgDomainEvent>>,
+    }
+    impl OrgDomainEventPort for CapturingDomain {
+        fn publish(&self, event: OrgDomainEvent) -> Result<(), OrgError> {
+            self.events.lock().unwrap().push(event);
+            Ok(())
+        }
+    }
+
+    struct FailingDomain;
+    impl OrgDomainEventPort for FailingDomain {
+        fn publish(&self, _e: OrgDomainEvent) -> Result<(), OrgError> {
+            Err(OrgError::OperationFailed("barramento indisponível".into()))
+        }
+    }
+
+    #[test]
+    fn servico_captura_e_entrega_evento_de_dominio() {
+        let domain = Arc::new(CapturingDomain::default());
+        let svc = OrgUnitService::new(store(), OrgNoopAudit, DomainArc(domain.clone()));
+        let mut u = unit("u1");
+        u.legal_reference = Some("Port. 1/2024".into());
+        svc.create(u, "joao").unwrap();
+
+        let events = domain.events.lock().unwrap();
+        assert_eq!(events.len(), 1);
+        assert!(matches!(events[0], OrgDomainEvent::UnitCreated { .. }));
+    }
+
+    /// Wrapper para usar Arc<CapturingDomain> como OrgDomainEventPort por valor.
+    struct DomainArc(Arc<CapturingDomain>);
+    impl OrgDomainEventPort for DomainArc {
+        fn publish(&self, event: OrgDomainEvent) -> Result<(), OrgError> {
+            self.0.publish(event)
+        }
+    }
+
+    #[test]
+    fn evento_de_dominio_sem_perda_quando_publish_falha() {
+        let s = store();
+        let svc = OrgUnitService::new(s, OrgNoopAudit, FailingDomain);
+        let mut u = unit("u1");
+        u.legal_reference = Some("Port. 1/2024".into());
+        // create tem sucesso (estado + outbox commitados); publish falha no deliver.
+        svc.create(u.clone(), "joao").unwrap();
+
+        // Estado persistido; evento de domínio retido (sem perda).
+        assert!(OrgUnitRepository::get(&svc.repo, &u.id).unwrap().is_some());
+        assert_eq!(svc.repo.pending_domain_count().unwrap(), 1);
+
+        // Recuperação: drenar para um porto saudável entrega o evento.
+        let capturing = CapturingDomain::default();
+        let n = svc.repo.drain_domain_outbox(&capturing).unwrap();
+        assert_eq!(n, 1);
+        assert_eq!(svc.repo.pending_domain_count().unwrap(), 0);
+    }
+
+    // ── Gap 4: drainer supervisionado ─────────────────────────────────────────
+
+    #[test]
+    fn drainer_run_once_entrega_ambos_os_outboxes() {
+        use core_org::OrgOutboxDrainer;
+        let s = store();
+        // Captura evidência + evento sem entregar (portos que falham no deliver inline).
+        let mut u = unit("u1");
+        u.legal_reference = Some("Port. 1/2024".into());
+        let ev = audit_ev("joao", "u1");
+        let domain = OrgDomainEvent::UnitUpdated {
+            id: OrgUnitId("u1".into()),
+        };
+        s.save_unit(&u).unwrap();
+        OrgUnitRepository::update_audited(&s, &u, &ev, Some(&domain)).unwrap();
+        assert_eq!(s.pending_audit_count().unwrap(), 1);
+        assert_eq!(s.pending_domain_count().unwrap(), 1);
+
+        let drainer = OrgOutboxDrainer::new(s, OrgNoopAudit, CapturingDomain::default());
+        let stats = drainer.run_once().unwrap();
+        assert_eq!(stats.audit_delivered, 1);
+        assert_eq!(stats.domain_delivered, 1);
+        assert_eq!(stats.audit_pending, 0);
+        assert_eq!(stats.domain_pending, 0);
+        assert!(!stats.has_dead_letters());
     }
 }

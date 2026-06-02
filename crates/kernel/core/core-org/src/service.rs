@@ -2,18 +2,19 @@
 //!
 //! Ponto de entrada único para escrita governada. Cada operação:
 //! 1. valida invariantes (puro);
-//! 2. persiste o estado **e** captura a evidência (`OrgAuditEvent`) no outbox,
-//!    atomicamente (variantes `*_audited` das repos);
-//! 3. entrega a evidência ao `OrgAuditPort` (drain idempotente);
-//! 4. publica o `OrgDomainEvent` para outros bounded contexts.
+//! 2. persiste o estado **e** captura a evidência (`OrgAuditEvent`) e o evento de
+//!    domínio (`OrgDomainEvent`) nos outboxes, tudo na **mesma transação**
+//!    (variantes `*_audited` das repos);
+//! 3. entrega evidência e eventos aos respectivos portos (drain idempotente,
+//!    resiliente a falhas e a poison messages).
 //!
 //! ## Evidência COSO
 //! - **Sucesso e falha** são evidenciados: uma operação rejeitada (validação,
 //!   `VersionConflict`, guarda de extinção) emite um evento `Failure` antes de
-//!   propagar o erro. Não há mais um trilho cego a falhas.
+//!   propagar o erro.
 //! - Cada operação refere o `control_id` COSO primário (módulo [`controls`]).
-//! - A captura de evidência é atómica com o estado (outbox no mesmo `org.db`);
-//!   a entrega é idempotente e tolerante a falhas de entrega (sem perda).
+//! - A captura de evidência **e dos eventos de domínio** é atómica com o estado
+//!   (outboxes no mesmo `org.db`); a entrega é idempotente e sem perda.
 //!
 //! [`controls`]: crate::controls
 
@@ -131,14 +132,13 @@ where
         }
     }
 
-    /// Entrega a evidência pendente ao porto de auditoria. Best-effort: se a
-    /// entrega falhar, a evidência permanece no outbox (sem perda) e será
-    /// entregue numa drenagem posterior.
+    /// Entrega evidência e eventos pendentes. Best-effort: o que não for entregue
+    /// permanece no outbox (sem perda) para uma drenagem posterior.
     fn deliver(&self) {
         let _ = self.repo.drain_audit_outbox(&self.audit);
+        let _ = self.repo.drain_domain_outbox(&self.events);
     }
 
-    /// Regista uma falha como evidência (evento `Failure`) e entrega.
     fn record_failure(
         &self,
         actor: &str,
@@ -160,9 +160,12 @@ where
         self.deliver();
     }
 
-    /// Drena manualmente o outbox (para jobs de fundo). Devolve nº entregue.
-    pub fn drain_audit(&self) -> Result<usize, OrgError> {
-        self.repo.drain_audit_outbox(&self.audit)
+    /// Drena manualmente ambos os outboxes (para jobs de fundo). Devolve
+    /// `(auditoria_entregue, eventos_entregues)`.
+    pub fn drain(&self) -> Result<(usize, usize), OrgError> {
+        let a = self.repo.drain_audit_outbox(&self.audit)?;
+        let e = self.repo.drain_domain_outbox(&self.events)?;
+        Ok((a, e))
     }
 
     pub fn pending_audit(&self) -> Result<u64, OrgError> {
@@ -188,16 +191,16 @@ where
             ctrl,
             unit_payload(&unit),
         );
-        if let Err(e) = self.repo.create_audited(&unit, &ev) {
+        let domain = OrgDomainEvent::UnitCreated {
+            id: unit.id.clone(),
+            short_name: unit.short_name.clone(),
+            level: unit.level,
+        };
+        if let Err(e) = self.repo.create_audited(&unit, &ev, Some(&domain)) {
             self.record_failure(actor, OrgAuditAction::Created, unit.id.as_str(), ctrl, &e);
             return Err(e);
         }
         self.deliver();
-        self.events.publish(OrgDomainEvent::UnitCreated {
-            id: unit.id.clone(),
-            short_name: unit.short_name.clone(),
-            level: unit.level,
-        })?;
         Ok(())
     }
 
@@ -227,13 +230,13 @@ where
             ctrl,
             unit_payload(&unit),
         );
-        self.repo.save_audited(&unit, &ev)?;
-        self.deliver();
-        self.events.publish(OrgDomainEvent::UnitImported {
+        let domain = OrgDomainEvent::UnitImported {
             id: unit.id.clone(),
             short_name: unit.short_name.clone(),
             level: unit.level,
-        })?;
+        };
+        self.repo.save_audited(&unit, &ev, Some(&domain))?;
+        self.deliver();
         Ok(())
     }
 
@@ -256,14 +259,14 @@ where
             ctrl,
             unit_payload(&unit),
         );
-        if let Err(e) = self.repo.update_audited(&unit, &ev) {
+        let domain = OrgDomainEvent::UnitUpdated {
+            id: unit.id.clone(),
+        };
+        if let Err(e) = self.repo.update_audited(&unit, &ev, Some(&domain)) {
             self.record_failure(actor, OrgAuditAction::Updated, unit.id.as_str(), ctrl, &e);
             return Err(e);
         }
         self.deliver();
-        self.events.publish(OrgDomainEvent::UnitUpdated {
-            id: unit.id.clone(),
-        })?;
         Ok(())
     }
 
@@ -296,13 +299,15 @@ where
             ctrl,
             json!({ "valid_until": valid_until.to_string() }),
         );
-        if let Err(e) = self.repo.deactivate_audited(id, valid_until, &ev) {
+        let domain = OrgDomainEvent::UnitDeactivated { id: id.clone() };
+        if let Err(e) = self
+            .repo
+            .deactivate_audited(id, valid_until, &ev, Some(&domain))
+        {
             self.record_failure(actor, OrgAuditAction::Deactivated, id.as_str(), ctrl, &e);
             return Err(e);
         }
         self.deliver();
-        self.events
-            .publish(OrgDomainEvent::UnitDeactivated { id: id.clone() })?;
         Ok(())
     }
 
@@ -356,15 +361,15 @@ where
             ctrl,
             json!({ "status": to }),
         );
-        if let Err(e) = self.repo.update_audited(&updated, &ev) {
+        let domain = OrgDomainEvent::UnitStatusChanged {
+            id: id.clone(),
+            new_status: next,
+        };
+        if let Err(e) = self.repo.update_audited(&updated, &ev, Some(&domain)) {
             self.record_failure(actor, action, id.as_str(), ctrl, &e);
             return Err(e);
         }
         self.deliver();
-        self.events.publish(OrgDomainEvent::UnitStatusChanged {
-            id: id.clone(),
-            new_status: next,
-        })?;
         Ok(())
     }
 
@@ -413,6 +418,7 @@ where
 
     fn deliver(&self) {
         let _ = self.repo.drain_audit_outbox(&self.audit);
+        let _ = self.repo.drain_domain_outbox(&self.events);
     }
 
     fn record_failure(
@@ -436,12 +442,10 @@ where
         self.deliver();
     }
 
-    pub fn drain_audit(&self) -> Result<usize, OrgError> {
-        self.repo.drain_audit_outbox(&self.audit)
-    }
-
-    pub fn pending_audit(&self) -> Result<u64, OrgError> {
-        self.repo.pending_audit_count()
+    pub fn drain(&self) -> Result<(usize, usize), OrgError> {
+        let a = self.repo.drain_audit_outbox(&self.audit)?;
+        let e = self.repo.drain_domain_outbox(&self.events)?;
+        Ok((a, e))
     }
 
     pub fn create(&self, position: OrgPosition, actor: &str) -> Result<(), OrgError> {
@@ -468,7 +472,13 @@ where
             ctrl,
             position_payload(&position),
         );
-        if let Err(e) = self.repo.create_audited(&position, &ev) {
+        let domain = OrgDomainEvent::PositionCreated {
+            id: position.id.clone(),
+            unit_id: position.unit_id.clone(),
+            kind: position.kind.clone(),
+            title: position.title.clone(),
+        };
+        if let Err(e) = self.repo.create_audited(&position, &ev, Some(&domain)) {
             self.record_failure(
                 actor,
                 OrgAuditAction::Created,
@@ -479,12 +489,6 @@ where
             return Err(e);
         }
         self.deliver();
-        self.events.publish(OrgDomainEvent::PositionCreated {
-            id: position.id.clone(),
-            unit_id: position.unit_id.clone(),
-            kind: position.kind.clone(),
-            title: position.title.clone(),
-        })?;
         Ok(())
     }
 
@@ -512,7 +516,10 @@ where
             ctrl,
             position_payload(&position),
         );
-        if let Err(e) = self.repo.update_audited(&position, &ev) {
+        let domain = OrgDomainEvent::PositionUpdated {
+            id: position.id.clone(),
+        };
+        if let Err(e) = self.repo.update_audited(&position, &ev, Some(&domain)) {
             self.record_failure(
                 actor,
                 OrgAuditAction::Updated,
@@ -523,9 +530,6 @@ where
             return Err(e);
         }
         self.deliver();
-        self.events.publish(OrgDomainEvent::PositionUpdated {
-            id: position.id.clone(),
-        })?;
         Ok(())
     }
 
@@ -557,13 +561,15 @@ where
             ctrl,
             json!({ "valid_until": valid_until.to_string() }),
         );
-        if let Err(e) = self.repo.deactivate_audited(id, valid_until, &ev) {
+        let domain = OrgDomainEvent::PositionDeactivated { id: id.clone() };
+        if let Err(e) = self
+            .repo
+            .deactivate_audited(id, valid_until, &ev, Some(&domain))
+        {
             self.record_failure(actor, OrgAuditAction::Deactivated, id.as_str(), ctrl, &e);
             return Err(e);
         }
         self.deliver();
-        self.events
-            .publish(OrgDomainEvent::PositionDeactivated { id: id.clone() })?;
         Ok(())
     }
 
@@ -621,15 +627,15 @@ where
             ctrl,
             json!({ "status": to }),
         );
-        if let Err(e) = self.repo.update_audited(&updated, &ev) {
+        let domain = OrgDomainEvent::PositionStatusChanged {
+            id: id.clone(),
+            new_status: next,
+        };
+        if let Err(e) = self.repo.update_audited(&updated, &ev, Some(&domain)) {
             self.record_failure(actor, action, id.as_str(), ctrl, &e);
             return Err(e);
         }
         self.deliver();
-        self.events.publish(OrgDomainEvent::PositionStatusChanged {
-            id: id.clone(),
-            new_status: next,
-        })?;
         Ok(())
     }
 

@@ -13,6 +13,7 @@ pub mod competency;
 pub mod controls;
 pub mod delegation;
 pub mod domain_events;
+pub mod drainer;
 pub mod error;
 pub mod instrument;
 pub mod pagination;
@@ -32,6 +33,9 @@ pub use delegation::{Delegation, DelegationId};
 
 // ── domain_events ─────────────────────────────────────────────────────────────
 pub use domain_events::{OrgDomainEvent, OrgDomainEventPort, OrgNoopDomainEvents};
+
+// ── drainer ───────────────────────────────────────────────────────────────────
+pub use drainer::{DrainStats, OrgOutboxDrainer};
 
 // ── error ─────────────────────────────────────────────────────────────────────
 pub use error::{OrgError, COMPONENT};

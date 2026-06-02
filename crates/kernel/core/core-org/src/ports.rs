@@ -13,31 +13,43 @@ use chrono::NaiveDate;
 
 use crate::{
     audit::{OrgAuditEvent, OrgAuditPort},
+    domain_events::{OrgDomainEvent, OrgDomainEventPort},
     pagination::{OrgPage, PagedResult},
     Competency, CompetencyId, Delegation, DelegationId, LegalInstrument, LegalInstrumentId,
     OrgError, OrgLevel, OrgPosition, OrgPositionId, OrgUnit, OrgUnitId, PositionKind,
 };
 
-// ── OrgAuditOutbox (evidência transaccional) ──────────────────────────────────
+// ── OrgAuditOutbox (evidência + eventos transaccionais) ───────────────────────
 
-/// Outbox de evidência de auditoria, co-localizado com o estado (mesma BD).
+/// Outbox de evidência de auditoria e de eventos de domínio, co-localizado com o
+/// estado (mesma BD).
 ///
-/// Garante que a evidência é capturada atomicamente com a mudança de estado
-/// (via métodos `*_audited` das repos) e entregue de forma fiável e idempotente
-/// ao `OrgAuditPort`, mesmo que a entrega imediata falhe.
+/// Garante que a evidência (e os eventos de integração) são capturados
+/// atomicamente com a mudança de estado (via métodos `*_audited` das repos) e
+/// entregues de forma fiável e idempotente aos respectivos portos, mesmo que a
+/// entrega imediata falhe. Mensagens que esgotam as tentativas de entrega são
+/// movidas para *dead-letter* (não bloqueiam a fila).
 pub trait OrgAuditOutbox {
-    /// Enfileira um evento independente (ex.: falhas — sem mudança de estado
-    /// associada, logo sem necessidade de atomicidade com estado).
+    /// Enfileira um evento de auditoria independente (ex.: falhas — sem mudança de
+    /// estado associada, logo sem necessidade de atomicidade com estado).
     fn enqueue_audit(&self, event: &OrgAuditEvent) -> Result<(), OrgError>;
 
-    /// Entrega os eventos pendentes ao `audit`, marcando-os entregues.
-    /// **Idempotente**: uma reentrega de evento já gravado é tratada como entregue
-    /// (o `OrgAuditPort` deve devolver `Ok` ou `AlreadyExists`). Devolve o número
-    /// de eventos entregues nesta passagem.
+    /// Entrega os eventos de auditoria pendentes ao `audit`. **Idempotente** e
+    /// **resiliente a poison messages**: uma mensagem que falha repetidamente é
+    /// movida para dead-letter sem bloquear as restantes. Devolve nº entregue.
     fn drain_audit_outbox(&self, audit: &dyn OrgAuditPort) -> Result<usize, OrgError>;
 
-    /// Número de eventos ainda por entregar (observabilidade / health).
+    /// Entrega os eventos de domínio pendentes ao `events` (mesmas garantias).
+    fn drain_domain_outbox(&self, events: &dyn OrgDomainEventPort) -> Result<usize, OrgError>;
+
+    /// Nº de eventos de auditoria por entregar (observabilidade / health).
     fn pending_audit_count(&self) -> Result<u64, OrgError>;
+    /// Nº de eventos de auditoria em dead-letter (esgotaram tentativas).
+    fn dead_letter_audit_count(&self) -> Result<u64, OrgError>;
+    /// Nº de eventos de domínio por entregar.
+    fn pending_domain_count(&self) -> Result<u64, OrgError>;
+    /// Nº de eventos de domínio em dead-letter.
+    fn dead_letter_domain_count(&self) -> Result<u64, OrgError>;
 }
 
 // ── OrgUnitRepository ─────────────────────────────────────────────────────────
@@ -68,19 +80,36 @@ pub trait OrgUnitRepository {
     /// Desactiva a unidade, definindo `valid_until` e transitando para `Extinct`.
     fn deactivate(&self, id: &OrgUnitId, valid_until: NaiveDate) -> Result<(), OrgError>;
 
-    // ── Variantes auditadas (estado + outbox numa transação) ──────────────────
-    /// Cria a unidade e enfileira `event` no outbox, atomicamente.
-    fn create_audited(&self, unit: &OrgUnit, event: &OrgAuditEvent) -> Result<(), OrgError>;
-    /// Actualiza (OCC) a unidade e enfileira `event` no outbox, atomicamente.
-    fn update_audited(&self, unit: &OrgUnit, event: &OrgAuditEvent) -> Result<(), OrgError>;
-    /// Upsert da unidade e enfileira `event` no outbox, atomicamente (importação auditada).
-    fn save_audited(&self, unit: &OrgUnit, event: &OrgAuditEvent) -> Result<(), OrgError>;
-    /// Desactiva a unidade e enfileira `event` no outbox, atomicamente.
+    // ── Variantes auditadas (estado + outbox de auditoria + de domínio, 1 txn) ─
+    /// Cria a unidade e enfileira o evento de auditoria e (se presente) o evento
+    /// de domínio no outbox, tudo na mesma transação.
+    fn create_audited(
+        &self,
+        unit: &OrgUnit,
+        event: &OrgAuditEvent,
+        domain: Option<&OrgDomainEvent>,
+    ) -> Result<(), OrgError>;
+    /// Actualiza (OCC) a unidade; captura evidência + evento atomicamente.
+    fn update_audited(
+        &self,
+        unit: &OrgUnit,
+        event: &OrgAuditEvent,
+        domain: Option<&OrgDomainEvent>,
+    ) -> Result<(), OrgError>;
+    /// Upsert da unidade; captura evidência + evento atomicamente (importação).
+    fn save_audited(
+        &self,
+        unit: &OrgUnit,
+        event: &OrgAuditEvent,
+        domain: Option<&OrgDomainEvent>,
+    ) -> Result<(), OrgError>;
+    /// Desactiva a unidade; captura evidência + evento atomicamente.
     fn deactivate_audited(
         &self,
         id: &OrgUnitId,
         valid_until: NaiveDate,
         event: &OrgAuditEvent,
+        domain: Option<&OrgDomainEvent>,
     ) -> Result<(), OrgError>;
 }
 
@@ -125,16 +154,25 @@ pub trait OrgPositionRepository {
     /// Desactiva a posição, definindo `valid_until` e status `Extinct`.
     fn deactivate(&self, id: &OrgPositionId, valid_until: NaiveDate) -> Result<(), OrgError>;
 
-    // ── Variantes auditadas ───────────────────────────────────────────────────
-    fn create_audited(&self, position: &OrgPosition, event: &OrgAuditEvent)
-        -> Result<(), OrgError>;
-    fn update_audited(&self, position: &OrgPosition, event: &OrgAuditEvent)
-        -> Result<(), OrgError>;
+    // ── Variantes auditadas (estado + outbox de auditoria + de domínio, 1 txn) ─
+    fn create_audited(
+        &self,
+        position: &OrgPosition,
+        event: &OrgAuditEvent,
+        domain: Option<&OrgDomainEvent>,
+    ) -> Result<(), OrgError>;
+    fn update_audited(
+        &self,
+        position: &OrgPosition,
+        event: &OrgAuditEvent,
+        domain: Option<&OrgDomainEvent>,
+    ) -> Result<(), OrgError>;
     fn deactivate_audited(
         &self,
         id: &OrgPositionId,
         valid_until: NaiveDate,
         event: &OrgAuditEvent,
+        domain: Option<&OrgDomainEvent>,
     ) -> Result<(), OrgError>;
 }
 

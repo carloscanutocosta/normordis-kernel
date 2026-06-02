@@ -174,14 +174,22 @@ CREATE TABLE IF NOT EXISTS delegations (
     version         INTEGER NOT NULL DEFAULT 0
 );
 
--- Outbox de evidência de auditoria — capturado atomicamente com o estado
+-- Outboxes — capturados atomicamente com o estado (M1). delivered: 0=pendente,
+-- 1=entregue, 2=dead-letter (esgotou attempts).
 CREATE TABLE IF NOT EXISTS org_audit_outbox (
     seq         INTEGER PRIMARY KEY AUTOINCREMENT,
     event_json  TEXT NOT NULL,   -- OrgAuditEvent serializado (event_id estável)
     created_at  TEXT NOT NULL,
-    delivered   INTEGER NOT NULL DEFAULT 0
+    delivered   INTEGER NOT NULL DEFAULT 0,
+    attempts    INTEGER NOT NULL DEFAULT 0,
+    last_error  TEXT
 );
+CREATE TABLE IF NOT EXISTS org_domain_outbox ( /* idem, OrgDomainEvent */ );
 ```
+
+> **Migrações append-only.** M0 é a baseline de entidades; M1 acrescenta `version`
+> a competencies/delegations (`ALTER`) e as tabelas de outbox (`CREATE`). Nunca
+> editar uma migração existente — adicionar sempre uma nova no fim.
 
 Índices: `level`, `parent_id`, `(valid_from, valid_until)`, `(short_name, full_name)`,
 `(kind, status)`, `substitutes`, `(assigned_to, valid_from, valid_until)`,
@@ -306,17 +314,21 @@ Se ambas passarem: `UPDATE … SET status = 'extinct', valid_until = ?, version 
 ### Captura atómica (outbox)
 
 Os métodos `*_audited` das repos (`create_audited`, `update_audited`,
-`deactivate_audited`, `save_audited`) escrevem o estado **e** inserem o
-`OrgAuditEvent` em `org_audit_outbox` numa única transacção `IMMEDIATE` — nenhuma
-mudança de estado fica sem evidência, nem vice-versa. Falhas (rejeição, conflito)
-são enfileiradas via `enqueue_audit` (sem estado associado).
+`deactivate_audited`, `save_audited`) escrevem o estado, o `OrgAuditEvent`
+(`org_audit_outbox`) **e** o `OrgDomainEvent` (`org_domain_outbox`) numa única
+transacção `IMMEDIATE` — nenhuma mudança de estado fica sem evidência nem sem o
+respectivo evento de integração. Falhas (rejeição, conflito) são enfileiradas via
+`enqueue_audit` (sem estado associado).
 
-### Entrega idempotente (drain)
+### Entrega idempotente e resiliente (drain)
 
-`drain_audit_outbox(&dyn OrgAuditPort)` lê os pendentes (por `seq`), entrega e
-marca `delivered=1`. Se a entrega falhar, **pára** e preserva os eventos (sem
-perda). O `event_id` estável torna a reentrega idempotente (`DuplicateEvent` no
-`AuditStore` → tratado como entregue). `pending_audit_count` expõe o atraso.
+`drain_audit_outbox(&dyn OrgAuditPort)` e `drain_domain_outbox(&dyn OrgDomainEventPort)`
+lêem os pendentes (por `seq`) e entregam. O `event_id` estável torna a reentrega
+idempotente (`DuplicateEvent` → tratado como entregue). Uma mensagem que falha vê
+`attempts` incrementado e, ao atingir `MAX_OUTBOX_ATTEMPTS`, é movida para
+dead-letter (`delivered=2`) — **sem bloquear** a fila (não há head-of-line
+blocking). `pending_*_count` e `dead_letter_*_count` expõem o estado. O
+`OrgOutboxDrainer` (core-org) faz a entrega periódica supervisionada em background.
 
 ### OrgAuditAdapter (OrgAuditPort → core-audit)
 

@@ -5,13 +5,17 @@
 //! `core-org` define o contrato; a implementação concreta vive na camada de
 //! aplicação ou num adaptador de mensageria.
 
+use serde::{Deserialize, Serialize};
+
 use crate::{
     OrgError, OrgLevel, OrgPositionId, OrgPositionStatus, OrgUnitId, OrgUnitStatus, PositionKind,
 };
 
 // ── Eventos ───────────────────────────────────────────────────────────────────
 
-#[derive(Debug, Clone)]
+/// Serializável para viajar no outbox de eventos de domínio (captura atómica com
+/// o estado, entrega fiável a outros bounded contexts — ver `org-sqlite`).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum OrgDomainEvent {
     /// Uma unidade orgânica foi criada.
     UnitCreated {

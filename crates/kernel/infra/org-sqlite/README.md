@@ -50,8 +50,12 @@ a janela TOCTOU.
 - **Status de posições** — `OrgPositionStatus` (Active / Suspended / Extinct) com
   máquina de estados homóloga à de unidades.
 - **Evidência COSO transaccional** — `OrgSqliteStore` implementa `OrgAuditOutbox`:
-  os métodos `*_audited` escrevem estado **e** evento (`org_audit_outbox`) na mesma
-  transacção; `drain_audit_outbox` entrega ao `OrgAuditPort` de forma idempotente.
+  os métodos `*_audited` escrevem estado, evento de auditoria (`org_audit_outbox`)
+  **e** evento de domínio (`org_domain_outbox`) na mesma transacção; os `drain_*`
+  entregam aos portos de forma idempotente e resiliente a poison messages
+  (dead-letter ao fim de `MAX_OUTBOX_ATTEMPTS` sem bloquear a fila).
+- **Migração aditiva** — schema em migrações append-only (M0 baseline + M1
+  `ALTER`/`CREATE`); nunca editar uma migração já existente.
 - **Auditoria ligada** — `OrgAuditAdapter` traduz cada `OrgAuditEvent` para um
   `core_audit::AuditEvent` (cadeia de hashes, `outcome` Success/Failure,
   `control_id`) e grava a `ControlExecution` correspondente no registo de controlos.
@@ -118,8 +122,10 @@ let chefias = store.list_positions_for_unit_and_kind(&unit_id, &PositionKind::Ch
 cargo test -p org-sqlite
 ```
 
-29 testes de integração — CRUD, OCC (`VersionConflict`), hierarquia recursiva,
+34 testes de integração — CRUD, OCC (`VersionConflict`), hierarquia recursiva,
 pesquisa paginada, substituto legal, queries compostas, e a cadeia de evidência
 COSO: `AuditEvent` (criação/transição), evento de **falha** (`outcome=Failure`),
-`ControlExecution` (`Passed`/`Failed`), outbox sem perda quando a entrega falha
-(idempotente), e os serviços de competência e delegação (OCC + auditoria).
+`ControlExecution` (`Passed`/`Failed`), outbox de auditoria e de domínio sem perda
+quando a entrega falha (idempotente), **dead-letter de poison messages sem bloquear
+a fila**, drainer supervisionado, migração aditiva idempotente, e os serviços de
+competência e delegação (OCC + auditoria).
