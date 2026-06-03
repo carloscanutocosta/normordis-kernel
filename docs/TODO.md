@@ -115,6 +115,91 @@ de escalar o Control Registry.
 
 ---
 
+## core-validation
+
+### [P2] ValidationRuleDescriptor e rule registry
+
+**O quê:** uma struct `ValidationRuleDescriptor` com metadados formais de cada
+regra (rule_id, name, scope, type, severity, mode, version, valid_from, description,
+fundamento legal) e um `RuleRegistry` que as agrega e permite consulta por id e scope.
+
+**Porquê:** actualmente as regras são constantes de string sem metadados. Sem registry
+não é possível responder a "que versão desta regra estava vigente em 2026-01-15?" nem
+auditar mudanças de política de validação ao longo do tempo. O registry é o que
+transforma regras de validação em controlos governáveis.
+
+**Quando:** quando `workspace-governance` ou `core-documental` precisar de consultar
+regras activas para um scope específico. O consumidor concreto definirá o contrato
+certo — não antes.
+
+---
+
+### [P2] Mensagens em camadas por ValidationIssue
+
+**O quê:** adicionar `user_message: Option<String>` e `audit_message: Option<String>`
+a `ValidationIssue`, a par do `message` técnico existente. Cada camada serve uma
+audiência distinta: utilizador final (simples, sem jargão técnico), técnica (actual),
+auditável (formal, para registo institucional).
+
+**Porquê:** actualmente existe um único campo `message` que serve todas as audiências.
+Para NORMORDIS, a mensagem que aparece ao utilizador ("Não é possível submeter: falta
+a versão do template") deve ser distinta da mensagem técnica ("DOC.TEMPLATE_VERSION
+missing in DocumentInstance") e da mensagem auditável ("Submissão bloqueada por ausência
+de template_version obrigatório — rule DOC.TEMPLATE_VERSION.REQUIRED@1.0").
+
+**Quando:** quando existir código de UI ou de serviço que consuma `ValidationIssue`
+de forma diferenciada por audiência. É uma breaking change em `ValidationIssue` — todos
+os validators precisam de ser actualizados. Sem consumidor concreto é prematura.
+
+---
+
+### [P3] ValidationOverride como tipo de primeira classe
+
+**O quê:** uma struct `ValidationOverride` com `override_id`, `rule_id`, `actor_id`,
+`justification` e `timestamp_rfc3339`, produzida pelo serviço que autoriza ultrapassar
+uma validação bloqueante. O `RuleOutcome::overridden()` actual aceita apenas uma string
+de justificação sem identidade nem timestamp.
+
+**Porquê:** para evidência COSO de overrides, não chega registar "foi ultrapassado" —
+é necessário saber quem autorizou, quando e com que fundamento. Sem este tipo, um
+override não tem evidência auditável suficiente para cenários probatórios.
+
+**Quando:** quando um serviço real precisar de registar um override com evidência COSO
+completa. O tipo pertence à camada de serviço que chama `core-validation` — o crate
+de validação produz a evidência, o serviço cria o override. A fronteira exacta vai ser
+clara quando houver um caso de uso concreto.
+
+### [P3] ULID format validator
+
+**O quê:** `validate_ulid(field, value)` em `validators/ulid.rs`.
+ULID (Universally Unique Lexicographically Sortable Identifier): 26 caracteres
+em base32 Crockford (`[0-9A-HJKMNP-TV-Z]`), 10 chars de timestamp + 16 chars aleatórios.
+Não requer dependência externa — a validação é estrutural (comprimento e charset).
+
+**Porquê:** ULIDs são ordenáveis por timestamp e são uma alternativa natural a UUIDs em
+sistemas de eventos. Se o kernel adoptar ULIDs para IDs de eventos de auditoria ou
+outbox, o validator é necessário imediatamente. Sem esse consumidor, é prematuro.
+
+**Quando:** quando um crate do kernel definir IDs como ULID em vez de UUID.
+
+---
+
+### [P3] Número de telefone internacional (E.164)
+
+**O quê:** `validate_phone_e164(field, value)` — valida formato E.164:
+`+` seguido de 7 a 15 dígitos (ex: `"+351912345678"`, `"+12025551234"`).
+Complemento ao `validate_phone_pt` já existente para contextos multi-país
+(notificações internacionais, contactos de representantes estrangeiros).
+
+**Porquê:** E.164 é o formato canónico para números de telefone em sistemas
+de notificação (SMS, VoIP). O `validate_phone_pt` cobre o caso nacional;
+E.164 cobre o caso internacionalizado.
+
+**Quando:** quando existir um canal de notificação ou formulário que aceite
+números de telefone de múltiplos países.
+
+---
+
 ## workspace-governance (mini-apps-rusty)
 
 ### [P1] Implementar app workspace-governance

@@ -33,6 +33,9 @@ pub enum ValidationError {
     FileReadFailed,
     #[error("validation manifest failed")]
     ManifestFailed,
+    /// Reservado para falhas internas de hash (SHA-256 não falha em condições normais;
+    /// este variant existe para adapters externos que possam delegar hashing a hardware
+    /// ou serviços que podem falhar).
     #[error("validation hash failed")]
     HashFailed,
 }
