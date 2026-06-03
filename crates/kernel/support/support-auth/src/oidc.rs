@@ -618,11 +618,9 @@ fn public_key_from_jwks(jwks: &Jwks, key_id: &str) -> Result<RawPublicKey, AuthE
                 }
                 _ => {}
             },
-            "OKP" => {
-                if jwk.curve == "Ed25519" {
-                    if let Ok(key) = ed25519_verifying_key_from_jwk(jwk) {
-                        return Ok(RawPublicKey::Ed25519(key));
-                    }
+            "OKP" if jwk.curve == "Ed25519" => {
+                if let Ok(key) = ed25519_verifying_key_from_jwk(jwk) {
+                    return Ok(RawPublicKey::Ed25519(key));
                 }
             }
             _ => {}
