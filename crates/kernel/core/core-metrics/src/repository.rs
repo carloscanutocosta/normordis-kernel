@@ -190,7 +190,7 @@ impl<S: Storage> MetricStore for StorageMetricStore<S> {
         });
         index
             .entries
-               .sort_by_key(|b| std::cmp::Reverse(b.timestamp_ms));
+            .sort_by_key(|b| std::cmp::Reverse(b.timestamp_ms));
         self.write_index(&index)?;
         Ok(())
     }
