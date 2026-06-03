@@ -11,6 +11,7 @@ env:
 
 permissions:
   contents: write
+  checks: write
   id-token: write   # necessário para provenance attestation
 
 jobs:
