@@ -13,6 +13,60 @@ Este ficheiro é para trabalho de nível arquitectural ou de feature.
 
 ---
 
+## core-rh
+
+### [P2] RoleService com evidência COSO
+
+**O quê:** `RoleRepository.upsert` e `deactivate` são operações de catálogo sem rastro
+de auditoria. Faltam variantes `upsert_audited` e `deactivate_audited` no port, e um
+`RoleService<R: RoleRepository + RhAuditOutbox>` que emita `COSO.RH.UPSERT_ROLE` e
+`COSO.RH.DEACTIVATE_ROLE`, à semelhança de `UserService`.
+
+**Pré-condição:** `RoleRepository` usa `type Error: std::error::Error` (associated type),
+ao contrário de `UserRepository` e `PersonAssignmentRepository` que devolvem `RhError`
+directamente. Antes de implementar `RoleService`, decidir se `RoleRepository` migra
+para o padrão consistente (`RhError` directo). Se não migrar, o bound do serviço
+será `R::Error: Into<RhError>`, o que complica o serviço sem benefício real.
+
+**Porquê:** roles são catálogo administrativo, menos sensíveis que utilizadores e
+afetações; por isso foram deixados para depois. Num sistema legal e audit-compliant
+by design, criação e desactivação de roles também deve ser auditável.
+
+**Quando:** quando `workspace-governance` começar a gerir roles funcionais directamente,
+e não antes — o momento de uso concreto definirá a API melhor do que especulação.
+
+---
+
+### [P3] Temporal role assignments (UserRoleAssignment)
+
+**O quê:** `UserProfile.roles: Vec<Role>` é um snapshot estático do momento de leitura.
+Não existe registo de quando um utilizador adquiriu ou perdeu um role. A entidade
+necessária é:
+
+```rust
+pub struct UserRoleAssignment {
+    pub id: UserRoleAssignmentId,
+    pub user_id: UserId,
+    pub role_id: RoleId,
+    pub basis: String,        // despacho que conferiu o role
+    pub valid_from: NaiveDate,
+    pub valid_until: Option<NaiveDate>,
+    pub version: u32,         // OCC
+}
+```
+
+Padrão: igual a `PersonAssignment` — port `UserRoleAssignmentRepository` com
+`_audited` variants, `UserRoleAssignmentService` com evidência COSO.
+
+**Porquê:** para responder a "que roles tinha o utilizador X em 14/03/2025?",
+o sistema actualmente não tem resposta. Para rastreabilidade COSO de autorização,
+esta informação é necessária quando roles determinam o que um actor pode fazer.
+
+**Quando:** quando houver um caso de uso concreto que exija rastreabilidade temporal
+de roles — não before. `workspace-governance` é o candidato mais provável.
+
+---
+
 ## core-audit
 
 ### [P2] AuditFacade — ponto de entrada unificado

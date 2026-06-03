@@ -3861,8 +3861,10 @@ name = "rh-sqlite"
 version = "0.3.0"
 dependencies = [
  "adapter-sqlite",
+ "chrono",
  "core-rh",
  "rusqlite",
+ "serde_json",
  "support-errors",
  "tempfile",
  "thiserror",
