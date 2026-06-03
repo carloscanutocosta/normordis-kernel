@@ -8,15 +8,11 @@
 # RustSec advisory database
 db-path = "~/.cargo/advisory-db"
 db-urls = ["https://github.com/rustsec/advisory-db"]
-# Falha em qualquer vulnerabilidade
-vulnerability = "deny"
 # Unmaintained: verificar todas as dependências (workspace + transitivas)
 # Valores válidos: "all" | "workspace" | "transitive" | "none"
 unmaintained = "all"
 # Yanked crates: bloquear
 yanked = "deny"
-# Avisos de segurança genéricos
-notice = "warn"
 ignore = []
 
 [licenses]
@@ -28,6 +24,8 @@ allow = [
   "Apache-2.0 WITH LLVM-exception",
   "BSD-2-Clause",
   "BSD-3-Clause",
+  "NCSA",                # equiv. a BSD-3-Clause; aparece em libfuzzer-sys via rav1e
+  "CDLA-Permissive-2.0", # Linux Foundation permissiva; aparece em webpki-roots
   "ISC",
   "Zlib",
   "CC0-1.0",
@@ -38,23 +36,7 @@ allow = [
   "MPL-2.0",
   "EUPL-1.2",
 ]
-# LGPL é compatível com EUPL sob condições mas evitar por precaução
-# GPL/AGPL são incompatíveis com distribuição proprietária
-deny = [
-  "GPL-2.0",
-  "GPL-3.0",
-  "AGPL-3.0",
-  "LGPL-2.0",
-  "LGPL-2.1",
-  "LGPL-3.0",
-]
-# Tolerar crates sem licença SPDX clara (alguns crates do ecossistema Rust)
-unlicensed = "deny"
-# Avisa sobre licenças que requerem aviso de copyright
-copyleft = "warn"
-# Permite crates com múltiplas licenças (qualquer uma das listadas)
-allow-osi-fsf-free = "neither"
-default = "deny"
+# Todas as licenças não listadas acima são negadas por omissão.
 confidence-threshold = 0.8
 
 [[licenses.exceptions]]
@@ -63,11 +45,7 @@ name = "ring"
 version = "*"
 allow = ["MIT", "ISC", "OpenSSL"]
 
-[[licenses.exceptions]]
-# webpki — licença ISC
-name = "webpki"
-version = "*"
-allow = ["ISC"]
+# (excepção webpki removida — crate substituído por webpki-roots; CDLA-Permissive-2.0 na lista global)
 
 [bans]
 # Versões múltiplas da mesma crate: avisar (dependências transitivas podem divergir)
