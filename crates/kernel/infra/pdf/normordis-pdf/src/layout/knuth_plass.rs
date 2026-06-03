@@ -3,7 +3,6 @@
 //! Minimises total paragraph "badness" by choosing break-points via dynamic
 //! programming rather than the greedy first-fit approach.  Enabled at
 //! compile-time by the `optimal_wrap` feature flag.
-
 /// A single word-box: a token that cannot be broken internally.
 #[derive(Debug, Clone)]
 pub struct WordBox {

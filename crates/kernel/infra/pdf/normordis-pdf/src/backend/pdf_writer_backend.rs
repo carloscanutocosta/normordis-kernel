@@ -478,7 +478,7 @@ impl PdfWriterBackend {
         self.current_page_fonts.clear();
 
         // Move pending links to the deferred list now that the page dict is sealed.
-        for (link, aref) in pending_links.into_iter().zip(link_refs.into_iter()) {
+        for (link, aref) in pending_links.into_iter().zip(link_refs) {
             self.deferred_links.push(DeferredLinkAnnot {
                 annot_ref: aref,
                 rect_pt: link.rect_pt,

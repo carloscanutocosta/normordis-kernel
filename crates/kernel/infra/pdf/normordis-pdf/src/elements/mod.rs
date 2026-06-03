@@ -181,6 +181,7 @@ impl RenderContext {
     }
 
     /// Convenience: draw text with letter spacing.
+    #[allow(clippy::too_many_arguments)]
     pub fn draw_text_spaced(
         &mut self,
         text: &str,
