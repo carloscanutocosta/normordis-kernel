@@ -1213,6 +1213,34 @@ fn semver_accepts_hyphen_in_prerelease_identifier() {
     assert!(semver::validate_semver("v", "1.0.0-rc-final.1").is_valid());
 }
 
+#[test]
+fn semver_rejects_numeric_prerelease_with_leading_zero() {
+    // SemVer 2.0 §9: identificadores numéricos de prerelease não podem ter zeros à esquerda
+    assert!(!semver::validate_semver("v", "1.0.0-01").is_valid());
+    assert!(!semver::validate_semver("v", "1.0.0-rc.01").is_valid());
+    assert!(!semver::validate_semver("v", "1.0.0-00").is_valid());
+}
+
+#[test]
+fn semver_accepts_numeric_prerelease_zero() {
+    // "0" é válido (único zero permitido)
+    assert!(semver::validate_semver("v", "1.0.0-0").is_valid());
+    assert!(semver::validate_semver("v", "1.0.0-rc.0").is_valid());
+}
+
+#[test]
+fn semver_accepts_build_metadata_with_leading_zeros() {
+    // Build metadata permite zeros à esquerda (SemVer 2.0 §10 não restringe)
+    assert!(semver::validate_semver("v", "1.0.0+001").is_valid());
+    assert!(semver::validate_semver("v", "2.0.0-alpha.1+build.001").is_valid());
+}
+
+#[test]
+fn semver_accepts_alphanumeric_prerelease_with_leading_zero_char() {
+    // "01a" não é puramente numérico — não se aplica a restrição de zeros
+    assert!(semver::validate_semver("v", "1.0.0-01a").is_valid());
+}
+
 // ── validate_in_range bounds em release ──────────────────────────────────────
 
 #[test]

@@ -186,16 +186,20 @@ pub struct Normalized<T> {
 
 ### Identificadores portugueses
 
-| Função                     | Módulo    | Descrição                                                   |
-|----------------------------|-----------|-------------------------------------------------------------|
-| `validate_nif(field, val)` | `nif`     | NIF: 9 dígitos, primeiro dígito válido, checksum MOD 11.   |
-| `normalize_nif(val)`       | `nif`     | Remove whitespace, devolve `Normalized<String>`.            |
-| `validate_niss(field, val)`| `niss`    | NISS: 11 dígitos, categoria, posição auxiliar, checksum.    |
-| `normalize_niss(val)`      | `niss`    | Remove whitespace, devolve `Normalized<String>`.            |
-| `validate_cc(field, val)`  | `cc`      | CC: 8 dígitos + 1 letra + 1 dígito, checksum MOD 11.       |
-| `normalize_cc(val)`        | `cc`      | Remove whitespace e hífenes, devolve `Normalized<String>`.  |
-| `validate_iban(field, val)`| `iban`    | IBAN: forma mínima (15–34 chars), MOD 97.                  |
-| `normalize_iban(val)`      | `iban`    | Remove whitespace, aplica uppercase.                        |
+| Função                          | Módulo  | Descrição                                                                 |
+|---------------------------------|---------|---------------------------------------------------------------------------|
+| `validate_nif(field, val)`      | `nif`   | NIF: 9 dígitos, primeiro dígito válido, checksum MOD 11.                 |
+| `normalize_nif(val)`            | `nif`   | Remove whitespace, devolve `Normalized<String>`.                          |
+| `validate_niss(field, val)`     | `niss`  | NISS: 11 dígitos, categoria, posição auxiliar, checksum.                  |
+| `normalize_niss(val)`           | `niss`  | Remove whitespace, devolve `Normalized<String>`.                          |
+| `validate_cc(field, val)`       | `cc`    | CC: 8 dígitos + 1 letra + 1 dígito, checksum Luhn alfanumérico.          |
+| `normalize_cc(val)`             | `cc`    | Remove whitespace e hífenes, uppercase, devolve `Normalized<String>`.    |
+| `validate_iban(field, val)`     | `iban`  | IBAN: forma mínima (15–34 chars), MOD 97.                                |
+| `normalize_iban(val)`           | `iban`  | Remove whitespace, aplica uppercase.                                      |
+| `validate_cp(field, val)`       | `cp`    | Código postal PT `DDDD-DDD`; aceita espaço como separador alternativo.   |
+| `normalize_cp(val)`             | `cp`    | Normaliza espaço para hífen, devolve `Normalized<String>`.                |
+| `validate_phone_pt(field, val)` | `phone` | Telefone PT: 9 dígitos, prefixo 2/3/7/8/9; strip `+351`/`00351`.        |
+| `normalize_phone_pt(val)`       | `phone` | Remove formatting e prefixo internacional, devolve `Normalized<String>`. |
 
 #### Algoritmo NIF (PT)
 
@@ -222,12 +226,16 @@ O primeiro dígito deve ser validado contra o conjunto de séries válidas em pr
 
 ### Formato e strings
 
-| Função                           | Módulo     | Descrição                                          |
-|----------------------------------|------------|----------------------------------------------------|
-| `required(field, val)`           | `string`   | Campo não vazio após trim.                         |
-| `max_length(field, val, max)`    | `string`   | Comprimento máximo.                                |
-| `validate_email(field, val)`     | `email`    | Forma estrutural: sem espaços, contém `@`.         |
-| `validate_uuid(field, val)`      | `uuid`     | Qualquer UUID válido (v1/v3/v4/v5/v7/nil) via crate `uuid`. |
+| Função                              | Módulo   | Descrição                                                                  |
+|-------------------------------------|----------|----------------------------------------------------------------------------|
+| `required(field, val)`              | `string` | Campo não vazio após trim.                                                 |
+| `min_length(field, val, min)`       | `string` | Comprimento mínimo (conta chars Unicode, não bytes).                       |
+| `max_length(field, val, max)`       | `string` | Comprimento máximo (conta chars Unicode, não bytes).                       |
+| `validate_email(field, val)`        | `email`  | Forma estrutural: sem espaços, contém `@`.                                 |
+| `validate_uuid(field, val)`         | `uuid`   | Qualquer UUID válido (v1/v3/v4/v5/v7/nil) via crate `uuid`.               |
+| `validate_semver(field, val)`       | `semver` | Semver 2.0: `MAJOR.MINOR.PATCH[-pre][+build]`; zeros à esquerda rejeitados em MAJOR/MINOR/PATCH e em identificadores numéricos de prerelease. |
+| `validate_mime(field, val)`         | `mime`   | MIME type `type/subtype`; sem espaços nem parâmetros; chars `[A-Za-z0-9-]` no type e `[A-Za-z0-9-.+]` no subtype. |
+| `validate_in_range(field, val, min, max)` | `range` | `val ∈ [min, max]` (inclusive); rejeita NaN, infinito e bounds inválidos. |
 
 ### JSON / payload
 
@@ -238,12 +246,18 @@ O primeiro dígito deve ser validado contra o conjunto de séries válidas em pr
 
 ### Integridade
 
-| Função                           | Módulo        | Descrição                                       |
-|----------------------------------|---------------|-------------------------------------------------|
-| `validate_sha256_hex(field, val)`| `hash_format` | 64 caracteres hexadecimais lowercase.           |
-| `sha256_bytes(data)`             | (root)        | SHA-256 de `&[u8]` → hex lowercase String.     |
-| `sha256_file(path)`              | (root)        | SHA-256 de ficheiro regular em streaming.       |
-| `manifest_file(path)`            | (root)        | `ManifestEntry { path, size, sha256 }`.         |
+| Função                                 | Módulo        | Descrição                                                             |
+|----------------------------------------|---------------|-----------------------------------------------------------------------|
+| `validate_sha256_hex(field, val)`      | `hash_format` | 64 caracteres hexadecimais lowercase.                                 |
+| `sha256_bytes(data)`                   | (root)        | SHA-256 de `&[u8]` → hex lowercase String.                           |
+| `sha256_file(path)`                    | (root)        | SHA-256 de ficheiro regular em streaming (não carrega em memória).    |
+| `manifest_file(path)`                  | (root)        | `ManifestEntry { path, size, sha256 }` para um ficheiro.             |
+| `ManifestList::from_entries(entries)`  | (root)        | Agrega `Vec<ManifestEntry>`, ordena por `path`, calcula `list_hash`. |
+| `ManifestList::from_paths(paths)`      | (root)        | Constrói `ManifestList` a partir de paths de ficheiros.               |
+
+`ManifestList.list_hash` é o SHA-256 da representação JSON canónica das entradas ordenadas
+por `path`. Determinístico independentemente da ordem de inserção — pode ser usado como
+identificador de integridade do pacote completo.
 
 ### Coerência estrutural
 
@@ -290,21 +304,26 @@ result.is_blocking()            // decide progressão
 
 As constantes canónicas de `rule_id` estão em `core_validation::rules`.
 
-### Identificadores
+### Identificadores e strings
 
-| Constante       | Valor                              |
-|-----------------|------------------------------------|
-| `STRING_REQUIRED`   | `"validation.string.required"`  |
-| `STRING_MAX_LENGTH` | `"validation.string.max_length"`|
-| `EMAIL_FORMAT`  | `"validation.email.format"`        |
-| `UUID_FORMAT`   | `"validation.uuid.format"`         |
-| `NIF_FORMAT`    | `"validation.nif.format"`          |
-| `NIF_CHECKSUM`  | `"validation.nif.checksum"`        |
-| `NISS_FORMAT`   | `"validation.niss.format"`         |
-| `NISS_CHECKSUM` | `"validation.niss.checksum"`       |
-| `CC_FORMAT`     | `"validation.cc.format"`           |
-| `CC_CHECKSUM`   | `"validation.cc.checksum"`         |
-| `IBAN_FORMAT`   | `"validation.iban.format"`         |
+| Constante            | Valor                                 |
+|----------------------|---------------------------------------|
+| `STRING_REQUIRED`    | `"validation.string.required"`        |
+| `STRING_MIN_LENGTH`  | `"validation.string.min_length"`      |
+| `STRING_MAX_LENGTH`  | `"validation.string.max_length"`      |
+| `EMAIL_FORMAT`       | `"validation.email.format"`           |
+| `UUID_FORMAT`        | `"validation.uuid.format"`            |
+| `SEMVER_FORMAT`      | `"validation.semver.format"`          |
+| `MIME_FORMAT`        | `"validation.mime.format"`            |
+| `NIF_FORMAT`         | `"validation.nif.format"`             |
+| `NIF_CHECKSUM`       | `"validation.nif.checksum"`           |
+| `NISS_FORMAT`        | `"validation.niss.format"`            |
+| `NISS_CHECKSUM`      | `"validation.niss.checksum"`          |
+| `CC_FORMAT`          | `"validation.cc.format"`              |
+| `CC_CHECKSUM`        | `"validation.cc.checksum"`            |
+| `IBAN_FORMAT`        | `"validation.iban.format"`            |
+| `CP_FORMAT`          | `"validation.cp.format"`              |
+| `PHONE_PT_FORMAT`    | `"validation.phone_pt.format"`        |
 
 ### JSON / payload
 
@@ -315,9 +334,15 @@ As constantes canónicas de `rule_id` estão em `core_validation::rules`.
 
 ### Integridade
 
-| Constante         | Valor                              |
-|-------------------|------------------------------------|
-| `HASH_SHA256_FORMAT` | `"validation.hash.sha256_format"` |
+| Constante            | Valor                               |
+|----------------------|-------------------------------------|
+| `HASH_SHA256_FORMAT` | `"validation.hash.sha256_format"`   |
+
+### Range numérico
+
+| Constante              | Valor                            |
+|------------------------|----------------------------------|
+| `NUMERIC_RANGE_INVALID`| `"validation.range.out_of_range"`|
 
 ### Coerência estrutural
 
@@ -398,7 +423,7 @@ core-validation não executa o scan.
 ### core-export
 
 O `core-validation` valida pacotes de exportação antes de serem selados:
-- Manifesto multi-ficheiro (via `ManifestList` — ver Roadmap).
+- Manifesto multi-ficheiro via `ManifestList` (`from_paths`, `list_hash`).
 - Hashes de cada ficheiro no pacote.
 - Formato dos metadados de exportação.
 
