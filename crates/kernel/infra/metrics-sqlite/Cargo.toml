@@ -10,7 +10,6 @@ description = "Adapter SQLite para core-metrics (métricas BSC/SIADAP)"
 rusqlite.workspace = true
 thiserror.workspace = true
 chrono.workspace = true
-serde.workspace = true
 serde_json.workspace = true
 
 adapter-sqlite = { path = "../adapter-sqlite" }

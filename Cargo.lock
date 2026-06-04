@@ -779,7 +779,6 @@ dependencies = [
  "serde",
  "serde_json",
  "thiserror",
- "uuid",
 ]
 
 [[package]]
@@ -845,7 +844,6 @@ name = "core-org"
 version = "0.3.0"
 dependencies = [
  "chrono",
- "core-validation",
  "serde",
  "serde_json",
  "support-errors",
@@ -890,7 +888,6 @@ dependencies = [
  "serde_json",
  "sha2",
  "support-errors",
- "support-ids",
  "support-normalization",
  "tempfile",
  "thiserror",
@@ -1486,8 +1483,6 @@ name = "files"
 version = "0.3.0"
 dependencies = [
  "core-config",
- "serde",
- "tempfile",
  "thiserror",
 ]
 
@@ -2324,7 +2319,6 @@ dependencies = [
  "hex",
  "rusqlite",
  "serde",
- "serde_json",
  "sha2",
  "support-backup",
  "support-errors",
@@ -2340,7 +2334,6 @@ name = "infra-export"
 version = "0.3.0"
 dependencies = [
  "adapter-sqlite",
- "chrono",
  "core-exports",
  "interoperability",
  "rusqlite",
@@ -2362,7 +2355,6 @@ dependencies = [
  "serde_json",
  "support-crypto",
  "support-errors",
- "thiserror",
  "windows-sys 0.59.0",
  "zeroize",
 ]
@@ -2393,7 +2385,6 @@ dependencies = [
  "core-exports",
  "core-ingest",
  "core-validation",
- "serde",
  "serde_json",
  "thiserror",
 ]
@@ -2821,7 +2812,6 @@ dependencies = [
  "chrono",
  "core-metrics",
  "rusqlite",
- "serde",
  "serde_json",
  "support-errors",
  "tempfile",
@@ -2837,7 +2827,6 @@ dependencies = [
  "core-documental",
  "core-org",
  "core-rh",
- "domain-numerador",
  "serde",
  "serde_json",
  "thiserror",
@@ -3079,7 +3068,6 @@ version = "0.3.0"
 dependencies = [
  "adapter-sqlite",
  "chrono",
- "core-rh",
  "domain-numerador",
  "rusqlite",
  "serde_json",
@@ -4114,7 +4102,6 @@ dependencies = [
  "support-crypto",
  "support-errors",
  "support-logging",
- "support-storage",
  "tempfile",
  "zeroize",
 ]
@@ -4336,7 +4323,6 @@ dependencies = [
  "chrono",
  "core-security",
  "rusqlite",
- "serde",
  "serde_json",
  "sha2",
  "support-errors",
@@ -4649,7 +4635,6 @@ dependencies = [
  "documental-sqlite",
  "files",
  "rh-sqlite",
- "serde_json",
  "support-versioning",
  "tempfile",
  "thiserror",
@@ -4681,7 +4666,6 @@ name = "support-backup"
 version = "0.3.0"
 dependencies = [
  "flate2",
- "serde",
  "serde_json",
  "support-crypto",
  "support-errors",
@@ -4774,7 +4758,6 @@ dependencies = [
  "hex",
  "render-typst",
  "serde",
- "serde_json",
  "sha2",
  "thiserror",
  "uuid",

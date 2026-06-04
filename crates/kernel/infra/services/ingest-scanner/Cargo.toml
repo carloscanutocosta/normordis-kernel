@@ -8,7 +8,6 @@ description = "Bridge eSCL/AirScan → IngestOutcome auditável via core-ingest"
 
 [dependencies]
 thiserror   = { workspace = true }
-serde       = { workspace = true }
 serde_json  = { workspace = true }
 chrono      = { workspace = true }
 

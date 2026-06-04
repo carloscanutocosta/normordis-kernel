@@ -9,7 +9,6 @@ description = "Manutenção diária: health check, backup cifrado e rotação de
 [dependencies]
 thiserror.workspace = true
 serde.workspace = true
-serde_json.workspace = true
 chrono.workspace = true
 rusqlite.workspace = true
 tokio.workspace = true

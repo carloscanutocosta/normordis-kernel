@@ -9,7 +9,6 @@ description = "Composicao runtime/infra do Mini-Kernel RS"
 [dependencies]
 support-errors = { path = "../../support/support-errors" }
 support-crypto = { path = "../../support/support-crypto" }
-support-storage = { path = "../../support/support-storage" }
 support-logging = { path = "../../support/support-logging" }
 core-audit = { path = "../../core/core-audit" }
 core-config = { path = "../../core/core-config" }
