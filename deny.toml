@@ -2,52 +2,51 @@
 # https://embarkstudios.github.io/cargo-deny/
 #
 # Executar: cargo deny check
-# Ou via script: .\scripts\security\check-licenses.ps1
 
 [advisories]
 # RustSec advisory database
-db-path = "~/.cargo/advisory-db"
 db-urls = ["https://github.com/rustsec/advisory-db"]
 # Unmaintained: verificar todas as dependências (workspace + transitivas)
-# Valores válidos: "all" | "workspace" | "transitive" | "none"
 unmaintained = "all"
 # Yanked crates: bloquear
 yanked = "deny"
 ignore = [
-  # rsa e usado apenas para verificacao publica de assinaturas JWT RSA.
-  # Nao ha uso de RsaPrivateKey, assinatura ou decriptacao privada no support-auth.
+  # rsa usado apenas para verificação pública de assinaturas JWT RSA.
+  # Não há uso de RsaPrivateKey, assinatura ou desencriptação privada.
   "RUSTSEC-2023-0071",
   # bincode 1.3.3 chega por hyphenation/syntect na cadeia Typst/PDF.
-  # O advisory e de manutencao, sem upgrade seguro direto neste grafo.
+  # Advisory de manutenção, sem upgrade seguro directo neste grafo.
   "RUSTSEC-2025-0141",
   # paste chega por hayagriva/rav1e na cadeia Typst/PDF.
-  # O advisory e de manutencao, sem upgrade seguro direto neste grafo.
+  # Advisory de manutenção, sem upgrade seguro directo neste grafo.
   "RUSTSEC-2024-0436",
   # yaml-rust chega por syntect na cadeia Typst/PDF.
-  # O advisory e de manutencao, sem upgrade seguro direto neste grafo.
+  # Advisory de manutenção, sem upgrade seguro directo neste grafo.
   "RUSTSEC-2024-0320",
 ]
 
 [licenses]
 # Licenças permitidas para dependências do normordis-kernel.
 # Critério: compatíveis com EUPL-1.2 (copyleft fraco ou permissivas).
+# No cargo-deny v2, tudo o que não está em `allow` é automaticamente negado.
 allow = [
   "MIT",
   "Apache-2.0",
   "Apache-2.0 WITH LLVM-exception",
   "BSD-2-Clause",
   "BSD-3-Clause",
-  "NCSA",                # equiv. a BSD-3-Clause; aparece em libfuzzer-sys via rav1e
-  "CDLA-Permissive-2.0", # Linux Foundation permissiva; aparece em webpki-roots
+  "NCSA",
+  "CDLA-Permissive-2.0",
   "ISC",
   "Zlib",
   "CC0-1.0",
+  "Unicode-DFS-2016",
   "Unicode-3.0",
+  "OpenSSL",
   "BSL-1.0",
   "MPL-2.0",
   "EUPL-1.2",
 ]
-# Todas as licenças não listadas acima são negadas por omissão.
 confidence-threshold = 0.8
 
 [[licenses.exceptions]]
@@ -56,19 +55,13 @@ name = "ring"
 version = "*"
 allow = ["MIT", "ISC", "OpenSSL"]
 
-# (excepção webpki removida — crate substituído por webpki-roots; CDLA-Permissive-2.0 na lista global)
-
 [bans]
-# Versões múltiplas da mesma crate: avisar (dependências transitivas podem divergir)
 multiple-versions = "warn"
-# Crates explicitamente proibidas no normordis-kernel
 deny = []
-# Grafos de dependências a ignorar em "multiple-versions"
 skip = []
 skip-tree = []
 
 [sources]
-# Apenas crates.io e paths locais são permitidos
 unknown-registry = "deny"
 unknown-git = "deny"
 allow-registry = ["https://github.com/rust-lang/crates.io-index"]
