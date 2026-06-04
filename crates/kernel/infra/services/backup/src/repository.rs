@@ -103,6 +103,7 @@ impl MaintenanceRepository {
         .map_err(|e| BackupServiceError::ControlDbFailed(e.to_string()))?
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub async fn save_db_detail(
         &self,
         maintenance_id: Uuid,

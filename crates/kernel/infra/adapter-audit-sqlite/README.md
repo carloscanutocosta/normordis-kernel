@@ -35,9 +35,19 @@ CREATE TABLE audit_events (
     details_json      TEXT,               -- JSON opcional (cifrado em produção)
     sequence          INTEGER NOT NULL,   -- 1-indexed, nunca reutilizado
     prev_record_hash  TEXT,               -- hash do registo anterior na cadeia
-    record_hash       TEXT    NOT NULL    -- SHA-256(schema_v + seq + prev + event)
+    record_hash       TEXT    NOT NULL,   -- SHA-256(schema_v + seq + prev + event)
+    outcome           TEXT,               -- AuditOutcome (COSO): success | failure
+                                          -- | partial_success | not_applicable;
+                                          -- NULL ⇒ not_applicable
+    control_id        TEXT                -- referência a controlo COSO (opcional)
 );
 ```
+
+> **`outcome` e `control_id` (alinhamento COSO).** Acrescentados na migração 5.
+> São persistidos e reconstruídos fielmente, pelo que participam no `record_hash`
+> verificado pela cadeia. Linhas anteriores à migração têm `NULL`, reconstruídas
+> como `NotApplicable` / `None` — a forma canónica de serialização desses eventos,
+> garantindo que a cadeia de hashes continua a verificar sem quebras.
 
 ### `audit_chain_state` — linha única (id = 1)
 
@@ -58,6 +68,10 @@ CREATE TABLE audit_chain_state (
 | 2 | `idx_audit_time ON audit_events (occurred_at ASC)` — suporta `list_by_date_range` |
 | 3 | Triggers `BEFORE UPDATE/DELETE` — adulteração bloqueada ao nível da BD |
 | 4 | `idx_audit_sequence_unique UNIQUE (sequence ASC)` + trigger `CHECK(sequence > 0)` |
+| 5 | Colunas `outcome` e `control_id` (alinhamento COSO) — `ALTER TABLE ADD COLUMN`, anuláveis e retro-compatíveis |
+
+As migrações são *hash-tracked* por `run_relational_migrations`: cada migração corre
+no máximo uma vez por base de dados, identificada pelo hash do seu conteúdo.
 
 O `UNIQUE(sequence)` é a segunda linha de defesa contra race conditions multi-processo;
 o trigger `CHECK(sequence > 0)` impede valores inválidos.
@@ -67,18 +81,24 @@ o trigger `CHECK(sequence > 0)` impede valores inválidos.
 ```rust
 use adapter_audit_sqlite::AuditSqliteStore;
 use adapter_sqlite::SqliteRelationalConfig;
-use core_audit::{AuditActor, AuditService, AuditTarget};
+use core_audit::{
+    AuditActor, AuditOutcome, AuditService, AuditTarget, RecordAuditEventRequest,
+};
 
 let config = SqliteRelationalConfig::read_write_create("audit.db");
 let store  = AuditSqliteStore::open(&config)?;
 let svc    = AuditService::new(store);
 
-// Gravar evento
+// Gravar evento — RecordAuditEventRequest com builder para os campos opcionais
 svc.record_event(
-    "documento.criado",
-    AuditActor::new("user-123")?,
-    AuditTarget::new("documento", "doc-456")?,
-    None,
+    RecordAuditEventRequest::new(
+        "documento.criado",
+        AuditActor::new("user-123")?,
+        AuditTarget::new("documento", "doc-456")?,
+        AuditOutcome::Success,
+    )
+    .with_control_id("CTRL-DOC-001")        // opcional — referência COSO
+    .with_details(serde_json::json!({ "tamanho": 1024 })), // opcional
 )?;
 
 // Consulta por actor com paginação
@@ -131,6 +151,11 @@ UPDATE audit_events SET event_type = 'x' WHERE ...
 
 Cada `get` e `list_*` recomputa o `record_hash` SHA-256 e compara com o valor
 armazenado. Se divergirem, a operação falha com `AuditError::IntegrityFailed`.
+
+Como `outcome` e `control_id` são persistidos e reconstruídos fielmente, e a
+serialização do evento omite `outcome` quando é `NotApplicable` (forma canónica),
+o `record_hash` recomputado em leitura coincide com o gravado tanto para eventos
+COSO-enriquecidos como para eventos informativos antigos.
 
 ## Verificação incremental da cadeia
 
@@ -188,6 +213,7 @@ thiserror      = { workspace = true }
 29 testes cobrindo:
 
 - CRUD: `record`, `get`, `details_json`, duplicado rejeitado
+- Persistência COSO: `outcome` e `control_id` preservados no round-trip e na cadeia de hashes
 - Append-only: triggers bloqueiam UPDATE e DELETE directos
 - Encriptação: encriptador invocado em write, desencriptação correcta em read, AAD vinculado ao event_id
 - Listagens: `list_by_actor`, `list_by_target`, `list_all` com paginação

@@ -36,6 +36,8 @@ pub struct Competency {
     pub granted_by: LegalInstrumentId,
     pub valid_from: NaiveDate,
     pub valid_until: Option<NaiveDate>,
+    /// Versão para OCC — deve ser 0 em novas entidades.
+    pub version: u32,
 }
 
 impl Competency {
@@ -58,6 +60,6 @@ impl Competency {
     }
 
     pub fn is_effective_at(&self, date: NaiveDate) -> bool {
-        date >= self.valid_from && self.valid_until.map_or(true, |u| date < u)
+        date >= self.valid_from && self.valid_until.is_none_or(|u| date < u)
     }
 }

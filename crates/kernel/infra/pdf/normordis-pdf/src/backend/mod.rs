@@ -8,6 +8,7 @@ use crate::{fonts::ShapedGlyph, styles::RgbColor};
 /// directly. This allows future backend changes without touching element code.
 pub trait PdfBackend {
     /// Draw text at an absolute position (bottom-left origin, mm).
+    #[allow(clippy::too_many_arguments)]
     fn draw_text(
         &mut self,
         text: &str,
@@ -52,6 +53,7 @@ pub trait PdfBackend {
     ) -> crate::Result<()>;
 
     /// Draw a filled+stroked rectangle (for form field placeholders).
+    #[allow(clippy::too_many_arguments)]
     fn draw_rect_stroked(
         &mut self,
         x_mm: f64,
@@ -65,6 +67,7 @@ pub trait PdfBackend {
 
     /// Draw rotated text centered at `(cx_mm, cy_mm)`.
     /// `half_width_mm` is used to offset the text so it centers horizontally.
+    #[allow(clippy::too_many_arguments)]
     fn draw_text_rotated(
         &mut self,
         text: &str,

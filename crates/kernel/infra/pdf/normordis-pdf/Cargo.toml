@@ -39,3 +39,5 @@ hyphenation = ["dep:hyphenation"]
 [dev-dependencies]
 tempfile.workspace = true
 lopdf = "0.39"
+[lints]
+workspace = true

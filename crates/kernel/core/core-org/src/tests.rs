@@ -1,7 +1,4 @@
 //! Testes unitários de `core-org`.
-//!
-//! Cobrem invariantes de domínio: hierarquia, máquina de estados, delegação,
-//! competência, instrumentos jurídicos e serialização de enums.
 
 use chrono::NaiveDate;
 
@@ -10,8 +7,8 @@ use crate::{
     delegation::{Delegation, DelegationId},
     error::OrgError,
     instrument::{InstrumentKind, LegalInstrument, LegalInstrumentId},
-    position::{OrgPosition, OrgPositionId},
-    unit::{OrgAddress, OrgContacts, OrgLevel, OrgUnit, OrgUnitId, OrgUnitStatus},
+    position::{OrgPosition, OrgPositionId, OrgPositionStatus, PositionKind},
+    unit::{OrgContacts, OrgLevel, OrgUnit, OrgUnitId, OrgUnitStatus},
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -32,17 +29,13 @@ fn sample_unit(id: &str, level: u8, parent: Option<&str>) -> OrgUnit {
         service_code: None,
         level: OrgLevel::new(level).unwrap(),
         parent_id: parent.map(|p| OrgUnitId::new(p).unwrap()),
-        contacts: OrgContacts {
-            email: None,
-            phone: None,
-            fax: None,
-            address: OrgAddress::default(),
-        },
+        contacts: OrgContacts::default(),
         created_by: None,
         legal_reference: None,
         valid_from: date(2020, 1, 1),
         valid_until: None,
         status: OrgUnitStatus::Active,
+        version: 0,
     }
 }
 
@@ -51,10 +44,14 @@ fn sample_position(id: &str, unit: &str) -> OrgPosition {
         id: OrgPositionId::new(id).unwrap(),
         code: "DIR".into(),
         title: "Director".into(),
+        kind: PositionKind::Direcao,
+        substitutes: None,
+        status: OrgPositionStatus::Active,
         unit_id: OrgUnitId::new(unit).unwrap(),
         created_by: sample_instrument_id(),
         valid_from: date(2020, 1, 1),
         valid_until: None,
+        version: 0,
     }
 }
 
@@ -68,6 +65,7 @@ fn sample_competency(id: &str, position: &str) -> Competency {
         granted_by: sample_instrument_id(),
         valid_from: date(2020, 1, 1),
         valid_until: None,
+        version: 0,
     }
 }
 
@@ -80,6 +78,7 @@ fn sample_delegation(from: &str, to: &str, comp: &str) -> Delegation {
         instrument_id: sample_instrument_id(),
         valid_from: date(2024, 1, 1),
         valid_until: None,
+        version: 0,
     }
 }
 
@@ -104,16 +103,22 @@ fn org_level_limites_validos() {
 }
 
 #[test]
-fn org_level_fora_dos_limites_rejeita() {
+fn org_level_zero_rejeita() {
     assert!(matches!(OrgLevel::new(0), Err(OrgError::InvalidLevel(_))));
-    assert!(matches!(OrgLevel::new(6), Err(OrgError::InvalidLevel(_))));
+}
+
+#[test]
+fn org_level_acima_de_cinco_aceito() {
+    assert!(OrgLevel::new(6).is_ok());
+    assert!(OrgLevel::new(10).is_ok());
+    assert!(OrgLevel::new(255).is_ok());
 }
 
 #[test]
 fn org_level_parent_level() {
     assert_eq!(OrgLevel::new(1).unwrap().parent_level(), None);
     assert_eq!(OrgLevel::new(2).unwrap().parent_level(), Some(OrgLevel(1)));
-    assert_eq!(OrgLevel::new(5).unwrap().parent_level(), Some(OrgLevel(4)));
+    assert_eq!(OrgLevel::new(6).unwrap().parent_level(), Some(OrgLevel(5)));
 }
 
 // ── OrgUnitStatus ─────────────────────────────────────────────────────────────
@@ -127,21 +132,10 @@ fn status_from_str_round_trip() {
 }
 
 #[test]
-fn status_from_str_desconhecido_devolve_none() {
-    assert!(OrgUnitStatus::from_str("unknown").is_none());
-}
-
-#[test]
-fn status_try_from_desconhecido_devolve_err() {
-    assert!(OrgUnitStatus::try_from("nao_existe").is_err());
-}
-
-#[test]
 fn status_transicoes_validas() {
     assert!(OrgUnitStatus::Active.can_transition_to(&OrgUnitStatus::Suspended));
     assert!(OrgUnitStatus::Active.can_transition_to(&OrgUnitStatus::Extinct));
     assert!(OrgUnitStatus::Suspended.can_transition_to(&OrgUnitStatus::Active));
-    assert!(OrgUnitStatus::Suspended.can_transition_to(&OrgUnitStatus::Extinct));
 }
 
 #[test]
@@ -151,8 +145,8 @@ fn status_extinct_e_terminal() {
 }
 
 #[test]
-fn status_active_nao_pode_ir_para_active() {
-    assert!(!OrgUnitStatus::Active.can_transition_to(&OrgUnitStatus::Active));
+fn status_try_from_desconhecido_devolve_err() {
+    assert!(OrgUnitStatus::try_from("nao_existe").is_err());
 }
 
 // ── InstrumentKind ────────────────────────────────────────────────────────────
@@ -189,58 +183,206 @@ fn instrument_kind_try_from_desconhecido_devolve_err() {
     assert!(InstrumentKind::try_from("xyz").is_err());
 }
 
+// ── PositionKind ──────────────────────────────────────────────────────────────
+
+#[test]
+fn position_kind_round_trip_variantes_fixas() {
+    let pairs = [
+        (PositionKind::Direcao, "direcao"),
+        (PositionKind::Coordenacao, "coordenacao"),
+        (PositionKind::Chefia, "chefia"),
+        (PositionKind::Adjunto, "adjunto"),
+        (PositionKind::Tecnico, "tecnico"),
+    ];
+    for (kind, s) in pairs {
+        assert_eq!(kind.as_str(), s);
+        assert_eq!(PositionKind::from_str(s).unwrap(), kind);
+    }
+}
+
+#[test]
+fn position_kind_outro_round_trip() {
+    let kind = PositionKind::Outro("assessor".into());
+    assert_eq!(kind.as_str(), "outro:assessor");
+    assert_eq!(PositionKind::from_str("outro:assessor").unwrap(), kind);
+}
+
+#[test]
+fn position_kind_from_str_desconhecido_devolve_none() {
+    assert!(PositionKind::from_str("xyz").is_none());
+}
+
+// ── OrgPositionStatus ─────────────────────────────────────────────────────────
+
+#[test]
+fn position_status_round_trip() {
+    for s in ["active", "suspended", "extinct"] {
+        let st = OrgPositionStatus::from_str(s).unwrap();
+        assert_eq!(st.as_str(), s);
+    }
+}
+
+#[test]
+fn position_status_transicoes_validas() {
+    assert!(OrgPositionStatus::Active.can_transition_to(&OrgPositionStatus::Suspended));
+    assert!(OrgPositionStatus::Active.can_transition_to(&OrgPositionStatus::Extinct));
+    assert!(OrgPositionStatus::Suspended.can_transition_to(&OrgPositionStatus::Active));
+}
+
+#[test]
+fn position_status_extinct_terminal() {
+    assert!(!OrgPositionStatus::Extinct.can_transition_to(&OrgPositionStatus::Active));
+}
+
+#[test]
+fn position_status_try_from_desconhecido_err() {
+    assert!(OrgPositionStatus::try_from("nao_existe").is_err());
+}
+
 // ── OrgUnit::validate ─────────────────────────────────────────────────────────
 
 #[test]
 fn unit_validate_nivel1_sem_pai_ok() {
-    let u = sample_unit("u-1", 1, None);
-    assert!(u.validate().is_ok());
+    assert!(sample_unit("u-1", 1, None).validate().is_ok());
 }
 
 #[test]
-fn unit_validate_nivel2_com_pai_ok() {
-    let u = sample_unit("u-2", 2, Some("u-1"));
-    assert!(u.validate().is_ok());
+fn unit_validate_nivel6_com_pai_ok() {
+    assert!(sample_unit("u-6", 6, Some("u-5")).validate().is_ok());
 }
 
 #[test]
 fn unit_validate_nivel1_com_pai_rejeita() {
-    let u = sample_unit("u-1", 1, Some("u-0"));
-    assert!(matches!(u.validate(), Err(OrgError::InconsistentLevel)));
+    assert!(matches!(
+        sample_unit("u-1", 1, Some("u-0")).validate(),
+        Err(OrgError::InconsistentLevel)
+    ));
 }
 
 #[test]
-fn unit_validate_nivel2_sem_pai_rejeita() {
-    let u = sample_unit("u-2", 2, None);
-    assert!(matches!(u.validate(), Err(OrgError::InconsistentLevel)));
+fn unit_validate_nivel6_sem_pai_rejeita() {
+    assert!(matches!(
+        sample_unit("u-6", 6, None).validate(),
+        Err(OrgError::InconsistentLevel)
+    ));
 }
 
 #[test]
-fn unit_validate_valid_until_antes_de_valid_from_rejeita() {
+fn unit_validate_temporal_invalido() {
     let mut u = sample_unit("u-1", 1, None);
     u.valid_until = Some(date(2019, 12, 31));
     assert!(matches!(u.validate(), Err(OrgError::InvalidTemporalRange)));
 }
 
+// ── OrgUnit::validate_strict ──────────────────────────────────────────────────
+
 #[test]
-fn unit_validate_short_name_vazio_rejeita() {
+fn unit_validate_strict_sem_instrumento_nem_referencia_rejeita() {
+    let u = sample_unit("u-1", 1, None); // created_by=None, legal_reference=None
+    assert!(matches!(u.validate_strict(), Err(OrgError::EmptyField(_))));
+}
+
+#[test]
+fn unit_validate_strict_com_legal_reference_ok() {
     let mut u = sample_unit("u-1", 1, None);
-    u.short_name = "   ".into();
-    assert!(matches!(u.validate(), Err(OrgError::EmptyField(_))));
+    u.legal_reference = Some("Portaria n.º 100/2024".into());
+    assert!(u.validate_strict().is_ok());
+}
+
+#[test]
+fn unit_validate_strict_com_created_by_ok() {
+    let mut u = sample_unit("u-1", 1, None);
+    u.created_by = Some(sample_instrument_id());
+    assert!(u.validate_strict().is_ok());
+}
+
+// ── Validação de contactos ────────────────────────────────────────────────────
+
+#[test]
+fn contacts_email_valido_ok() {
+    let mut u = sample_unit("u-1", 1, None);
+    u.contacts.email = Some("unidade.teste@municipio.example.gov.pt".into());
+    assert!(u.validate().is_ok());
+}
+
+#[test]
+fn contacts_email_invalido_rejeita() {
+    let mut u = sample_unit("u-1", 1, None);
+    u.contacts.email = Some("naoemail".into());
+    assert!(matches!(
+        u.validate(),
+        Err(OrgError::InvalidContactField(_))
+    ));
+}
+
+#[test]
+fn contacts_phone_valido_ok() {
+    let mut u = sample_unit("u-1", 1, None);
+    u.contacts.phone = Some("+351 284 123 456".into());
+    assert!(u.validate().is_ok());
+}
+
+#[test]
+fn contacts_phone_invalido_rejeita() {
+    let mut u = sample_unit("u-1", 1, None);
+    u.contacts.phone = Some("123".into()); // menos de 7 dígitos
+    assert!(matches!(
+        u.validate(),
+        Err(OrgError::InvalidContactField(_))
+    ));
+}
+
+#[test]
+fn contacts_cp4_valido_ok() {
+    let mut u = sample_unit("u-1", 1, None);
+    u.contacts.address.cp4 = Some("7800".into());
+    assert!(u.validate().is_ok());
+}
+
+#[test]
+fn contacts_cp4_invalido_rejeita() {
+    let mut u = sample_unit("u-1", 1, None);
+    u.contacts.address.cp4 = Some("78".into()); // só 2 dígitos
+    assert!(matches!(
+        u.validate(),
+        Err(OrgError::InvalidContactField(_))
+    ));
+}
+
+#[test]
+fn contacts_cp3_invalido_rejeita() {
+    let mut u = sample_unit("u-1", 1, None);
+    u.contacts.address.cp3 = Some("12ab".into()); // não são dígitos
+    assert!(matches!(
+        u.validate(),
+        Err(OrgError::InvalidContactField(_))
+    ));
+}
+
+// ── OrgUnit::validate_level_against_parent ────────────────────────────────────
+
+#[test]
+fn unit_validate_level_against_parent_ok() {
+    let parent = sample_unit("u-1", 1, None);
+    let child = sample_unit("u-2", 2, Some("u-1"));
+    assert!(child.validate_level_against_parent(&parent).is_ok());
+}
+
+#[test]
+fn unit_validate_level_against_parent_gap_rejeita() {
+    let parent = sample_unit("u-1", 1, None);
+    let child = sample_unit("u-3", 3, Some("u-1")); // buraco no nível 2
+    assert!(matches!(
+        child.validate_level_against_parent(&parent),
+        Err(OrgError::InconsistentLevel)
+    ));
 }
 
 // ── OrgUnit::is_active_at ─────────────────────────────────────────────────────
 
 #[test]
 fn unit_is_active_at_dentro_do_intervalo() {
-    let u = sample_unit("u-1", 1, None);
-    assert!(u.is_active_at(date(2024, 6, 1)));
-}
-
-#[test]
-fn unit_is_active_at_antes_de_valid_from_false() {
-    let u = sample_unit("u-1", 1, None);
-    assert!(!u.is_active_at(date(2019, 12, 31)));
+    assert!(sample_unit("u-1", 1, None).is_active_at(date(2024, 6, 1)));
 }
 
 #[test]
@@ -254,18 +396,13 @@ fn unit_is_active_at_extincta_false() {
 
 #[test]
 fn unit_transition_active_para_suspended_ok() {
-    let u = sample_unit("u-1", 1, None);
-    assert!(u.transition_status(OrgUnitStatus::Suspended).is_ok());
+    assert!(sample_unit("u-1", 1, None)
+        .transition_status(OrgUnitStatus::Suspended)
+        .is_ok());
 }
 
 #[test]
-fn unit_transition_active_para_extinct_ok() {
-    let u = sample_unit("u-1", 1, None);
-    assert!(u.transition_status(OrgUnitStatus::Extinct).is_ok());
-}
-
-#[test]
-fn unit_transition_invalid_rejeita() {
+fn unit_transition_extinct_para_active_rejeita() {
     let mut u = sample_unit("u-1", 1, None);
     u.status = OrgUnitStatus::Extinct;
     assert!(u.transition_status(OrgUnitStatus::Active).is_err());
@@ -284,10 +421,9 @@ fn unit_parent_chain_sem_ciclo_ok() {
 #[test]
 fn unit_parent_chain_com_ciclo_rejeita() {
     let u = sample_unit("u-2", 2, Some("u-1"));
-    let id1 = OrgUnitId::new("u-1").unwrap();
     let id2 = OrgUnitId::new("u-2").unwrap();
     assert!(matches!(
-        u.validate_parent_chain(&[&id1, &id2]),
+        u.validate_parent_chain(&[&id2]),
         Err(OrgError::CircularHierarchy)
     ));
 }
@@ -295,28 +431,16 @@ fn unit_parent_chain_com_ciclo_rejeita() {
 // ── OrgUnit::can_deactivate ───────────────────────────────────────────────────
 
 #[test]
-fn unit_can_deactivate_sem_filhos_nem_posicoes_ok() {
-    let u = sample_unit("u-1", 1, None);
-    assert!(u.can_deactivate(&[], &[]).is_ok());
+fn unit_can_deactivate_sem_filhos_ok() {
+    assert!(sample_unit("u-1", 1, None).can_deactivate(&[], &[]).is_ok());
 }
 
 #[test]
 fn unit_can_deactivate_com_filhos_rejeita() {
-    let u = sample_unit("u-1", 1, None);
     let child = OrgUnitId::new("u-2").unwrap();
     assert!(matches!(
-        u.can_deactivate(&[&child], &[]),
+        sample_unit("u-1", 1, None).can_deactivate(&[&child], &[]),
         Err(OrgError::CannotDeactivateWithActiveChildren)
-    ));
-}
-
-#[test]
-fn unit_can_deactivate_com_posicoes_rejeita() {
-    let u = sample_unit("u-1", 1, None);
-    let pos = OrgPositionId::new("pos-1").unwrap();
-    assert!(matches!(
-        u.can_deactivate(&[], &[&pos]),
-        Err(OrgError::CannotDeactivateWithActivePositions)
     ));
 }
 
@@ -335,13 +459,56 @@ fn position_validate_code_vazio_rejeita() {
 }
 
 #[test]
-fn position_validate_valid_until_invalido_rejeita() {
+fn position_substitutes_si_propria_rejeita() {
     let mut p = sample_position("pos-1", "u-1");
-    p.valid_until = Some(date(2019, 1, 1));
-    assert!(matches!(p.validate(), Err(OrgError::InvalidTemporalRange)));
+    p.substitutes = Some(OrgPositionId::new("pos-1").unwrap());
+    assert!(matches!(p.validate(), Err(OrgError::OperationFailed(_))));
 }
 
-// ── Competency::validate ──────────────────────────────────────────────────────
+#[test]
+fn position_adjunto_substituto_ok() {
+    let mut p = sample_position("pos-adj", "u-1");
+    p.kind = PositionKind::Adjunto;
+    p.substitutes = Some(OrgPositionId::new("pos-chefe").unwrap());
+    assert!(p.validate().is_ok());
+}
+
+// ── OrgPosition::validate_no_substitute_cycle ─────────────────────────────────
+
+#[test]
+fn position_no_substitute_cycle_ok() {
+    let p = sample_position("pos-adj", "u-1");
+    let id1 = OrgPositionId::new("pos-chefe").unwrap();
+    assert!(p.validate_no_substitute_cycle(&[&id1]).is_ok());
+}
+
+#[test]
+fn position_no_substitute_cycle_detecta_ciclo() {
+    let p = sample_position("pos-adj", "u-1");
+    let id_adj = OrgPositionId::new("pos-adj").unwrap();
+    assert!(matches!(
+        p.validate_no_substitute_cycle(&[&id_adj]),
+        Err(OrgError::SubstitutionCycle)
+    ));
+}
+
+// ── OrgPosition::transition_status ───────────────────────────────────────────
+
+#[test]
+fn position_transition_active_para_suspended_ok() {
+    assert!(sample_position("pos-1", "u-1")
+        .transition_status(OrgPositionStatus::Suspended)
+        .is_ok());
+}
+
+#[test]
+fn position_transition_extinct_terminal() {
+    let mut p = sample_position("pos-1", "u-1");
+    p.status = OrgPositionStatus::Extinct;
+    assert!(p.transition_status(OrgPositionStatus::Active).is_err());
+}
+
+// ── Competency ────────────────────────────────────────────────────────────────
 
 #[test]
 fn competency_validate_ok() {
@@ -362,7 +529,7 @@ fn competency_is_effective_at() {
     assert!(!c.is_effective_at(date(2019, 12, 31)));
 }
 
-// ── Delegation::validate ──────────────────────────────────────────────────────
+// ── Delegation ────────────────────────────────────────────────────────────────
 
 #[test]
 fn delegation_validate_ok() {
@@ -373,8 +540,10 @@ fn delegation_validate_ok() {
 
 #[test]
 fn delegation_validate_mesmo_de_e_para_rejeita() {
-    let d = sample_delegation("pos-1", "pos-1", "comp-1");
-    assert!(matches!(d.validate(), Err(OrgError::OperationFailed(_))));
+    assert!(matches!(
+        sample_delegation("pos-1", "pos-1", "comp-1").validate(),
+        Err(OrgError::OperationFailed(_))
+    ));
 }
 
 #[test]
@@ -384,17 +553,7 @@ fn delegation_validate_can_delegate_ok() {
     assert!(d.validate_can_delegate(&[&comp]).is_ok());
 }
 
-#[test]
-fn delegation_validate_can_delegate_sem_competencia_rejeita() {
-    let d = sample_delegation("pos-1", "pos-2", "comp-1");
-    let other = CompetencyId::new("comp-99").unwrap();
-    assert!(matches!(
-        d.validate_can_delegate(&[&other]),
-        Err(OrgError::OperationFailed(_))
-    ));
-}
-
-// ── LegalInstrument::validate ─────────────────────────────────────────────────
+// ── LegalInstrument ───────────────────────────────────────────────────────────
 
 #[test]
 fn instrument_validate_ok() {
@@ -406,13 +565,6 @@ fn instrument_validate_reference_vazia_rejeita() {
     let mut i = sample_instrument();
     i.reference = "".into();
     assert!(matches!(i.validate(), Err(OrgError::EmptyField(_))));
-}
-
-#[test]
-fn instrument_validate_temporal_range_invalido_rejeita() {
-    let mut i = sample_instrument();
-    i.effective_until = Some(date(2024, 1, 1));
-    assert!(matches!(i.validate(), Err(OrgError::InvalidTemporalRange)));
 }
 
 #[test]

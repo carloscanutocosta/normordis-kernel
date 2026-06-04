@@ -38,6 +38,7 @@ members = [
   "crates/kernel/infra/security-sqlite",
   "crates/kernel/infra/rh-security-bridge",
   "crates/kernel/infra/documental-sqlite",
+  "crates/kernel/infra/email",
   "crates/kernel/infra/files",
   "crates/kernel/infra/metrics-sqlite",
   "crates/kernel/infra/exports-sqlite",
@@ -74,6 +75,12 @@ members = [
   "crates/runtime/interoperability",
 ]
 
+[workspace.lints.rust]
+# Política de segurança: unsafe proibido em todos os crates do workspace.
+# Excepção documentada: crates/kernel/infra/secrets (DPAPI Win32 FFI)
+# — não herda este lint (sem [lints] workspace = true no seu Cargo.toml).
+unsafe_code = "forbid"
+
 [workspace.package]
 edition = "2021"
 license = "EUPL-1.2"
@@ -86,9 +93,13 @@ serde_json = "1"
 thiserror = "2"
 uuid = { version = "1", features = ["v4", "fast-rng", "serde"] }
 chrono = { version = "0.4", features = ["clock", "serde"] }
+idna = "1"
+rust_decimal = "1"
+unicode-normalization = "0.1"
 rusqlite = { version = "0.31", features = ["bundled"] }
 tokio = { version = "1", features = ["rt", "rt-multi-thread", "macros", "time"] }
 tempfile = "3"
+ureq = { version = "2", features = ["native-tls"] }
 sha2 = "0.10"
 hex = "0.4"
 argon2 = "0.5"

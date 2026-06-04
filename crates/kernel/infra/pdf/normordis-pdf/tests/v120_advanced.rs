@@ -15,9 +15,7 @@ fn default_style() -> DocumentStyle {
 }
 
 fn plain_rows(data: Vec<Vec<String>>) -> Vec<TableRow> {
-    data.into_iter()
-        .map(|cells| TableRow::plain(cells))
-        .collect()
+    data.into_iter().map(TableRow::plain).collect()
 }
 
 fn plain_items(texts: Vec<String>) -> Vec<ListItemElement> {

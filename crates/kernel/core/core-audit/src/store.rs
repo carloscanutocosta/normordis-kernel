@@ -636,7 +636,9 @@ mod tests {
     use support_storage::{StorageError, StorageKey, StorageNamespace, StorageValue};
 
     use super::*;
-    use crate::{AuditActor, AuditTarget, DEFAULT_AUDIT_EVENTS_NAMESPACE, STORE_FAILED};
+    use crate::{
+        AuditActor, AuditOutcome, AuditTarget, DEFAULT_AUDIT_EVENTS_NAMESPACE, STORE_FAILED,
+    };
 
     fn storage_store() -> StorageAuditStore<JsonMemoryStorage> {
         StorageAuditStore::new(JsonMemoryStorage::default(), AuditStoreConfig::default())
@@ -656,6 +658,8 @@ mod tests {
             AuditActor::new("user-1").unwrap(),
             AuditTarget::new("document", "doc-1").unwrap(),
             Utc.with_ymd_and_hms(2026, 5, 11, 10, 0, 0).unwrap(),
+            AuditOutcome::NotApplicable,
+            None,
             Some(json!({"ip":"127.0.0.1","ok":true})),
         )
         .unwrap()
@@ -777,6 +781,8 @@ mod tests {
             AuditActor::new("user-1").unwrap(),
             AuditTarget::new("document", "doc-2").unwrap(),
             Utc.with_ymd_and_hms(2026, 5, 11, 10, 1, 0).unwrap(),
+            AuditOutcome::NotApplicable,
+            None,
             None,
         )
         .unwrap();
@@ -805,6 +811,8 @@ mod tests {
             AuditActor::new("user-2").unwrap(),
             AuditTarget::new("document", "doc-2").unwrap(),
             Utc.with_ymd_and_hms(2026, 5, 11, 10, 1, 0).unwrap(),
+            AuditOutcome::NotApplicable,
+            None,
             None,
         )
         .unwrap();
@@ -845,6 +853,8 @@ mod tests {
             AuditActor::new("user-1").unwrap(),
             AuditTarget::new("document", "doc-1").unwrap(),
             Utc.with_ymd_and_hms(2026, 5, 11, 10, 1, 0).unwrap(),
+            AuditOutcome::NotApplicable,
+            None,
             None,
         )
         .unwrap();
@@ -902,6 +912,8 @@ mod tests {
                     AuditActor::new("user-concurrent").unwrap(),
                     AuditTarget::new("document", format!("doc-{index}")).unwrap(),
                     Utc.with_ymd_and_hms(2026, 5, 11, 10, 0, 0).unwrap(),
+                    AuditOutcome::NotApplicable,
+                    None,
                     Some(json!({"index": index})),
                 )
                 .unwrap();
@@ -1086,6 +1098,8 @@ mod tests {
             AuditActor::new("user-2").unwrap(),
             AuditTarget::new("document", "doc-2").unwrap(),
             Utc.with_ymd_and_hms(2026, 5, 11, 10, 2, 0).unwrap(),
+            AuditOutcome::NotApplicable,
+            None,
             None,
         )
         .unwrap();
@@ -1095,6 +1109,8 @@ mod tests {
             AuditActor::new("user-3").unwrap(),
             AuditTarget::new("document", "doc-3").unwrap(),
             Utc.with_ymd_and_hms(2026, 5, 11, 10, 3, 0).unwrap(),
+            AuditOutcome::NotApplicable,
+            None,
             None,
         )
         .unwrap();
@@ -1120,6 +1136,8 @@ mod tests {
                 AuditActor::new(format!("user-{i}")).unwrap(),
                 AuditTarget::new("document", format!("doc-{i}")).unwrap(),
                 Utc.with_ymd_and_hms(2026, 5, 11, 10, i, 0).unwrap(),
+                AuditOutcome::NotApplicable,
+                None,
                 None,
             )
             .unwrap();
@@ -1160,6 +1178,8 @@ mod tests {
                     AuditActor::new(format!("user-{h}")).unwrap(),
                     AuditTarget::new("document", format!("doc-{h}")).unwrap(),
                     Utc.with_ymd_and_hms(2026, 5, 11, h, 0, 0).unwrap(),
+                    AuditOutcome::NotApplicable,
+                    None,
                     None,
                 )
                 .unwrap()
@@ -1322,6 +1342,8 @@ mod tests {
                 AuditActor::new("user-2").unwrap(),
                 AuditTarget::new("document", "doc-2").unwrap(),
                 Utc.with_ymd_and_hms(2026, 5, 11, 2, 0, 0).unwrap(),
+                AuditOutcome::NotApplicable,
+                None,
                 None,
             )
             .unwrap();

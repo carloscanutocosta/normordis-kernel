@@ -15,4 +15,5 @@ support-errors = { path = "../support-errors" }
 
 [dev-dependencies]
 tempfile.workspace = true
-
+[lints]
+workspace = true

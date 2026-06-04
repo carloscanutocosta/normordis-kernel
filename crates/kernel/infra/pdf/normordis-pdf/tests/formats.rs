@@ -502,7 +502,12 @@ fn fmt_35_footnote_ref_inline_deserializes() {
 
 #[test]
 fn fmt_36_soft_hyphen_preserved_in_text_node() {
-    let json = r#"{"ncrtf":"1.3.0","blocks":[{"type":"paragraph","children":[{"type":"text","text":"im­ple­men­ta­ção"}]}]}"#;
+    // String normal (não-raw): `\u{AD}` é escape do Rust → carácter soft hyphen
+    // U+00AD real no JSON. Evita caracteres invisíveis no código-fonte (que o
+    // rustfmt reescreveria, corrompendo a raw string).
+    let json = "{\"ncrtf\":\"1.3.0\",\"blocks\":[{\"type\":\"paragraph\",\
+                \"children\":[{\"type\":\"text\",\
+                \"text\":\"im\u{AD}ple\u{AD}men\u{AD}ta\u{AD}ção\"}]}]}";
     let doc = parse_ncrtf(json).unwrap();
     use normordis_pdf::richtext::model::{Block, Inline};
     if let Block::Paragraph(p) = &doc.blocks[0] {

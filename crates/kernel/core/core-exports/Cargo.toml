@@ -16,3 +16,5 @@ core-audit      = { path = "../core-audit" }
 core-documental = { path = "../core-documental" }
 core-validation = { path = "../core-validation" }
 support-errors  = { path = "../../support/support-errors" }
+[lints]
+workspace = true

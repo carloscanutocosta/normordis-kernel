@@ -18,6 +18,10 @@ impl MemoryStorage {
         let inner = self.inner.read().map_err(|_| StorageError::BackendFailed)?;
         Ok(inner.values().map(HashMap::len).sum())
     }
+
+    pub fn is_empty(&self) -> Result<bool, StorageError> {
+        Ok(self.len()? == 0)
+    }
 }
 
 impl RawStorage for MemoryStorage {

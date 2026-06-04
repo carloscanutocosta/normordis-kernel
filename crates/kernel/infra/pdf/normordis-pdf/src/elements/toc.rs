@@ -185,7 +185,7 @@ fn render_toc_entry(
     } else {
         0
     };
-    let leaders: String = std::iter::repeat(leader_char).take(n_leaders).collect();
+    let leaders: String = std::iter::repeat_n(leader_char, n_leaders).collect();
 
     // Build a single paragraph: title + leaders + page number.
     let line_text = format!("{}{} {}", entry.title, leaders, page_str);
