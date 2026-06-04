@@ -301,7 +301,7 @@ fn unit_validate_strict_com_created_by_ok() {
 #[test]
 fn contacts_email_valido_ok() {
     let mut u = sample_unit("u-1", 1, None);
-    u.contacts.email = Some("sf.beja@at.gov.pt".into());
+    u.contacts.email = Some("unidade.teste@municipio.example.gov.pt".into());
     assert!(u.validate().is_ok());
 }
 
