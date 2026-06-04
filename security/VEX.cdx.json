@@ -55,7 +55,7 @@
       "description": "Marvin Attack: potential key recovery through timing side-channels in RSA decryption operations (RsaPrivateKey).",
       "analysis": {
         "state": "not_affected",
-        "justification": "vulnerable_code_not_in_execute_path",
+        "justification": "code_not_reachable",
         "detail": "O normordis-kernel usa a crate `rsa` exclusivamente para verificação de assinaturas JWT via chave pública (RsaPublicKey::verify). O advisory descreve um ataque de canal lateral em operações de desencriptação privada (RsaPrivateKey::decrypt). Não existe nenhum uso de RsaPrivateKey, assinatura privada ou desencriptação no workspace. O caminho de código vulnerável é estruturalmente inatingível pelo normordis-kernel. Evidência: grep 'RsaPrivateKey' crates/ retorna zero ocorrências.",
         "response": ["will_not_fix"],
         "firstIssued": "2026-06-04T00:00:00Z",
@@ -65,7 +65,7 @@
         {
           "ref": "pkg:cargo/rsa",
           "versions": [
-            { "version": "0.9.x", "status": "not_affected" }
+            { "version": "0.9.x", "status": "unaffected" }
           ]
         }
       ]
@@ -87,7 +87,7 @@
       "description": "bincode 1.3.3 é considerada unmaintained (advisory de manutenção, sem CVE).",
       "analysis": {
         "state": "not_affected",
-        "justification": "vulnerable_code_not_present",
+        "justification": "code_not_present",
         "detail": "bincode 1.3.3 chega como dependência transitiva pela cadeia hyphenation → syntect → Typst → normordis-pdf. O normordis-kernel não usa bincode directamente nem expõe interfaces que dependam de bincode para processar dados não confiáveis. O advisory é de manutenção (sem CVE, sem exploit conhecido). Não existe caminho de upgrade directo neste grafo de dependências sem substituir syntect/hyphenation, o que está fora do âmbito desta versão. Risco residual: baixo — bincode é usado em código de renderização PDF, isolado de entradas externas.",
         "response": ["update"],
         "firstIssued": "2026-06-04T00:00:00Z",
@@ -97,7 +97,7 @@
         {
           "ref": "pkg:cargo/bincode@1.3.3",
           "versions": [
-            { "version": "1.3.3", "status": "not_affected" }
+            { "version": "1.3.3", "status": "unaffected" }
           ]
         }
       ]
@@ -119,7 +119,7 @@
       "description": "paste é considerada unmaintained (advisory de manutenção, sem CVE).",
       "analysis": {
         "state": "not_affected",
-        "justification": "vulnerable_code_not_present",
+        "justification": "code_not_present",
         "detail": "paste chega como dependência transitiva pela cadeia hayagriva → rav1e → Typst → normordis-pdf. O normordis-kernel não usa paste directamente. O advisory é de manutenção (sem CVE, sem exploit conhecido). paste é uma crate de macros de procedimento usada em tempo de compilação, sem execução em runtime. Risco residual: negligenciável — código de macro, sem superfície de ataque em runtime.",
         "response": ["update"],
         "firstIssued": "2026-06-04T00:00:00Z",
@@ -129,7 +129,7 @@
         {
           "ref": "pkg:cargo/paste",
           "versions": [
-            { "version": "*", "status": "not_affected" }
+            { "version": "*", "status": "unaffected" }
           ]
         }
       ]
@@ -151,7 +151,7 @@
       "description": "yaml-rust é considerada unmaintained (advisory de manutenção, sem CVE).",
       "analysis": {
         "state": "not_affected",
-        "justification": "vulnerable_code_not_present",
+        "justification": "code_not_present",
         "detail": "yaml-rust chega como dependência transitiva pela cadeia syntect → Typst → normordis-pdf. O normordis-kernel não usa yaml-rust directamente nem processa YAML de fontes externas via este caminho. O advisory é de manutenção (sem CVE, sem exploit conhecido). O uso de yaml-rust em syntect destina-se a carregar ficheiros de sintaxe em formato TextMate (bundled, read-only) — não processa YAML controlado por utilizadores externos. Risco residual: baixo — sem superfície de injecção de dados não confiáveis.",
         "response": ["update"],
         "firstIssued": "2026-06-04T00:00:00Z",
@@ -161,7 +161,7 @@
         {
           "ref": "pkg:cargo/yaml-rust",
           "versions": [
-            { "version": "*", "status": "not_affected" }
+            { "version": "*", "status": "unaffected" }
           ]
         }
       ]

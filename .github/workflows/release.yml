@@ -93,7 +93,7 @@ jobs:
       - name: Collect SBOM files
         run: |
           mkdir -p artifacts/trust
-          find . -name "*.cdx.json" -not -path "./target/*" | head -1 \
+          find . -name "*.cdx.json" -not -path "./target/*" -not -path "./security/*" | head -1 \
             | xargs -I{} cp {} artifacts/trust/sbom.cyclonedx.json || true
       - name: Validate SBOM schema (CycloneDX 1.6)
         run: |
