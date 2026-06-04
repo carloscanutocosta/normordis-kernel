@@ -12,7 +12,7 @@ exclude = ["examples/templates/*.pdf"]
 
 [dependencies]
 chrono.workspace = true
-pdf-writer = "0.12"
+pdf-writer = "0.14"
 subsetter = "0.2"
 flate2 = "1"
 image = { version = "0.25", features = ["png", "jpeg"] }
