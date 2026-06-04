@@ -221,7 +221,10 @@ jobs:
       - name: Install cargo-outdated
         run: cargo install cargo-outdated --locked
       - name: Report outdated dependencies
-        run: cargo outdated --workspace --depth 1
+        # || true: cargo outdated falha com conflito de links quando deps nativas
+        # (rusqlite/libsqlite3-sys) têm versões encadeadas incompatíveis no grafo
+        # simulado. O resultado é observacional — não bloqueia o pipeline.
+        run: cargo outdated --workspace --depth 1 || true
 
   # ── SBOM (Software Bill of Materials — CycloneDX) ────────────────────────
   sbom:
