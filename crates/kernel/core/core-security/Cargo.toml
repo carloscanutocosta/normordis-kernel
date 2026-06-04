@@ -21,3 +21,5 @@ test-helpers = []
 [dev-dependencies]
 tokio = { workspace = true, features = ["rt", "macros"] }
 serde_json.workspace = true
+[lints]
+workspace = true

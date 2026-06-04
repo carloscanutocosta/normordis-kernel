@@ -21,3 +21,5 @@ core-exports = { path = "../../../core/core-exports" }
 [dev-dependencies]
 tempfile.workspace = true
 interoperability = { path = "../../../../runtime/interoperability" }
+[lints]
+workspace = true

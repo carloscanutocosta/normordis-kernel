@@ -3,9 +3,9 @@ use support_normalization::{
     capitalize_first, digits_only, is_valid_email, is_valid_nif, letters_and_digits_only,
     money_cents_to_words_eur, money_decimal_to_cents, money_str_to_cents, money_str_to_words_eur,
     money_to_words_eur, normalize_date_to_iso, normalize_domain_to_ascii, normalize_for_lookup,
-    normalize_portuguese_name, normalize_unicode_nfc, normalize_unicode_nfd, normalize_unicode_nfkc,
-    normalize_unicode_nfkd, normalize_whitespace, number_to_words_pt, parse_f64_loose,
-    parse_i64_loose, round_to_places, strip_diacritics, title_case, trim_to_none,
+    normalize_portuguese_name, normalize_unicode_nfc, normalize_unicode_nfd,
+    normalize_unicode_nfkc, normalize_unicode_nfkd, normalize_whitespace, number_to_words_pt,
+    parse_f64_loose, parse_i64_loose, round_to_places, strip_diacritics, title_case, trim_to_none,
 };
 
 #[test]
@@ -112,8 +112,14 @@ fn converts_money_to_words() {
 fn money_cents_to_words_eur_edge_cases() {
     assert_eq!(money_cents_to_words_eur(0).unwrap(), "zero euros");
     assert_eq!(money_cents_to_words_eur(1).unwrap(), "um cêntimo");
-    assert_eq!(money_cents_to_words_eur(99).unwrap(), "noventa e nove cêntimos");
-    assert_eq!(money_cents_to_words_eur(-5).unwrap(), "menos cinco cêntimos");
+    assert_eq!(
+        money_cents_to_words_eur(99).unwrap(),
+        "noventa e nove cêntimos"
+    );
+    assert_eq!(
+        money_cents_to_words_eur(-5).unwrap(),
+        "menos cinco cêntimos"
+    );
     assert_eq!(money_cents_to_words_eur(100).unwrap(), "um euro");
     assert_eq!(money_cents_to_words_eur(200).unwrap(), "dois euros");
     assert_eq!(
@@ -125,7 +131,10 @@ fn money_cents_to_words_eur_edge_cases() {
 
 #[test]
 fn money_decimal_to_cents_exact() {
-    assert_eq!(money_decimal_to_cents(Decimal::new(12356, 2)).unwrap(), 12356);
+    assert_eq!(
+        money_decimal_to_cents(Decimal::new(12356, 2)).unwrap(),
+        12356
+    );
     assert_eq!(money_decimal_to_cents(Decimal::new(-100, 2)).unwrap(), -100);
     assert_eq!(money_decimal_to_cents(Decimal::new(0, 0)).unwrap(), 0);
     assert!(money_decimal_to_cents(Decimal::new(12356, 3)).is_err());

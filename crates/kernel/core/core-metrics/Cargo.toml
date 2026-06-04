@@ -13,3 +13,5 @@ thiserror.workspace = true
 chrono.workspace = true
 support-errors = { path = "../../support/support-errors" }
 support-storage = { path = "../../support/support-storage" }
+[lints]
+workspace = true

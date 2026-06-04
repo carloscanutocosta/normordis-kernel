@@ -22,3 +22,5 @@ support-errors  = { path = "../../support/support-errors" }
 [dev-dependencies]
 tempfile.workspace = true
 tokio = { workspace = true, features = ["rt", "macros"] }
+[lints]
+workspace = true

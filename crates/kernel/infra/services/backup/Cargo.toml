@@ -21,3 +21,5 @@ tar.workspace = true
 tempfile.workspace = true
 support-errors = { path = "../../../support/support-errors" }
 support-backup = { path = "../../../support/support-backup" }
+[lints]
+workspace = true

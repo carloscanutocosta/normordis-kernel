@@ -20,3 +20,5 @@ core-validation = { path = "../../../core/core-validation" }
 
 [dev-dependencies]
 core-ingest = { path = "../../../core/core-ingest", features = ["test-helpers"] }
+[lints]
+workspace = true

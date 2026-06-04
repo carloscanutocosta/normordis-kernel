@@ -17,3 +17,5 @@ support-versioning = { path = "../../support/support-versioning" }
 
 [dev-dependencies]
 tempfile.workspace = true
+[lints]
+workspace = true

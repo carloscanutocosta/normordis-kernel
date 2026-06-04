@@ -14,3 +14,5 @@ chrono = { workspace = true, features = ["clock", "serde"] }
 sha2.workspace = true
 hex.workspace = true
 render-typst = { path = "../render-typst", features = ["pdf"] }
+[lints]
+workspace = true

@@ -1,11 +1,13 @@
 # Política de Segurança — normordis-kernel
 
+> Política de CVD conforme **CRA (UE 2024/2847) art. 13–14**, **EN ISO/IEC 30111:2019** e **EN ISO/IEC 29147:2018**.
+
 ## Versões Suportadas
 
 | Versão  | Suporte de segurança |
 |---------|----------------------|
-| `0.3.x` | Sim — versão activa  |
-| `< 0.3` | Não                  |
+| `0.x` (branch `main`) | ✔ Activo |
+| Versões anteriores | Não recebe correcções |
 
 As correcções de segurança são aplicadas exclusivamente na versão activa. Versões anteriores não recebem backports.
 
@@ -15,7 +17,16 @@ As correcções de segurança são aplicadas exclusivamente na versão activa. V
 
 **Não abrir issues públicas para vulnerabilidades de segurança.**
 
-Enviar para: **carloscanutocosta@gmail.com**
+### Canal preferencial — GitHub Private Security Advisory
+
+**[▶ Reportar uma vulnerabilidade](https://github.com/carloscanutocosta/normordis-kernel/security/advisories/new)**
+
+Este canal garante confidencialidade total até à divulgação coordenada (CVD).
+
+### Canal alternativo — Email
+
+**carloscanutocosta@gmail.com**  
+Assunto: `[SECURITY] normordis-kernel — <descrição breve>`
 
 Incluir no relatório:
 
@@ -24,7 +35,51 @@ Incluir no relatório:
 - Versão afectada (output de `cargo metadata --no-deps`)
 - Sugestão de correcção, se existir
 
-**Tempo de resposta esperado:** confirmação em 5 dias úteis; resolução ou plano de mitigação em 30 dias.
+---
+
+## SLAs de Resposta (alinhados com CRA art. 14)
+
+| Severidade | Acuse de recepção | Avaliação inicial | Resolução / Mitigação |
+|---|---|---|---|
+| **Crítica** (CVSS ≥ 9.0) | 24 horas | 72 horas | 7 dias |
+| **Alta** (CVSS 7.0–8.9) | 48 horas | 5 dias úteis | 30 dias |
+| **Média** (CVSS 4.0–6.9) | 5 dias úteis | 10 dias úteis | 90 dias |
+| **Baixa** (CVSS < 4.0) | 10 dias úteis | — | Próxima versão planeada |
+
+---
+
+## Processo de Divulgação Coordenada (CVD)
+
+1. **Recepção** — acusamos recepção no prazo acima indicado.
+2. **Triagem** — avaliamos impacto, reproduzimos e atribuímos CVSS.
+3. **Correcção** — desenvolvemos e testamos a correcção em branch privada.
+4. **Embargo** — período de embargo de até 90 dias (negociável conforme severidade).
+5. **Divulgação** — publicamos GitHub Security Advisory com CVE, versão corrigida e crédito.
+6. **Notificação ENISA / CERT.PT** — para vulnerabilidades activamente exploradas, notificamos a ENISA e o CERT.PT em ≤ 24 horas após confirmação (CRA art. 14 n.º 1).
+
+Referências normativas: EN ISO/IEC 30111:2019, EN ISO/IEC 29147:2018, CRA (UE 2024/2847) art. 13–14, NIS2 (UE 2022/2555) / DL n.º 20/2025.
+
+---
+
+## Âmbito CVD
+
+### Em âmbito
+
+- Código Rust no workspace `normordis-kernel` (todos os crates em `crates/`)
+- Configurações de CI/CD com impacto de segurança
+- Dependências directas listadas em `Cargo.toml`
+
+### Fora de âmbito
+
+- Vulnerabilidades em dependências transitivas sem impacto demonstrável (reportar ao maintainer original)
+- Engenharia social / phishing
+- Ataques físicos
+
+---
+
+## Advisories com Isenção (VEX)
+
+Os advisories RustSec actualmente isentos estão documentados com análise de exploitabilidade em [`security/VEX.cdx.json`](security/VEX.cdx.json) (CycloneDX VEX), conforme CRA art. 13 n.º 6.
 
 As vulnerabilidades confirmadas são corrigidas antes de qualquer divulgação pública. O crédito ao investigador é dado nas notas de release, salvo pedido de anonimato.
 

@@ -19,3 +19,5 @@ domain-numerador = { path = "../../domain/domain-numerador" }
 [dev-dependencies]
 serde_json.workspace = true
 domain-numerador = { path = "../../domain/domain-numerador" }
+[lints]
+workspace = true

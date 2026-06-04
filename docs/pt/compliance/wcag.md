@@ -177,13 +177,14 @@ O DL 83/2018 obriga cada organismo público a publicar uma Declaração de Acess
 | Título do documento (2.4.2) | `core-documental` | Campo título obrigatório | Implementado |
 | Declaração de Acessibilidade | `core-documental` + `normordis-pdf` | Template de declaração | Planeado |
 | WCAG 2.2 — novos critérios AA | `normordis-core-ui` | — | Planeado |
-| Testes automáticos de acessibilidade | CI pipeline | axe-core ou equivalente | Planeado |
+| Testes automáticos de acessibilidade PDF (Tagged) | CI `test-linux` | `poppler-utils pdfinfo` | Implementado (observacional) |
 
 ## Limitações e Exclusões Conhecidas
 
 - **Kernel é headless**: a esmagadora maioria dos critérios WCAG é responsabilidade de `normordis-core-ui`, não do kernel. O kernel contribui com semântica e dados, não com apresentação.
 - **WCAG 2.2**: ainda não adoptado; os novos critérios AA (Focus Appearance, Dragging Movements, Target Size) são retrocompatíveis com WCAG 2.1 e serão incorporados em versão futura.
-- **Testes automáticos**: a validação automática WCAG (ex: axe-core) aplica-se à camada UI e é responsabilidade do integrador e de `normordis-core-ui`.
+- **Testes automáticos PDF**: o job `test-linux` valida estrutura Tagged dos PDFs produzidos (requisito PDF/UA) via `poppler-utils`. Validação completa PDF/A + PDF/UA com veraPDF é um passo manual de release até o pipeline Typst produzir PDF/UA certificado. O gate reporta mas não bloqueia enquanto a maturação estiver em curso.
+- **Testes automáticos UI**: a validação WCAG automática (ex: axe-core) aplica-se à camada UI e é responsabilidade do integrador e de `normordis-core-ui`.
 - **Conteúdo de terceiros**: documentos importados via `core-ingest` podem não ser acessíveis — responsabilidade do produtor original.
 - **Língua múltipla**: `core-documental` suporta o campo `lang`, mas a gestão de conteúdo multilingue dentro de um documento é responsabilidade da app integradora.
 

@@ -15,3 +15,5 @@ uuid.workspace = true
 
 support-errors = { path = "../../support/support-errors" }
 core-validation = { path = "../core-validation" }
+[lints]
+workspace = true

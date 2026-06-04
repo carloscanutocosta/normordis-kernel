@@ -20,3 +20,5 @@ support-ids = { path = "../../support/support-ids" }
 
 [dev-dependencies]
 tempfile.workspace = true
+[lints]
+workspace = true

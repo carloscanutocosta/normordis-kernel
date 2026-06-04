@@ -75,6 +75,12 @@ members = [
   "crates/runtime/interoperability",
 ]
 
+[workspace.lints.rust]
+# Política de segurança: unsafe proibido em todos os crates do workspace.
+# Excepção documentada: crates/kernel/infra/secrets (DPAPI Win32 FFI)
+# — não herda este lint (sem [lints] workspace = true no seu Cargo.toml).
+unsafe_code = "forbid"
+
 [workspace.package]
 edition = "2021"
 license = "EUPL-1.2"

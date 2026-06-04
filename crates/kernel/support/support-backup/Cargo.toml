@@ -13,3 +13,5 @@ serde_json.workspace = true
 flate2.workspace = true
 support-errors = { path = "../support-errors" }
 support-crypto = { path = "../support-crypto" }
+[lints]
+workspace = true

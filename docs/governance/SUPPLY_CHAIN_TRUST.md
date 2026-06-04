@@ -2,7 +2,7 @@
 
 Estado: Activo  
 Âmbito: normordis-kernel · Segurança · Cadeia de fornecimento  
-Data: 2026-05-23
+Data: 2026-06-04 (revisto)
 
 ---
 
@@ -40,9 +40,20 @@ Estruturado: [security/TRUST_GRAPH.json](../../security/TRUST_GRAPH.json)
 
 ## 7. Provenance
 
-A provenance deve ligar artefactos gerados ao contexto de build, commit, workflow e identidade verificável. A integração actual usa `actions/attest-build-provenance@v2` em cada release.
+A provenance liga artefactos gerados ao contexto de build, commit, workflow e identidade verificável. A integração actual inclui três camadas:
 
-A integração futura deve considerar SLSA nível 3, Cosign/Sigstore e `actions/attest-sbom` para associar SBOM e artefactos distribuídos a garantias verificáveis.
+1. **`actions/attest-build-provenance`** — attestation SLSA L2 no GitHub Artifact Attestation (Sigstore sob OIDC do GitHub Actions), gerada em cada release.
+2. **`actions/attest-sbom`** — SBOM associado ao artefacto como attestation verificável no Transparency Log (CRA art. 13 n.º 5).
+3. **Cosign keyless** — `cosign sign-blob` assina o MANIFEST.sha256 e o SBOM e publica no Sigstore Transparency Log com identidade GitHub Actions. Verificável offline sem chaves privadas:
+   ```sh
+   cosign verify-blob \
+     --bundle MANIFEST.sha256.bundle \
+     --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+     --certificate-identity-regexp "^https://github.com/carloscanutocosta/normordis-kernel/" \
+     MANIFEST.sha256
+   ```
+
+Todos os workflows de release têm as actions ancoradas em SHA criptográfico (não em tags mutáveis), eliminando o vector de substituição de tag na cadeia de CI.
 
 ## 8. Runtime Integrity
 
@@ -52,26 +63,35 @@ Ver: [security/RUNTIME_INTEGRITY.md](../../security/RUNTIME_INTEGRITY.md)
 
 ## 9. CI Gates
 
-Os gates de CI evoluem por níveis. A fase actual é activa para segurança e observacional para SBOM:
-
-| Gate | Ferramenta | Comportamento |
-|------|-----------|---------------|
-| Vulnerabilidades | `cargo audit` / `rustsec/audit-check@v2` | Bloqueia PR em falha |
-| Licenças | `cargo deny` / `EmbarkStudios/cargo-deny-action@v2` | Bloqueia PR em falha |
-| SBOM | `cargo cyclonedx` | Observacional — gera artefacto, não bloqueia |
-| Manifest | `generate-manifest.ps1` | Gerado em release, não em PR |
-| Provenance | `actions/attest-build-provenance@v2` | Release apenas |
-
-Fases posteriores podem introduzir bloqueios adicionais para ausência de SBOM, manifest inválido ou score de segurança insuficiente.
+| Gate | Ferramenta | Workflow | Comportamento |
+|------|-----------|----------|---------------|
+| Vulnerabilidades | `cargo audit` / `rustsec/audit-check` | `ci.yml` + `release.yml` | **Bloqueia** |
+| Licenças | `cargo deny` / `cargo-deny-action` | `ci.yml` + `release.yml` | **Bloqueia** |
+| Dependências não usadas | `cargo machete` | `ci.yml` | **Bloqueia** |
+| SBOM | `cargo cyclonedx` | `ci.yml` + `release.yml` | Observacional — artefacto gerado |
+| SBOM attestation | `actions/attest-sbom` | `release.yml` | Release — Sigstore TLog |
+| Manifest SHA-256 | `generate-manifest.ps1` | `release.yml` | Release — integridade ficheiros |
+| Provenance (SLSA L2) | `actions/attest-build-provenance` | `release.yml` | Release — Sigstore TLog |
+| Cosign keyless | `cosign sign-blob` (Sigstore) | `release.yml` | Release — bundle verificável offline |
+| SAST unsafe surface | `cargo geiger` | `ci.yml` | Observacional — relatório auditável |
+| Dependências desactualizadas | `cargo outdated` | `ci.yml` | Observacional — relatório |
+| SAST profundo | CodeQL (`security-and-quality`) | `codeql.yml` | PR + semanal — Code Scanning |
+| OpenSSF Scorecard | `ossf/scorecard-action` | `scorecard.yml` | Semanal — badge público + SARIF |
+| SHA pinning (supply chain) | Todas as actions ancoradas em SHA | todos | Estrutural — sem tags mutáveis |
+| VEX (exploitabilidade) | `security/VEX.cdx.json` | — | Auditável — CRA art. 13 n.º 6 |
+| CVD procedure | `SECURITY.md` | — | Institutional — CRA art. 13–14 |
 
 ## 10. Roadmap
 
-- Consolidar geração CycloneDX com verificação de schema.
-- Publicar manifest SHA-256 em cada release.
-- Integrar OpenSSF Scorecard como indicador de risco.
-- Investigar SLSA nível 2/3 para o pipeline de release.
-- Implementar validação gradual de política de supply chain.
+- ~~Integrar OpenSSF Scorecard como indicador de risco.~~ **Concluído** (`scorecard.yml`)
+- ~~Investigar SLSA nível 2/3 para o pipeline de release.~~ **Concluído** (attest-build-provenance L2 + Cosign L3-ready)
+- ~~Implementar Cosign/Sigstore para binários distribuídos.~~ **Concluído** (`cosign sign-blob` keyless)
+- ~~Documentar exploitabilidade de advisories isentos (VEX).~~ **Concluído** (`security/VEX.cdx.json`)
+- Promover `cargo outdated` de observacional para gate de bloqueio (quando o grafo de deps Typst estabilizar).
+- Promover `cargo geiger` para gate de bloqueio nos crates do workspace (excluindo deps transitivas).
+- Implementar validação de schema CycloneDX no SBOM gerado.
 - Investigar runtime integrity para binários distribuídos.
+- Investigar SLSA L3 (hermetic builds em ambiente isolado).
 
 ---
 

@@ -12,3 +12,5 @@ serde_json = { workspace = true }
 thiserror  = { workspace = true }
 
 core-exports = { path = "../../kernel/core/core-exports" }
+[lints]
+workspace = true

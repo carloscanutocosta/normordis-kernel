@@ -15,3 +15,5 @@ uuid.workspace = true
 
 core-rh  = { path = "../core-rh" }
 core-org = { path = "../core-org" }
+[lints]
+workspace = true

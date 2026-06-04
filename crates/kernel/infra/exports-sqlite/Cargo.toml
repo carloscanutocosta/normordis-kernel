@@ -21,3 +21,5 @@ tempfile.workspace = true
 core-documental    = { path = "../../core/core-documental" }
 core-rh            = { path = "../../core/core-rh" }
 serde_json.workspace = true
+[lints]
+workspace = true
