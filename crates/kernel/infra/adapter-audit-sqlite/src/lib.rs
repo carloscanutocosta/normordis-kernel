@@ -41,7 +41,7 @@ use adapter_sqlite::{
 };
 use core_audit::{
     compute_manifest_hash, compute_record_hash, AuditActor, AuditChainReport, AuditError,
-    AuditEvent, AuditExportManifest, AuditStore, AuditTarget,
+    AuditEvent, AuditExportManifest, AuditOutcome, AuditStore, AuditTarget,
 };
 use support_errors::MiniError;
 
@@ -149,6 +149,14 @@ pub const AUDIT_MIGRATIONS: &[&str] = &[
         SELECT RAISE(ABORT, 'audit sequence must be greater than zero');
     END;
     "#,
+    // Migração 5 — alinhamento COSO: persiste `outcome` e `control_id` do AuditEvent.
+    //   Colunas anuláveis: linhas antigas ficam NULL e reconstroem-se como
+    //   `NotApplicable` / `None` — a forma canónica de serialização desses eventos,
+    //   pelo que a cadeia de hashes continua a verificar.
+    r#"
+    ALTER TABLE audit_events ADD COLUMN outcome    TEXT;
+    ALTER TABLE audit_events ADD COLUMN control_id TEXT;
+    "#,
 ];
 
 // ─── Erros ────────────────────────────────────────────────────────────────────
@@ -196,9 +204,11 @@ impl<E: DetailsEncryptor> AuditSqliteStore<E> {
 
 // ─── Helpers internos ─────────────────────────────────────────────────────────
 
+// Ordem: outcome/control_id são acrescentados no fim (índices 12/13) para não
+// deslocar os índices existentes em `map_row`.
 const EVENT_COLUMNS: &str = "event_id, event_type, actor_id, actor_name, actor_type, \
      target_type, target_id, occurred_at, details_json, \
-     sequence, prev_record_hash, record_hash";
+     sequence, prev_record_hash, record_hash, outcome, control_id";
 
 struct RawEventRow {
     event_id: String,
@@ -213,6 +223,8 @@ struct RawEventRow {
     sequence: i64,
     prev_record_hash: Option<String>,
     record_hash: String,
+    outcome: Option<String>,
+    control_id: Option<String>,
 }
 
 fn map_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<RawEventRow> {
@@ -229,7 +241,30 @@ fn map_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<RawEventRow> {
         sequence: row.get(9)?,
         prev_record_hash: row.get(10)?,
         record_hash: row.get(11)?,
+        outcome: row.get(12)?,
+        control_id: row.get(13)?,
     })
+}
+
+/// Serializa o outcome para a coluna `outcome` (forma snake_case canónica).
+fn outcome_to_str(o: &AuditOutcome) -> &'static str {
+    match o {
+        AuditOutcome::Success => "success",
+        AuditOutcome::Failure => "failure",
+        AuditOutcome::PartialSuccess => "partial_success",
+        AuditOutcome::NotApplicable => "not_applicable",
+    }
+}
+
+/// Reconstrói o outcome a partir da coluna. `NULL` ou desconhecido → `NotApplicable`,
+/// preservando a forma canónica das linhas antigas (anteriores ao alinhamento COSO).
+fn str_to_outcome(s: Option<&str>) -> AuditOutcome {
+    match s {
+        Some("success") => AuditOutcome::Success,
+        Some("failure") => AuditOutcome::Failure,
+        Some("partial_success") => AuditOutcome::PartialSuccess,
+        _ => AuditOutcome::NotApplicable,
+    }
 }
 
 fn decode_datetime(s: &str) -> Result<DateTime<Utc>, AuditError> {
@@ -262,6 +297,8 @@ fn build_event_from_raw(
             target_id: raw.target_id.clone(),
         },
         occurred_at_utc,
+        outcome: str_to_outcome(raw.outcome.as_deref()),
+        control_id: raw.control_id.clone(),
         details_json,
     })
 }
@@ -438,7 +475,7 @@ impl<E: DetailsEncryptor> AuditStore for AuditSqliteStore<E> {
             conn.execute(
                 &format!(
                     "INSERT INTO audit_events ({EVENT_COLUMNS}) \
-                     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)"
+                     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)"
                 ),
                 params![
                     &event.event_id,
@@ -453,6 +490,8 @@ impl<E: DetailsEncryptor> AuditStore for AuditSqliteStore<E> {
                     new_seq as i64,
                     &head_hash,
                     &record_hash,
+                    outcome_to_str(&event.outcome),
+                    &event.control_id,
                 ],
             )
             .map_err(|_| AuditError::StoreFailed)?;
@@ -659,18 +698,75 @@ impl<E: DetailsEncryptor> AuditStore for AuditSqliteStore<E> {
     }
 }
 
+// ─── SodHistoryProvider ───────────────────────────────────────────────────────
+
+use core_security::{SecurityError as SecurityErr, SodHistoryProvider};
+
+/// Implementa `SodHistoryProvider` consultando `audit_events` por actor + recurso.
+///
+/// ## Mapeamento
+///
+/// | SoD concept    | audit_events column |
+/// |----------------|---------------------|
+/// | `principal_id` | `actor_id`          |
+/// | `resource_id`  | `target_id`         |
+/// | acção anterior | `event_type`        |
+///
+/// ## Convenção de nomes
+///
+/// Para que `check_sod()` funcione correctamente, as regras SoD devem usar os
+/// mesmos nomes de acção que o `event_type` nos eventos de auditoria.
+/// Exemplo: `SodRule.conflicts_with = "document.create"` deve corresponder
+/// ao `event_type = "document.create"` registado pelo `core-audit`.
+impl<E: DetailsEncryptor> SodHistoryProvider for AuditSqliteStore<E> {
+    async fn previous_actions(
+        &self,
+        principal_id: &str,
+        resource_id: &str,
+        now: chrono::DateTime<chrono::Utc>,
+    ) -> Result<Vec<String>, SecurityErr> {
+        let now_s = now.to_rfc3339();
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|_| SecurityErr::RepoUnavailable("lock poisoned".into()))?;
+
+        let mut stmt = conn
+            .prepare(
+                "SELECT event_type FROM audit_events
+                 WHERE actor_id  = ?1
+                   AND target_id = ?2
+                   AND occurred_at < ?3
+                 ORDER BY occurred_at ASC",
+            )
+            .map_err(|e| SecurityErr::RepoUnavailable(e.to_string()))?;
+
+        let rows = stmt
+            .query_map(rusqlite::params![principal_id, resource_id, now_s], |r| {
+                r.get::<_, String>(0)
+            })
+            .map_err(|e| SecurityErr::RepoUnavailable(e.to_string()))?;
+
+        let mut actions = Vec::new();
+        for row in rows {
+            actions.push(row.map_err(|e| SecurityErr::RepoUnavailable(e.to_string()))?);
+        }
+        Ok(actions)
+    }
+}
+
 // ─── Testes ───────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
 mod tests {
-    use chrono::TimeZone;
+    use chrono::{TimeZone, Utc};
     use serde_json::json;
     use tempfile::NamedTempFile;
 
     use adapter_sqlite::SqliteRelationalConfig;
     use core_audit::{
-        sign_manifest, verify_signed_manifest, AuditActor, AuditError, AuditEvent, AuditSigningKey,
-        AuditStore, AuditTarget,
+        sign_manifest, verify_signed_manifest, AuditActor, AuditError, AuditEvent, AuditOutcome,
+        AuditSigningKey, AuditStore, AuditTarget,
     };
 
     use super::{AuditSqliteStore, DetailsEncryptor};
@@ -689,6 +785,8 @@ mod tests {
             AuditActor::new("user-1").unwrap(),
             AuditTarget::new("document", "doc-1").unwrap(),
             chrono::Utc.with_ymd_and_hms(2026, 5, 11, 10, 0, 0).unwrap(),
+            AuditOutcome::Success,
+            None,
             Some(json!({"ip": "127.0.0.1", "ok": true})),
         )
         .unwrap()
@@ -703,6 +801,8 @@ mod tests {
                     AuditActor::new(format!("user-{h}")).unwrap(),
                     AuditTarget::new("document", format!("doc-{h}")).unwrap(),
                     chrono::Utc.with_ymd_and_hms(2026, 5, 11, h, 0, 0).unwrap(),
+                    AuditOutcome::Success,
+                    None,
                     None,
                 )
                 .unwrap()
@@ -806,6 +906,8 @@ mod tests {
             AuditActor::new("user-1").unwrap(),
             AuditTarget::new("document", "doc-1").unwrap(),
             chrono::Utc.with_ymd_and_hms(2026, 5, 11, 10, 0, 0).unwrap(),
+            AuditOutcome::Success,
+            None,
             Some(json!({"segredo": "valor"})),
         )
         .unwrap();
@@ -845,6 +947,8 @@ mod tests {
             AuditActor::new("user-1").unwrap(),
             AuditTarget::new("document", "doc-1").unwrap(),
             chrono::Utc.with_ymd_and_hms(2026, 5, 11, 10, 0, 0).unwrap(),
+            AuditOutcome::Success,
+            None,
             Some(json!({"campo": "valor"})),
         )
         .unwrap();
@@ -882,6 +986,8 @@ mod tests {
             AuditActor::new("user-1").unwrap(),
             AuditTarget::new("document", "doc-1").unwrap(),
             chrono::Utc.with_ymd_and_hms(2026, 5, 11, 10, 0, 0).unwrap(),
+            AuditOutcome::Success,
+            None,
             None,
         )
         .unwrap();
@@ -902,6 +1008,8 @@ mod tests {
                     AuditActor::new("user-1").unwrap(),
                     AuditTarget::new("document", format!("doc-{h}")).unwrap(),
                     chrono::Utc.with_ymd_and_hms(2026, 5, 11, h, 0, 0).unwrap(),
+                    AuditOutcome::Success,
+                    None,
                     None,
                 )
                 .unwrap()
@@ -933,6 +1041,8 @@ mod tests {
                 AuditActor::new(format!("user-{h}")).unwrap(),
                 AuditTarget::new("document", "doc-shared").unwrap(),
                 chrono::Utc.with_ymd_and_hms(2026, 5, 11, h, 0, 0).unwrap(),
+                AuditOutcome::Success,
+                None,
                 None,
             )
             .unwrap();
@@ -955,6 +1065,8 @@ mod tests {
             AuditActor::new("user-1").unwrap(),
             AuditTarget::new("document", "doc-2").unwrap(),
             chrono::Utc.with_ymd_and_hms(2026, 5, 11, 10, 1, 0).unwrap(),
+            AuditOutcome::Success,
+            None,
             None,
         )
         .unwrap();
@@ -1215,5 +1327,129 @@ mod tests {
         assert_eq!(page1.len(), 2);
         assert_eq!(page2.len(), 2);
         assert_eq!(page3.len(), 1);
+    }
+
+    // ── SodHistoryProvider ────────────────────────────────────────────────────
+
+    fn event_with_actor_target(event_type: &str, actor_id: &str, target_id: &str) -> AuditEvent {
+        AuditEvent::with_id_and_time(
+            uuid::Uuid::new_v4().to_string(),
+            event_type,
+            AuditActor::new(actor_id).unwrap(),
+            AuditTarget::new("document", target_id).unwrap(),
+            Utc::now(),
+            AuditOutcome::Success,
+            None,
+            None,
+        )
+        .unwrap()
+    }
+
+    #[tokio::test]
+    async fn sod_history_retorna_accoes_anteriores() {
+        use core_security::SodHistoryProvider;
+        let (store, _f) = tmp_store();
+
+        store
+            .record(&event_with_actor_target(
+                "document.create",
+                "user:alice",
+                "doc:123",
+            ))
+            .unwrap();
+        store
+            .record(&event_with_actor_target(
+                "document.edit",
+                "user:alice",
+                "doc:123",
+            ))
+            .unwrap();
+
+        let actions = store
+            .previous_actions("user:alice", "doc:123", Utc::now())
+            .await
+            .unwrap();
+
+        assert_eq!(actions.len(), 2);
+        assert!(actions.contains(&"document.create".to_string()));
+        assert!(actions.contains(&"document.edit".to_string()));
+    }
+
+    #[tokio::test]
+    async fn sod_history_filtra_por_actor() {
+        use core_security::SodHistoryProvider;
+        let (store, _f) = tmp_store();
+
+        store
+            .record(&event_with_actor_target(
+                "document.create",
+                "user:alice",
+                "doc:123",
+            ))
+            .unwrap();
+        store
+            .record(&event_with_actor_target(
+                "document.create",
+                "user:bob",
+                "doc:123",
+            ))
+            .unwrap();
+
+        let alice_actions = store
+            .previous_actions("user:alice", "doc:123", Utc::now())
+            .await
+            .unwrap();
+        assert_eq!(alice_actions.len(), 1);
+
+        let bob_actions = store
+            .previous_actions("user:bob", "doc:123", Utc::now())
+            .await
+            .unwrap();
+        assert_eq!(bob_actions.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn sod_history_filtra_por_recurso() {
+        use core_security::SodHistoryProvider;
+        let (store, _f) = tmp_store();
+
+        store
+            .record(&event_with_actor_target(
+                "document.create",
+                "user:alice",
+                "doc:111",
+            ))
+            .unwrap();
+        store
+            .record(&event_with_actor_target(
+                "document.create",
+                "user:alice",
+                "doc:222",
+            ))
+            .unwrap();
+
+        let actions_111 = store
+            .previous_actions("user:alice", "doc:111", Utc::now())
+            .await
+            .unwrap();
+        assert_eq!(actions_111.len(), 1);
+
+        let actions_222 = store
+            .previous_actions("user:alice", "doc:222", Utc::now())
+            .await
+            .unwrap();
+        assert_eq!(actions_222.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn sod_history_sem_eventos_retorna_vazio() {
+        use core_security::SodHistoryProvider;
+        let (store, _f) = tmp_store();
+
+        let actions = store
+            .previous_actions("user:alice", "doc:999", Utc::now())
+            .await
+            .unwrap();
+        assert!(actions.is_empty());
     }
 }

@@ -497,6 +497,20 @@
       "public_message_policy": "Generica. Pode indicar que o recurso nao e um ficheiro regular sem expor path completo."
     },
     {
+      "code": "MINI.VALIDATION.UNSAFE_FILE_TYPE",
+      "status": "active",
+      "component": "core-validation",
+      "use": "Path recebido para hash ou manifest aponta para symlink, reparse point ou tipo de ficheiro proibido por politica probatoria.",
+      "public_message_policy": "Generica. Pode indicar que o tipo de ficheiro nao e permitido sem expor path completo."
+    },
+    {
+      "code": "MINI.VALIDATION.INVALID_PATH_ENCODING",
+      "status": "active",
+      "component": "core-validation",
+      "use": "Path recebido para manifest nao pode ser representado em UTF-8 canonico.",
+      "public_message_policy": "Generica. Nao expor path completo quando vier de input externo."
+    },
+    {
       "code": "MINI.VALIDATION.FILE_READ_FAILED",
       "status": "active",
       "component": "core-validation",
@@ -999,6 +1013,27 @@
       "component": "core-security",
       "use": "Repositorio de politicas ou delegacoes de seguranca indisponivel.",
       "public_message_policy": "Generica. Nao expor backend concreto nem detalhes de conectividade."
+    },
+    {
+      "code": "MINI.SECURITY.AUDIT_UNAVAILABLE",
+      "status": "active",
+      "component": "core-security",
+      "use": "Auditoria de decisoes de autorizacao indisponivel em modo fail-closed.",
+      "public_message_policy": "Generica. Nao expor backend concreto nem detalhes internos da auditoria."
+    },
+    {
+      "code": "MINI.SECURITY.EVENT_PUBLISH_FAILED",
+      "status": "active",
+      "component": "core-security",
+      "use": "Publicacao de evento de seguranca falhou em modo fail-closed.",
+      "public_message_policy": "Generica. Nao expor filas, destinos SIEM, tokens ou detalhes internos."
+    },
+    {
+      "code": "MINI.SECURITY.SOD_HISTORY_UNAVAILABLE",
+      "status": "active",
+      "component": "core-security",
+      "use": "Historico de segregacao de funcoes indisponivel em modo fail-closed.",
+      "public_message_policy": "Generica. Nao expor backend de auditoria nem dados historicos sensiveis."
     },
     {
       "code": "MINI.SECURITY.INVALID_DELEGATION",

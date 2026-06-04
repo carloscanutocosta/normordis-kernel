@@ -109,7 +109,7 @@ fn open_logger(profile: &LoggingProfile) -> Result<Option<FileLogger>, RuntimeEr
 mod tests {
     use std::fs;
 
-    use core_audit::{AuditActor, AuditTarget};
+    use core_audit::{AuditActor, AuditOutcome, AuditTarget, RecordAuditEventRequest};
     use core_config::{MiniKernelProfile, StorageBackend, StorageProfile, StoragePurpose};
     use serde_json::json;
     use support_crypto::{KeyId, SecretKey, StaticKeyProvider};
@@ -132,10 +132,13 @@ mod tests {
         runtime
             .audit()
             .record_event(
-                "runtime.opened",
-                AuditActor::new("system").unwrap(),
-                AuditTarget::new("runtime", "kernel").unwrap(),
-                Some(json!({"ok": true})),
+                RecordAuditEventRequest::new(
+                    "runtime.opened",
+                    AuditActor::new("system").unwrap(),
+                    AuditTarget::new("runtime", "kernel").unwrap(),
+                    AuditOutcome::Success,
+                )
+                .with_details(json!({"ok": true})),
             )
             .unwrap()
             .event_id
@@ -210,12 +213,12 @@ mod tests {
         runtime.shutdown().unwrap();
         let err = runtime
             .audit()
-            .record_event(
+            .record_event(RecordAuditEventRequest::new(
                 "runtime.after_shutdown",
                 AuditActor::new("system").unwrap(),
                 AuditTarget::new("runtime", "kernel").unwrap(),
-                None,
-            )
+                AuditOutcome::Success,
+            ))
             .unwrap_err();
 
         assert_eq!(err, core_audit::AuditError::StoreFailed);

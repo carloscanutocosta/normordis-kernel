@@ -58,6 +58,7 @@ impl AppState {
         }
     }
 
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Result<Self, RegistryError> {
         match s {
             "Draft" => Ok(AppState::Draft),
@@ -129,6 +130,7 @@ impl AppVisibility {
         }
     }
 
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Result<Self, RegistryError> {
         match s {
             "Public" => Ok(AppVisibility::Public),

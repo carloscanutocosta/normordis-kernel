@@ -10,3 +10,5 @@ description = "Domínio MEF — Matriz de Estrutura Funcional (classificação d
 chrono   = { workspace = true }
 serde    = { workspace = true }
 thiserror = { workspace = true }
+[lints]
+workspace = true

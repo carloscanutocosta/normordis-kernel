@@ -12,7 +12,8 @@ support-storage  = { path = "../../support/support-storage" }
 rusqlite         = { workspace = true }
 serde_json       = { workspace = true }
 chrono           = { workspace = true }
-thiserror        = { workspace = true }
 
 [dev-dependencies]
 tempfile = { workspace = true }
+[lints]
+workspace = true

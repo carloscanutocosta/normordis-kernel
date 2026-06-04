@@ -13,6 +13,19 @@ pub fn required(field: impl Into<String>, value: &str) -> ValidationReport {
     }
 }
 
+pub fn min_length(field: impl Into<String>, value: &str, min: usize) -> ValidationReport {
+    let field = field.into();
+    if value.chars().count() < min {
+        ValidationReport::with_issue(ValidationIssue::error(
+            rules::STRING_MIN_LENGTH,
+            field,
+            format!("field must have at least {min} characters"),
+        ))
+    } else {
+        ValidationReport::ok()
+    }
+}
+
 pub fn max_length(field: impl Into<String>, value: &str, max: usize) -> ValidationReport {
     let field = field.into();
     if value.chars().count() > max {

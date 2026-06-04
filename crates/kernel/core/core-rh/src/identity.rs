@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     audit_actor_from_user, validate_optional_email, validate_required_display_name,
-    validate_username, OrgPositionRef, RhError, UserId, UserProfile, UserRole,
+    validate_username, OrgPositionRef, PersonAssignment, RhError, UserId, UserProfile, UserRole,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -31,6 +31,30 @@ impl UserContext {
     pub fn with_position(mut self, pos: OrgPositionRef) -> Self {
         self.org_position = Some(pos);
         self
+    }
+
+    /// Constrói um `UserContext` com a posição orgânica derivada de um
+    /// `PersonAssignment` institucional — grunda a sessão no registo COSO.
+    ///
+    /// `competency_id` e `delegation_id` são fornecidos pelo chamador porque
+    /// não estão na afetação (essa informação está em `core-org`).
+    pub fn from_assignment(
+        identity: UserIdentity,
+        assignment: &PersonAssignment,
+        competency_id: impl Into<String>,
+        delegation_id: Option<String>,
+    ) -> Result<Self, RhError> {
+        identity.validate()?;
+        let org_position = OrgPositionRef::new(
+            &assignment.position_id,
+            &assignment.unit_id,
+            competency_id,
+            delegation_id,
+        )?;
+        Ok(Self {
+            current_user: identity,
+            org_position: Some(org_position),
+        })
     }
 }
 

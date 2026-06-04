@@ -4,7 +4,7 @@ Autorização zero-trust com políticas soberanas, delegações e auditoria de d
 
 ## Objectivo
 
-Define o contrato de domínio para controlo de acesso baseado em políticas (PBAC): verificação de principal, avaliação de regras, concessão/revogação de delegações e registo imutável de decisões de autorização.
+Define o contrato de domínio para controlo de acesso baseado em políticas (PBAC/ABAC): avaliação de regras soberanas, delegações temporais, roles, segregação de funções, auditoria de decisões e eventos técnicos de segurança.
 
 ## Posição arquitectural
 
@@ -16,7 +16,9 @@ Define o contrato de domínio para controlo de acesso baseado em políticas (PBA
 - Port `SecurityPolicyRepository` (leitura/escrita de políticas e delegações).
 - Port `SecurityAuditLog` (registo de decisões).
 - Port `RoleMembershipRepository` (atribuição de roles a principals).
-- `SecurityService` — serviço de domínio com lógica de autorização em 4 gates.
+- `SecurityService` — serviço de domínio async com autorização simples e contextual.
+- `SecurityRuntimePolicy` — modo operacional de produção ou bootstrap controlado.
+- `SecurityEventPublisher`, `OrgScopeValidator` e `SodHistoryProvider` — portos hexagonais para SIEM, RH/organização e auditoria.
 - Implementações em-memória para testes: `InMemorySecurityPolicyRepository`, `InMemoryRoleMembership`, `InMemoryAuditLog`.
 - Modos de política: `Baseline` (permissivo por omissão) e `Strict` (restritivo por omissão).
 
@@ -35,10 +37,12 @@ let repo = InMemorySecurityPolicyRepository::new();
 let audit = InMemoryAuditLog::new();
 let roles = InMemoryRoleMembership::new();
 
-let svc = SecurityService::new(repo, audit, roles);
+let svc = SecurityService::with_all(repo, audit, roles);
 let principal = VerifiedPrincipal::human("user-1");
-let token = svc.authorize(&principal, "document.read", "doc-42")?;
+let token = svc.authorize(&ctx, Some("doc-42"), Utc::now()).await?;
 ```
+
+Por omissão, o serviço usa `SecurityRuntimePolicy::production()`: sem políticas activas, a autorização é negada; falhas de auditoria/eventos/SoD são tratadas como fail-closed. Para bootstrap controlado usar explicitamente `SecurityRuntimePolicy::bootstrap_permissive()`.
 
 ## Validação
 

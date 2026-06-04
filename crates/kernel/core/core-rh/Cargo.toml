@@ -16,3 +16,5 @@ thiserror.workspace = true
 support-errors = { path = "../../support/support-errors" }
 core-validation = { path = "../core-validation" }
 core-audit = { path = "../core-audit" }
+[lints]
+workspace = true

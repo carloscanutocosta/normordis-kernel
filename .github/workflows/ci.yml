@@ -6,6 +6,9 @@ on:
   pull_request:
     branches: [main]
 
+# Least-privilege: cada job declara apenas o que precisa.
+permissions: read-all
+
 env:
   CARGO_TERM_COLOR: always
   RUSTFLAGS: "-D warnings"
@@ -16,9 +19,10 @@ jobs:
     name: Format
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+      - uses: dtolnay/rust-toolchain@3c5f7ea28cd621ae0bf5283f0e981fb97b8a7af9  # stable
         with:
+          toolchain: stable
           components: rustfmt
       - run: cargo fmt --all -- --check
 
@@ -27,26 +31,28 @@ jobs:
     name: Check & Clippy (Windows)
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+      - uses: dtolnay/rust-toolchain@3c5f7ea28cd621ae0bf5283f0e981fb97b8a7af9  # stable
         with:
+          toolchain: stable
           components: clippy
-      - uses: Swatinem/rust-cache@v2
-      - run: cargo check --workspace --all-targets
-      - run: cargo clippy --workspace --all-targets -- -D warnings
+      - uses: Swatinem/rust-cache@23869a5bd66c73db3c0ac40331f3206eb23791dc  # v2.9.1
+      - run: cargo check --locked --workspace --all-targets
+      - run: cargo clippy --locked --workspace --all-targets -- -D warnings
 
   # ── Check + Clippy em Linux (valida agnóstico de plataforma) ──────────────────
   check-linux:
     name: Check & Clippy (Linux)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+      - uses: dtolnay/rust-toolchain@3c5f7ea28cd621ae0bf5283f0e981fb97b8a7af9  # stable
         with:
+          toolchain: stable
           components: clippy
-      - uses: Swatinem/rust-cache@v2
-      - run: cargo check --workspace --all-targets
-      - run: cargo clippy --workspace --all-targets -- -D warnings
+      - uses: Swatinem/rust-cache@23869a5bd66c73db3c0ac40331f3206eb23791dc  # v2.9.1
+      - run: cargo check --locked --workspace --all-targets
+      - run: cargo clippy --locked --workspace --all-targets -- -D warnings
 
   # ── Testes em Windows ────────────────────────────────────────────────────────
   test-windows:
@@ -54,10 +60,12 @@ jobs:
     runs-on: windows-latest
     needs: check-windows
     steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: Swatinem/rust-cache@v2
-      - run: cargo test --workspace
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+      - uses: dtolnay/rust-toolchain@3c5f7ea28cd621ae0bf5283f0e981fb97b8a7af9  # stable
+        with:
+          toolchain: stable
+      - uses: Swatinem/rust-cache@23869a5bd66c73db3c0ac40331f3206eb23791dc  # v2.9.1
+      - run: cargo test --locked --workspace
 
   # ── Testes em Linux ──────────────────────────────────────────────────────────
   test-linux:
@@ -65,18 +73,52 @@ jobs:
     runs-on: ubuntu-latest
     needs: check-linux
     steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: Swatinem/rust-cache@v2
-      - run: cargo test --workspace
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+      - uses: dtolnay/rust-toolchain@3c5f7ea28cd621ae0bf5283f0e981fb97b8a7af9  # stable
+        with:
+          toolchain: stable
+      - uses: Swatinem/rust-cache@23869a5bd66c73db3c0ac40331f3206eb23791dc  # v2.9.1
+      - run: cargo test --locked --workspace
+
+      - name: Validate PDF accessibility (poppler-utils / EN 301 549)
+        # Verifica que os PDFs produzidos pelos testes têm estrutura Tagged —
+        # requisito obrigatório para PDF/UA e EN 301 549 cláusula 10.
+        # Observacional: reporta mas não bloqueia (Typst PDF/UA em maturação).
+        continue-on-error: true
+        run: |
+          PDF_FILES=$(find target -name "*.pdf" -newer Cargo.toml 2>/dev/null | head -20)
+          if [ -z "$PDF_FILES" ]; then
+            echo "::notice::Nenhum PDF produzido pelos testes — step ignorado"
+            exit 0
+          fi
+          sudo apt-get install -y -q poppler-utils 2>/dev/null
+          UNTAGGED=0
+          echo "PDFs encontrados: $(echo "$PDF_FILES" | wc -l)"
+          while IFS= read -r f; do
+            INFO=$(pdfinfo "$f" 2>/dev/null)
+            TAGGED=$(echo "$INFO" | grep -c "Tagged.*yes" || true)
+            VERSION=$(echo "$INFO" | grep "^PDF version" | awk '{print $3}')
+            if [ "$TAGGED" -eq 0 ]; then
+              echo "::warning file=$f::PDF não-tagged (PDF/UA requer Tagged=yes) — EN 301 549 §10"
+              UNTAGGED=$((UNTAGGED + 1))
+            else
+              echo "OK: $f — Tagged PDF v${VERSION}"
+            fi
+          done <<< "$PDF_FILES"
+          if [ "$UNTAGGED" -gt 0 ]; then
+            echo "::warning::$UNTAGGED PDF(s) sem Tagged structure. Ver docs/pt/compliance/wcag.md"
+          fi
 
   # ── Auditoria de vulnerabilidades (RustSec) ───────────────────────────────
   audit:
     name: Security Audit
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      checks: write
     steps:
-      - uses: actions/checkout@v4
-      - uses: rustsec/audit-check@v2
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+      - uses: rustsec/audit-check@69366f33c96575abad1ee0dba8212993eecbe998  # v2.0.0
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
 
@@ -85,28 +127,143 @@ jobs:
     name: License & Deps Check
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: EmbarkStudios/cargo-deny-action@v2
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+      - uses: EmbarkStudios/cargo-deny-action@8a45e1c7c9a95dfae3276e89a553705e40ae45a2  # v2.0.20
         with:
           command: check
           arguments: --all-features
+
+  # ── Revisão de dependências introduzidas por PR (OSV + GitHub Advisory DB) ─
+  dependency-review:
+    name: Dependency Review
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+      - uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294  # v5.0.0
+        with:
+          fail-on-severity: moderate
+          comment-summary-in-pr: always
+
+  # ── SAST — superfície unsafe (cargo geiger + grep gate) ──────────────────
+  geiger:
+    name: SAST — Unsafe Surface
+    runs-on: ubuntu-latest
+    needs: check-linux
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+      - uses: dtolnay/rust-toolchain@3c5f7ea28cd621ae0bf5283f0e981fb97b8a7af9  # stable
+        with:
+          toolchain: stable
+      - uses: Swatinem/rust-cache@23869a5bd66c73db3c0ac40331f3206eb23791dc  # v2.9.1
+
+      - name: Verify zero unsafe in workspace (excl. infra/secrets DPAPI FFI)
+        # infra/secrets usa unsafe para Windows CryptProtectData/CryptUnprotectData.
+        # Excepção documentada em security/VEX.cdx.json (vulnerable_code_not_present).
+        run: |
+          UNSAFE=$(grep -rn "unsafe " crates/ --include="*.rs" --exclude-dir=secrets \
+            | grep -v "^\s*//" | grep -v "//.*unsafe" || true)
+          if [ -n "$UNSAFE" ]; then
+            echo "::error::Unsafe code encontrado fora da excepção documentada (infra/secrets DPAPI FFI)"
+            echo "$UNSAFE"
+            exit 1
+          fi
+          echo "Zero unsafe em crates do workspace (excl. infra/secrets: DPAPI FFI Win32)"
+
+      - name: Install cargo-geiger
+        run: cargo install cargo-geiger --locked
+
+      - name: Generate unsafe surface report (evidência auditável)
+        # Gate de bloqueio já passou acima; este passo produz relatório completo
+        # incluindo deps transitivas — evidência para auditorias AP/EU.
+        continue-on-error: true
+        run: cargo geiger --all 2>&1 | tee geiger-report.txt
+
+      - name: Upload geiger report
+        uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1  # v4.6.1
+        with:
+          name: geiger-unsafe-surface
+          path: geiger-report.txt
+          retention-days: 90
+
+  # ── Dependências não utilizadas (cargo machete) ───────────────────────────
+  machete:
+    name: Unused Dependencies
+    runs-on: ubuntu-latest
+    needs: check-linux
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+      - uses: dtolnay/rust-toolchain@3c5f7ea28cd621ae0bf5283f0e981fb97b8a7af9  # stable
+        with:
+          toolchain: stable
+      - name: Install cargo-machete
+        run: cargo install cargo-machete --locked
+      - name: Check unused dependencies
+        run: cargo machete
+
+  # ── Dependências desactualizadas (cargo outdated) ─────────────────────────
+  outdated:
+    name: Outdated Dependencies
+    runs-on: ubuntu-latest
+    needs: check-linux
+    # Observacional: algumas deps podem estar intencionalmente pinadas
+    # (ex: Typst chain). Promover a gate de bloqueio quando o grafo estiver estável.
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+      - uses: dtolnay/rust-toolchain@3c5f7ea28cd621ae0bf5283f0e981fb97b8a7af9  # stable
+        with:
+          toolchain: stable
+      - uses: Swatinem/rust-cache@23869a5bd66c73db3c0ac40331f3206eb23791dc  # v2.9.1
+      - name: Install cargo-outdated
+        run: cargo install cargo-outdated --locked
+      - name: Report outdated dependencies
+        # || true: cargo outdated falha com conflito de links quando deps nativas
+        # (rusqlite/libsqlite3-sys) têm versões encadeadas incompatíveis no grafo
+        # simulado. O resultado é observacional — não bloqueia o pipeline.
+        run: cargo outdated --workspace --depth 1 || true
 
   # ── SBOM (Software Bill of Materials — CycloneDX) ────────────────────────
   sbom:
     name: SBOM
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
+    needs: [check-linux]
     steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: Swatinem/rust-cache@v2
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+      - uses: dtolnay/rust-toolchain@3c5f7ea28cd621ae0bf5283f0e981fb97b8a7af9  # stable
+        with:
+          toolchain: stable
+      - uses: Swatinem/rust-cache@23869a5bd66c73db3c0ac40331f3206eb23791dc  # v2.9.1
       - name: Install cargo-cyclonedx
         run: cargo install cargo-cyclonedx --locked
       - name: Generate SBOM
         run: cargo cyclonedx --format json --all
+      - name: Validate SBOM schema (CycloneDX 1.6)
+        run: |
+          pip install -q jsonschema
+          curl -sSf https://raw.githubusercontent.com/CycloneDX/specification/master/schema/bom-1.6.schema.json \
+            -o /tmp/cdx-1.6.schema.json
+          SBOM=$(find . -name "*.cdx.json" -not -path "./target/*" -not -path "./security/*" | head -1)
+          if [ -z "$SBOM" ]; then echo "::error::Nenhum SBOM cdx.json encontrado"; exit 1; fi
+          python3 - "$SBOM" <<'PYEOF'
+          import json, jsonschema, sys
+          sbom_path = sys.argv[1]
+          with open("/tmp/cdx-1.6.schema.json") as f:
+              schema = json.load(f)
+          with open(sbom_path) as f:
+              bom = json.load(f)
+          try:
+              jsonschema.validate(instance=bom, schema=schema)
+              print("SBOM schema valido (CycloneDX 1.6):", sbom_path)
+          except jsonschema.ValidationError as e:
+              print("SBOM schema invalido:", e.message, file=sys.stderr)
+              raise SystemExit(1)
+          PYEOF
       - name: Upload SBOM artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1  # v4.6.1
         with:
           name: sbom-cyclonedx
           path: "**/*.cdx.json"

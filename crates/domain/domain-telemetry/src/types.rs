@@ -85,6 +85,7 @@ impl UsageEventType {
         }
     }
 
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Result<Self, TelemetryError> {
         match s {
             "AppOpened" => Ok(UsageEventType::AppOpened),

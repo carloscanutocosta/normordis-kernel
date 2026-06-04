@@ -10,3 +10,5 @@ description = "Domínio telemetria — eventos de uso de apps e estatísticas de
 chrono    = { workspace = true }
 serde     = { workspace = true }
 thiserror = { workspace = true }
+[lints]
+workspace = true

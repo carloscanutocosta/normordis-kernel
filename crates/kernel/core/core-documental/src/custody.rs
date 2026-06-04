@@ -118,6 +118,7 @@ impl DocumentStatus {
         }
     }
 
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Option<Self> {
         match s {
             "draft" => Some(Self::Draft),
@@ -266,12 +267,15 @@ impl DocumentCustody {
     /// única operação que não pode ser chamada a meio — ou tudo ou nada.
     /// O chamador deve usar este método em vez de compor as duas chamadas separadas.
     ///
-    /// TODO: fluxos multi-assinatura (informação → parecer → despacho)
+    /// TODO: fluxos multi-assinatura (informação → parecer → despacho).
+    ///
     /// O documento é agnóstico das fases de assinatura — não as conhece nem as enforça.
     /// A validação de fases pertence a um futuro `DocumentSigningService` que:
-    ///   1. Lê o template NDT para extrair as fases obrigatórias/facultativas
-    ///   2. Verifica o event log (eventos `Signed` com `data_json.fase`) contra essas fases
-    ///   3. Só depois chama `doc.finalize()` se todas as fases obrigatórias estiverem satisfeitas
+    ///
+    /// 1. Lê o template NDT para extrair as fases obrigatórias/facultativas;
+    /// 2. Verifica o event log (eventos `Signed` com `data_json.fase`) contra essas fases;
+    /// 3. Só depois chama `doc.finalize()` se todas as fases obrigatórias estiverem satisfeitas.
+    ///
     /// Decisão pendente: formato no NDT para declarar fases de assinatura.
     pub fn finalize(&self) -> Result<DocumentStatus, DocumentalError> {
         self.check_ready_to_finalize()?;

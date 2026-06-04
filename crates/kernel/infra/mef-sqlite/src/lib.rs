@@ -455,7 +455,7 @@ mod tests {
             .upsert_entry(&UpsertMefEntryRequest {
                 code: code(c),
                 label: label.into(),
-                parent_code: parent.map(|p| code(p)),
+                parent_code: parent.map(code),
                 is_usable: usable,
                 changed_by: "test".into(),
                 change_reason: None,

@@ -12,13 +12,13 @@ impl MetricStore for MetricsSqliteStore {
         let labels = event
             .labels
             .as_ref()
-            .map(|l| serde_json::to_string(l))
+            .map(serde_json::to_string)
             .transpose()
             .map_err(|_| MetricError::MarshalFailed)?;
         let payload = event
             .payload
             .as_ref()
-            .map(|p| serde_json::to_string(p))
+            .map(serde_json::to_string)
             .transpose()
             .map_err(|_| MetricError::MarshalFailed)?;
         self.db()
@@ -49,7 +49,7 @@ impl MetricStore for MetricsSqliteStore {
                     dt_to_str(event.timestamp),
                 ],
             )
-            .map_err(|e| MetricsSqliteError::from(e))?;
+            .map_err(MetricsSqliteError::from)?;
         Ok(())
     }
 
@@ -66,7 +66,7 @@ impl MetricStore for MetricsSqliteStore {
                 row_to_event,
             )
             .optional()
-            .map_err(|e| MetricsSqliteError::from(e))?;
+            .map_err(MetricsSqliteError::from)?;
         row.ok_or(MetricError::NotFound)
     }
 
@@ -136,15 +136,13 @@ impl MetricStore for MetricsSqliteStore {
 
         let refs: Vec<&dyn rusqlite::ToSql> = binds.iter().map(|b| b.as_ref()).collect();
         let conn = self.db();
-        let mut stmt = conn
-            .prepare(&sql)
-            .map_err(|e| MetricsSqliteError::from(e))?;
+        let mut stmt = conn.prepare(&sql).map_err(MetricsSqliteError::from)?;
         let rows = stmt
             .query_map(refs.as_slice(), row_to_event)
-            .map_err(|e| MetricsSqliteError::from(e))?;
+            .map_err(MetricsSqliteError::from)?;
         let mut result = Vec::new();
         for row in rows {
-            result.push(row.map_err(|e| MetricsSqliteError::from(e))?);
+            result.push(row.map_err(MetricsSqliteError::from)?);
         }
         Ok(result)
     }

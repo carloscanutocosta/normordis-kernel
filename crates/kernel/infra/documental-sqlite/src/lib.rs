@@ -253,6 +253,7 @@ fn sha256_hex(data: &[u8]) -> String {
 
 // ── TemplateRepository ────────────────────────────────────────────────────────
 
+#[allow(clippy::too_many_arguments)]
 fn row_to_template(
     id_s: String,
     code: String,
@@ -928,7 +929,7 @@ impl DocumentEventLog for DocumentalSqliteStore {
         let data_s = event
             .data_json
             .as_ref()
-            .map(|v| serde_json::to_string(v))
+            .map(serde_json::to_string)
             .transpose()
             .map_err(|e| DocumentalError::OperationFailed(e.to_string()))?;
         self.conn

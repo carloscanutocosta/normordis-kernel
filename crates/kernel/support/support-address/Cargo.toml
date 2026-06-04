@@ -9,3 +9,5 @@ description = "Modelo e formatacao transversal de moradas e codigos postais"
 [dependencies]
 serde.workspace = true
 thiserror.workspace = true
+[lints]
+workspace = true

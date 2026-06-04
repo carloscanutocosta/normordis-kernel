@@ -8,9 +8,10 @@ authors.workspace = true
 [dependencies]
 thiserror.workspace = true
 serde = { workspace = true, features = ["derive"] }
-serde_json.workspace = true
 uuid = { workspace = true, features = ["v4", "fast-rng", "serde"] }
 chrono = { workspace = true, features = ["clock", "serde"] }
 sha2.workspace = true
 hex.workspace = true
 render-typst = { path = "../render-typst", features = ["pdf"] }
+[lints]
+workspace = true
