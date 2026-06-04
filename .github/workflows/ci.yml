@@ -241,7 +241,7 @@ jobs:
       - name: Validate SBOM schema (CycloneDX 1.6)
         run: |
           pip install -q jsonschema
-          curl -sSf https://raw.githubusercontent.com/CycloneDX/specification/v1.6/schema/bom-1.6.schema.json \
+          curl -sSf https://raw.githubusercontent.com/CycloneDX/specification/master/schema/bom-1.6.schema.json \
             -o /tmp/cdx-1.6.schema.json
           SBOM=$(find . -name "*.cdx.json" -not -path "./target/*" | head -1)
           if [ -z "$SBOM" ]; then echo "::error::Nenhum SBOM cdx.json encontrado"; exit 1; fi

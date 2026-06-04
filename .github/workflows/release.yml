@@ -98,7 +98,7 @@ jobs:
       - name: Validate SBOM schema (CycloneDX 1.6)
         run: |
           pip install -q jsonschema
-          curl -sSf https://raw.githubusercontent.com/CycloneDX/specification/v1.6/schema/bom-1.6.schema.json \
+          curl -sSf https://raw.githubusercontent.com/CycloneDX/specification/master/schema/bom-1.6.schema.json \
             -o /tmp/cdx-1.6.schema.json
           python3 - artifacts/trust/sbom.cyclonedx.json <<'PYEOF'
           import json, jsonschema, sys
