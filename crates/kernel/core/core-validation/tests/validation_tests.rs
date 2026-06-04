@@ -213,11 +213,40 @@ fn manifest_file_rejects_directory() {
     );
 }
 
+#[cfg(unix)]
+#[test]
+fn manifest_file_rejects_symlink() {
+    use std::os::unix::fs::symlink;
+
+    let dir = tempfile::tempdir().unwrap();
+    let target = dir.path().join("target.txt");
+    let link = dir.path().join("link.txt");
+    fs::write(&target, b"abc").unwrap();
+    symlink(&target, &link).unwrap();
+
+    assert_eq!(
+        manifest_file(&link).unwrap_err(),
+        ValidationError::UnsafeFileType
+    );
+    assert_eq!(
+        sha256_file(&link).unwrap_err(),
+        ValidationError::UnsafeFileType
+    );
+}
+
 #[test]
 fn integrity_error_converts_to_mini_error() {
     let mini_error = ValidationError::FileNotFound.to_mini_error();
 
     assert_eq!(mini_error.code.as_str(), "MINI.VALIDATION.FILE_NOT_FOUND");
+    assert_eq!(mini_error.component.as_str(), "core-validation");
+}
+
+#[test]
+fn unsafe_file_type_error_converts_to_mini_error() {
+    let mini_error = ValidationError::UnsafeFileType.to_mini_error();
+
+    assert_eq!(mini_error.code.as_str(), "MINI.VALIDATION.UNSAFE_FILE_TYPE");
     assert_eq!(mini_error.component.as_str(), "core-validation");
 }
 

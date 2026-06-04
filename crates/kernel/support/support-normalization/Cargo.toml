@@ -8,8 +8,10 @@ description = "Funcoes utilitarias transversais para normalizacao e validacao de
 
 [dependencies]
 chrono.workspace = true
+idna.workspace = true
+rust_decimal.workspace = true
 thiserror.workspace = true
+unicode-normalization.workspace = true
 
 [dev-dependencies]
 tempfile.workspace = true
-

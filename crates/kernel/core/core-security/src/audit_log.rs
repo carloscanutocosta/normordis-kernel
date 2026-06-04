@@ -17,7 +17,7 @@ use std::sync::{Arc, RwLock};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
-use crate::SecurityError;
+use crate::{authz::EvidenceLevel, SecurityError};
 
 /// Resultado de uma decisão de autorização.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -27,6 +27,12 @@ pub enum AuditDecision {
 }
 
 /// Entrada imutável de auditoria para uma decisão de `authorize()`.
+///
+/// `evidence_level` indica quanta evidência o `core-audit` deve produzir:
+/// - `None` → concessão por bootstrap/baseline, sem risco — não é necessária evidência.
+/// - `Normal` → delegação activa, registo institucional padrão.
+/// - `Enhanced` → recurso Restricted/Secret ou operação de alta sensibilidade —
+///   evidência detalhada e notificação obrigatórias.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SecurityAuthDecision {
     pub logged_at: DateTime<Utc>,
@@ -40,6 +46,8 @@ pub struct SecurityAuthDecision {
     pub granted_by_kind: Option<String>,
     /// Motivo da recusa. `None` quando `decision = Granted`.
     pub deny_reason: Option<String>,
+    /// Nível de evidência que o `core-audit` deve produzir para este ato.
+    pub evidence_level: EvidenceLevel,
 }
 
 /// Port de persistência de decisões de autorização.

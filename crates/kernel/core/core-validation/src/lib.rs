@@ -1,4 +1,5 @@
 pub mod context;
+pub mod email_verification;
 pub mod error;
 pub mod hash;
 pub mod issue;
@@ -15,9 +16,15 @@ pub use context::ValidationContext;
 
 // ── error ─────────────────────────────────────────────────────────────────────
 pub use error::{
-    ValidationError, FILE_NOT_FOUND, FILE_READ_FAILED, HASH_FAILED, INVALID_INPUT, INVALID_RULE,
-    JSON_FAILED, MANIFEST_FAILED, NORMALIZATION_FAILED, NOT_REGULAR_FILE, OPERATION_FAILED,
-    VALIDATION_COMPONENT,
+    ValidationError, FILE_NOT_FOUND, FILE_READ_FAILED, HASH_FAILED, INVALID_INPUT,
+    INVALID_PATH_ENCODING, INVALID_RULE, JSON_FAILED, MANIFEST_FAILED, NORMALIZATION_FAILED,
+    NOT_REGULAR_FILE, OPERATION_FAILED, UNSAFE_FILE_TYPE, VALIDATION_COMPONENT,
+};
+
+// ── email verification port ──────────────────────────────────────────────────
+pub use email_verification::{
+    EmailAttachment, EmailDeliveryError, EmailDeliveryEvidence, EmailDeliveryPort, EmailMessage,
+    EmailRouteEvidence, EmailRouteStatus, EmailVerificationError, EmailVerificationPort,
 };
 
 // ── hash ──────────────────────────────────────────────────────────────────────

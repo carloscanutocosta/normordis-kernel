@@ -698,11 +698,68 @@ impl<E: DetailsEncryptor> AuditStore for AuditSqliteStore<E> {
     }
 }
 
+// ─── SodHistoryProvider ───────────────────────────────────────────────────────
+
+use core_security::{SecurityError as SecurityErr, SodHistoryProvider};
+
+/// Implementa `SodHistoryProvider` consultando `audit_events` por actor + recurso.
+///
+/// ## Mapeamento
+///
+/// | SoD concept    | audit_events column |
+/// |----------------|---------------------|
+/// | `principal_id` | `actor_id`          |
+/// | `resource_id`  | `target_id`         |
+/// | acção anterior | `event_type`        |
+///
+/// ## Convenção de nomes
+///
+/// Para que `check_sod()` funcione correctamente, as regras SoD devem usar os
+/// mesmos nomes de acção que o `event_type` nos eventos de auditoria.
+/// Exemplo: `SodRule.conflicts_with = "document.create"` deve corresponder
+/// ao `event_type = "document.create"` registado pelo `core-audit`.
+impl<E: DetailsEncryptor> SodHistoryProvider for AuditSqliteStore<E> {
+    async fn previous_actions(
+        &self,
+        principal_id: &str,
+        resource_id: &str,
+        now: chrono::DateTime<chrono::Utc>,
+    ) -> Result<Vec<String>, SecurityErr> {
+        let now_s = now.to_rfc3339();
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|_| SecurityErr::RepoUnavailable("lock poisoned".into()))?;
+
+        let mut stmt = conn
+            .prepare(
+                "SELECT event_type FROM audit_events
+                 WHERE actor_id  = ?1
+                   AND target_id = ?2
+                   AND occurred_at < ?3
+                 ORDER BY occurred_at ASC",
+            )
+            .map_err(|e| SecurityErr::RepoUnavailable(e.to_string()))?;
+
+        let rows = stmt
+            .query_map(rusqlite::params![principal_id, resource_id, now_s], |r| {
+                r.get::<_, String>(0)
+            })
+            .map_err(|e| SecurityErr::RepoUnavailable(e.to_string()))?;
+
+        let mut actions = Vec::new();
+        for row in rows {
+            actions.push(row.map_err(|e| SecurityErr::RepoUnavailable(e.to_string()))?);
+        }
+        Ok(actions)
+    }
+}
+
 // ─── Testes ───────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
 mod tests {
-    use chrono::TimeZone;
+    use chrono::{TimeZone, Utc};
     use serde_json::json;
     use tempfile::NamedTempFile;
 
@@ -1270,5 +1327,129 @@ mod tests {
         assert_eq!(page1.len(), 2);
         assert_eq!(page2.len(), 2);
         assert_eq!(page3.len(), 1);
+    }
+
+    // ── SodHistoryProvider ────────────────────────────────────────────────────
+
+    fn event_with_actor_target(event_type: &str, actor_id: &str, target_id: &str) -> AuditEvent {
+        AuditEvent::with_id_and_time(
+            uuid::Uuid::new_v4().to_string(),
+            event_type,
+            AuditActor::new(actor_id).unwrap(),
+            AuditTarget::new("document", target_id).unwrap(),
+            Utc::now(),
+            AuditOutcome::Success,
+            None,
+            None,
+        )
+        .unwrap()
+    }
+
+    #[tokio::test]
+    async fn sod_history_retorna_accoes_anteriores() {
+        use core_security::SodHistoryProvider;
+        let (store, _f) = tmp_store();
+
+        store
+            .record(&event_with_actor_target(
+                "document.create",
+                "user:alice",
+                "doc:123",
+            ))
+            .unwrap();
+        store
+            .record(&event_with_actor_target(
+                "document.edit",
+                "user:alice",
+                "doc:123",
+            ))
+            .unwrap();
+
+        let actions = store
+            .previous_actions("user:alice", "doc:123", Utc::now())
+            .await
+            .unwrap();
+
+        assert_eq!(actions.len(), 2);
+        assert!(actions.contains(&"document.create".to_string()));
+        assert!(actions.contains(&"document.edit".to_string()));
+    }
+
+    #[tokio::test]
+    async fn sod_history_filtra_por_actor() {
+        use core_security::SodHistoryProvider;
+        let (store, _f) = tmp_store();
+
+        store
+            .record(&event_with_actor_target(
+                "document.create",
+                "user:alice",
+                "doc:123",
+            ))
+            .unwrap();
+        store
+            .record(&event_with_actor_target(
+                "document.create",
+                "user:bob",
+                "doc:123",
+            ))
+            .unwrap();
+
+        let alice_actions = store
+            .previous_actions("user:alice", "doc:123", Utc::now())
+            .await
+            .unwrap();
+        assert_eq!(alice_actions.len(), 1);
+
+        let bob_actions = store
+            .previous_actions("user:bob", "doc:123", Utc::now())
+            .await
+            .unwrap();
+        assert_eq!(bob_actions.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn sod_history_filtra_por_recurso() {
+        use core_security::SodHistoryProvider;
+        let (store, _f) = tmp_store();
+
+        store
+            .record(&event_with_actor_target(
+                "document.create",
+                "user:alice",
+                "doc:111",
+            ))
+            .unwrap();
+        store
+            .record(&event_with_actor_target(
+                "document.create",
+                "user:alice",
+                "doc:222",
+            ))
+            .unwrap();
+
+        let actions_111 = store
+            .previous_actions("user:alice", "doc:111", Utc::now())
+            .await
+            .unwrap();
+        assert_eq!(actions_111.len(), 1);
+
+        let actions_222 = store
+            .previous_actions("user:alice", "doc:222", Utc::now())
+            .await
+            .unwrap();
+        assert_eq!(actions_222.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn sod_history_sem_eventos_retorna_vazio() {
+        use core_security::SodHistoryProvider;
+        let (store, _f) = tmp_store();
+
+        let actions = store
+            .previous_actions("user:alice", "doc:999", Utc::now())
+            .await
+            .unwrap();
+        assert!(actions.is_empty());
     }
 }

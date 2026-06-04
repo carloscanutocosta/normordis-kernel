@@ -200,6 +200,51 @@ números de telefone de múltiplos países.
 
 ---
 
+## core-communications (futuro)
+
+### [P2] Avaliar promoção dos portos de email para core-communications
+
+**O quê:** `core-validation` passou a expor portos técnicos mínimos de email
+(`EmailVerificationPort`, `EmailDeliveryPort`) porque o crate já concentra a
+validação/verificação estrutural de email. Quando surgirem fluxos reais de
+notificação, avaliar a criação de `crates/kernel/core/core-communications` para
+concentrar contratos e semântica institucional de comunicações.
+
+O eventual `core-communications` deve cobrir apenas o que for domínio transversal:
+
+- mensagens institucionais como artefactos identificáveis;
+- destinatários, canais, prioridades e estado de entrega;
+- evidência de envio, tentativa, falha, retry e confirmação;
+- políticas de consentimento, retenção, classificação e auditoria;
+- portos de delivery (`EmailDeliveryPort`, SMS/push quando existirem);
+- integração com `core-audit` via chamador, sem depender dele directamente.
+
+**Critério core vs support vs infra:**
+
+- `core-communications` só deve existir se houver semântica institucional:
+  mensagem como artefacto de domínio, estado, destinatários, canal, evidência,
+  retry, retenção, política, consentimento/classificação e auditoria.
+- `support-*` é adequado apenas para primitivas técnicas puras e headless, sem
+  estado institucional: normalização de endereços, templates de corpo, tipos
+  auxiliares, serialização ou validações estruturais reutilizáveis.
+- `infra/*` contém sempre mecanismos concretos de entrega e verificação: SMTP,
+  Microsoft Graph, provider HTTP, DNS/MX, credenciais, TLS, rede e integração
+  com serviços externos.
+
+Regra curta: **semântica institucional = core; primitiva técnica = support;
+mecanismo externo concreto = infra**.
+
+**Porquê:** envio de email é transversal a muitas apps, mas promover cedo demais
+pode criar um core genérico e cerimonial. A separação actual permite usar Graph/DNS
+já em infra, sem impedir uma promoção limpa para `core-communications` quando os
+casos de uso provarem a necessidade.
+
+**Quando:** quando pelo menos duas apps precisarem de workflows de comunicação com
+estado/auditoria, ou quando houver requisitos formais de notificações, recibos,
+retries e evidência institucional.
+
+---
+
 ## workspace-governance (mini-apps-rusty)
 
 ### [P1] Implementar app workspace-governance

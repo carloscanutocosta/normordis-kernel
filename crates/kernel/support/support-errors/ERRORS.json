@@ -497,6 +497,20 @@
       "public_message_policy": "Generica. Pode indicar que o recurso nao e um ficheiro regular sem expor path completo."
     },
     {
+      "code": "MINI.VALIDATION.UNSAFE_FILE_TYPE",
+      "status": "active",
+      "component": "core-validation",
+      "use": "Path recebido para hash ou manifest aponta para symlink, reparse point ou tipo de ficheiro proibido por politica probatoria.",
+      "public_message_policy": "Generica. Pode indicar que o tipo de ficheiro nao e permitido sem expor path completo."
+    },
+    {
+      "code": "MINI.VALIDATION.INVALID_PATH_ENCODING",
+      "status": "active",
+      "component": "core-validation",
+      "use": "Path recebido para manifest nao pode ser representado em UTF-8 canonico.",
+      "public_message_policy": "Generica. Nao expor path completo quando vier de input externo."
+    },
+    {
       "code": "MINI.VALIDATION.FILE_READ_FAILED",
       "status": "active",
       "component": "core-validation",

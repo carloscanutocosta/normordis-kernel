@@ -7,13 +7,16 @@ authors.workspace = true
 description = "Adapter SQLite para auditoria institucional (core-audit)"
 
 [dependencies]
-core-audit    = { path = "../../core/core-audit" }
+core-audit     = { path = "../../core/core-audit" }
+core-security  = { path = "../../core/core-security" }
 adapter-sqlite = { path = "../adapter-sqlite" }
 support-errors = { path = "../../support/support-errors" }
-rusqlite      = { workspace = true }
-chrono        = { workspace = true }
-serde_json    = { workspace = true }
-thiserror     = { workspace = true }
+rusqlite       = { workspace = true }
+chrono         = { workspace = true }
+serde_json     = { workspace = true }
+thiserror      = { workspace = true }
 
 [dev-dependencies]
 tempfile = { workspace = true }
+tokio    = { workspace = true, features = ["rt", "macros"] }
+uuid     = { workspace = true }

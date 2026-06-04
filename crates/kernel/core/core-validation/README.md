@@ -12,6 +12,7 @@ Responder se um artefacto é estruturalmente válido para entrar no sistema, sem
 - Produzir `ValidationResult` como artefacto institucional auditável.
 - Validar identificadores portugueses: NIF, NISS, CC, IBAN, código postal, telefone PT.
 - Validar identificadores genéricos: email, UUID, semver, MIME type.
+- Expor `EmailVerificationPort` para verificação operacional DNS/MX por adapters de infra.
 - Validar coerência estrutural: intervalos de datas, transições de estado, intervalos numéricos.
 - Validar integridade: SHA-256 de bytes e ficheiros, manifesto de ficheiro, `ManifestList`.
 - Preservar valor original e normalizado através de `Normalized<T>`.
@@ -21,6 +22,7 @@ Responder se um artefacto é estruturalmente válido para entrar no sistema, sem
 
 - Validar regimes fiscais, aprovações, workflow ou elegibilidade de negócio.
 - Resolver DNS, confirmar existência bancária real ou persistir reports.
+- Enviar emails ou fazer confirmação out-of-band de mailbox.
 - Assinar digitalmente, observar diretórios, ler env vars, integrar UI, Tauri, SQLite ou `core-audit`.
 
 ## Exemplo mínimo

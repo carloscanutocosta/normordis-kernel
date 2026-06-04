@@ -57,7 +57,7 @@ impl ManifestList {
 
 pub fn manifest_file(path: impl AsRef<Path>) -> Result<ManifestEntry, ValidationError> {
     let path = path.as_ref();
-    let metadata = path.metadata().map_err(|err| {
+    let metadata = path.symlink_metadata().map_err(|err| {
         if err.kind() == std::io::ErrorKind::NotFound {
             ValidationError::FileNotFound
         } else {
@@ -65,28 +65,53 @@ pub fn manifest_file(path: impl AsRef<Path>) -> Result<ManifestEntry, Validation
         }
     })?;
 
+    if metadata_is_unsafe(&metadata) {
+        return Err(ValidationError::UnsafeFileType);
+    }
+
     if !metadata.is_file() {
         return Err(ValidationError::NotRegularFile);
     }
 
     Ok(ManifestEntry {
-        path: normalize_manifest_path(path),
+        path: normalize_manifest_path(path)?,
         size: metadata.len(),
         sha256: sha256_file(path).map_err(|err| match err {
             ValidationError::FileNotFound => ValidationError::FileNotFound,
             ValidationError::NotRegularFile => ValidationError::NotRegularFile,
+            ValidationError::UnsafeFileType => ValidationError::UnsafeFileType,
+            ValidationError::InvalidPathEncoding => ValidationError::InvalidPathEncoding,
             ValidationError::FileReadFailed => ValidationError::FileReadFailed,
             _ => ValidationError::ManifestFailed,
         })?,
     })
 }
 
-fn normalize_manifest_path(path: &Path) -> String {
-    path.to_string_lossy().replace('\\', "/")
+fn normalize_manifest_path(path: &Path) -> Result<String, ValidationError> {
+    path.to_str()
+        .ok_or(ValidationError::InvalidPathEncoding)
+        .map(|path| path.replace('\\', "/"))
 }
 
 fn compute_list_hash(entries: &[ManifestEntry]) -> String {
     let canonical = serde_json::to_vec(entries)
         .expect("ManifestEntry only contains String and u64 — always JSON-serializable");
     sha256_bytes(&canonical)
+}
+
+fn metadata_is_unsafe(metadata: &std::fs::Metadata) -> bool {
+    let file_type = metadata.file_type();
+    if file_type.is_symlink() {
+        return true;
+    }
+
+    #[cfg(windows)]
+    {
+        use std::os::windows::fs::MetadataExt;
+        const FILE_ATTRIBUTE_REPARSE_POINT: u32 = 0x400;
+        metadata.file_attributes() & FILE_ATTRIBUTE_REPARSE_POINT != 0
+    }
+
+    #[cfg(not(windows))]
+    false
 }

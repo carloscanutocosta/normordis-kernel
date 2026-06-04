@@ -32,7 +32,7 @@ use adapter_sqlite::{
     open_relational_connection, run_relational_migrations, SqliteRelationalConfig,
 };
 use chrono::{DateTime, Utc};
-use core_security::{RoleId, RoleMembershipRepository, SecurityError};
+use core_security::{OrgScope, OrgScopeValidator, RoleId, RoleMembershipRepository, SecurityError};
 use rusqlite::params;
 use rusqlite::Connection;
 use thiserror::Error;
@@ -258,6 +258,52 @@ impl RoleMembershipRepository for RhSecurityBridgeStore {
     ) -> Result<Vec<RoleId>, SecurityError> {
         self.list_principal_roles(principal_id, now)
             .map_err(SecurityError::from)
+    }
+}
+
+// ── OrgScopeValidator ────────────────────────────────────────────────────────
+
+/// Verifica se `principal_id` tem afectação activa na unidade orgânica `org_scope`
+/// consultando a tabela `person_assignment` do `rh-sqlite`.
+///
+/// ## Pré-requisito
+///
+/// A tabela `person_assignment` deve existir na mesma base de dados.
+/// Esta tabela é criada pelas migrations do crate `rh-sqlite`.
+/// O `RhSecurityBridgeStore` deve ser aberto com a mesma ligação SQLite
+/// que o `rh-sqlite` usa — partilhando a mesma base de dados.
+///
+/// ## Formato de datas
+///
+/// `person_assignment.valid_from` e `valid_until` estão em formato `YYYY-MM-DD`
+/// (NaiveDate). `now: DateTime<Utc>` é convertido para a mesma representação.
+impl OrgScopeValidator for RhSecurityBridgeStore {
+    async fn is_principal_in_scope(
+        &self,
+        principal_id: &str,
+        org_scope: &OrgScope,
+        now: DateTime<Utc>,
+    ) -> Result<bool, SecurityError> {
+        let date_str = now.format("%Y-%m-%d").to_string();
+
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|_| SecurityError::RepoUnavailable("lock poisoned".into()))?;
+
+        let count: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM person_assignment
+                 WHERE person_id  = ?1
+                   AND unit_id    = ?2
+                   AND valid_from <= ?3
+                   AND (valid_until IS NULL OR valid_until > ?3)",
+                rusqlite::params![principal_id, org_scope.as_str(), date_str],
+                |r| r.get(0),
+            )
+            .map_err(|e| SecurityError::RepoUnavailable(e.to_string()))?;
+
+        Ok(count > 0)
     }
 }
 
@@ -494,6 +540,8 @@ mod tests {
                         enabled: true,
                         description: None,
                     }],
+                    valid_from: None,
+                    valid_to: None,
                 },
                 n,
             )
@@ -537,5 +585,126 @@ mod tests {
             .unwrap();
 
         assert!(matches!(dec.granted_by, GrantedBy::RoleDelegation(_, _)));
+    }
+
+    // ── OrgScopeValidator ─────────────────────────────────────────────────────
+
+    /// Cria a tabela person_assignment para testes de OrgScopeValidator.
+    /// Em produção esta tabela é criada pelas migrations do rh-sqlite.
+    fn setup_person_assignment(store: &RhSecurityBridgeStore) {
+        let conn = store.conn.lock().unwrap();
+        conn.execute_batch(
+            "CREATE TABLE IF NOT EXISTS person_assignment (
+                 assignment_id TEXT NOT NULL PRIMARY KEY,
+                 person_id     TEXT NOT NULL,
+                 position_id   TEXT NOT NULL,
+                 unit_id       TEXT NOT NULL,
+                 basis         TEXT NOT NULL,
+                 valid_from    TEXT NOT NULL,
+                 valid_until   TEXT,
+                 version       INTEGER NOT NULL DEFAULT 0
+             )",
+        )
+        .unwrap();
+    }
+
+    fn insert_assignment(
+        store: &RhSecurityBridgeStore,
+        person_id: &str,
+        unit_id: &str,
+        from: &str,
+        until: Option<&str>,
+    ) {
+        let conn = store.conn.lock().unwrap();
+        conn.execute(
+            "INSERT INTO person_assignment
+                 (assignment_id, person_id, position_id, unit_id, basis, valid_from, valid_until)
+             VALUES (?, ?, 'POS-1', ?, 'contract', ?, ?)",
+            rusqlite::params![
+                uuid::Uuid::new_v4().to_string(),
+                person_id,
+                unit_id,
+                from,
+                until,
+            ],
+        )
+        .unwrap();
+    }
+
+    #[tokio::test]
+    async fn org_scope_validator_afectacao_activa_permite() {
+        use core_security::OrgScopeValidator;
+        let store = test_store();
+        setup_person_assignment(&store);
+        insert_assignment(&store, "user:alice", "SF-1234", "2026-01-01", None);
+
+        let result = store
+            .is_principal_in_scope("user:alice", &OrgScope::new("SF-1234"), now())
+            .await
+            .unwrap();
+        assert!(result, "alice tem afectação activa em SF-1234");
+    }
+
+    #[tokio::test]
+    async fn org_scope_validator_sem_afectacao_nega() {
+        use core_security::OrgScopeValidator;
+        let store = test_store();
+        setup_person_assignment(&store);
+
+        let result = store
+            .is_principal_in_scope("user:bob", &OrgScope::new("SF-1234"), now())
+            .await
+            .unwrap();
+        assert!(!result, "bob não tem afectação em SF-1234");
+    }
+
+    #[tokio::test]
+    async fn org_scope_validator_unidade_errada_nega() {
+        use core_security::OrgScopeValidator;
+        let store = test_store();
+        setup_person_assignment(&store);
+        insert_assignment(&store, "user:alice", "SF-9999", "2026-01-01", None);
+
+        let result = store
+            .is_principal_in_scope("user:alice", &OrgScope::new("SF-1234"), now())
+            .await
+            .unwrap();
+        assert!(!result, "alice está em SF-9999, não SF-1234");
+    }
+
+    #[tokio::test]
+    async fn org_scope_validator_afectacao_expirada_nega() {
+        use core_security::OrgScopeValidator;
+        let store = test_store();
+        setup_person_assignment(&store);
+        // Afectação expirou antes de now() (2026-01-15)
+        insert_assignment(
+            &store,
+            "user:alice",
+            "SF-1234",
+            "2025-01-01",
+            Some("2026-01-10"),
+        );
+
+        let result = store
+            .is_principal_in_scope("user:alice", &OrgScope::new("SF-1234"), now())
+            .await
+            .unwrap();
+        assert!(!result, "afectação expirou antes de now()");
+    }
+
+    #[tokio::test]
+    async fn org_scope_validator_afectacao_futura_nega() {
+        use core_security::OrgScopeValidator;
+        let store = test_store();
+        setup_person_assignment(&store);
+        // Afectação começa depois de now() (2026-01-15)
+        insert_assignment(&store, "user:alice", "SF-1234", "2026-06-01", None);
+
+        let result = store
+            .is_principal_in_scope("user:alice", &OrgScope::new("SF-1234"), now())
+            .await
+            .unwrap();
+        assert!(!result, "afectação ainda não começou");
     }
 }

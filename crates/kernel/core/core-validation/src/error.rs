@@ -9,6 +9,8 @@ pub const JSON_FAILED: &str = "MINI.VALIDATION.JSON_FAILED";
 pub const OPERATION_FAILED: &str = "MINI.VALIDATION.OPERATION_FAILED";
 pub const FILE_NOT_FOUND: &str = "MINI.VALIDATION.FILE_NOT_FOUND";
 pub const NOT_REGULAR_FILE: &str = "MINI.VALIDATION.NOT_REGULAR_FILE";
+pub const UNSAFE_FILE_TYPE: &str = "MINI.VALIDATION.UNSAFE_FILE_TYPE";
+pub const INVALID_PATH_ENCODING: &str = "MINI.VALIDATION.INVALID_PATH_ENCODING";
 pub const FILE_READ_FAILED: &str = "MINI.VALIDATION.FILE_READ_FAILED";
 pub const MANIFEST_FAILED: &str = "MINI.VALIDATION.MANIFEST_FAILED";
 pub const HASH_FAILED: &str = "MINI.VALIDATION.HASH_FAILED";
@@ -29,6 +31,10 @@ pub enum ValidationError {
     FileNotFound,
     #[error("validation path is not a regular file")]
     NotRegularFile,
+    #[error("validation path is a symlink or reparse point")]
+    UnsafeFileType,
+    #[error("validation path is not valid utf-8")]
+    InvalidPathEncoding,
     #[error("validation file read failed")]
     FileReadFailed,
     #[error("validation manifest failed")]
@@ -50,6 +56,8 @@ impl ValidationError {
             Self::OperationFailed => OPERATION_FAILED,
             Self::FileNotFound => FILE_NOT_FOUND,
             Self::NotRegularFile => NOT_REGULAR_FILE,
+            Self::UnsafeFileType => UNSAFE_FILE_TYPE,
+            Self::InvalidPathEncoding => INVALID_PATH_ENCODING,
             Self::FileReadFailed => FILE_READ_FAILED,
             Self::ManifestFailed => MANIFEST_FAILED,
             Self::HashFailed => HASH_FAILED,
@@ -65,6 +73,8 @@ impl ValidationError {
             Self::OperationFailed => "validation operation failed",
             Self::FileNotFound => "validation file was not found",
             Self::NotRegularFile => "validation path is not a regular file",
+            Self::UnsafeFileType => "validation path type is not allowed",
+            Self::InvalidPathEncoding => "validation path encoding is invalid",
             Self::FileReadFailed => "validation file read failed",
             Self::ManifestFailed => "validation manifest operation failed",
             Self::HashFailed => "validation hash operation failed",

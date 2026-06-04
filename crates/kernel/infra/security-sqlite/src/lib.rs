@@ -5,9 +5,9 @@ use adapter_sqlite::{
 };
 use chrono::{DateTime, Utc};
 use core_security::{
-    validate_policy, AuditDecision, Delegation, DelegationId, DelegationRequest, ListOptions,
-    Policy, PolicyMode, RevocationRequest, Rule, SecurityAuditLog, SecurityAuthDecision,
-    SecurityError, SecurityPolicyRepository,
+    validate_policy, AuditDecision, Delegation, DelegationId, DelegationRequest, EvidenceLevel,
+    ListOptions, Policy, PolicyMode, RevocationRequest, Rule, SecurityAuditLog,
+    SecurityAuthDecision, SecurityError, SecurityPolicyRepository,
 };
 use rusqlite::{params, Connection, OptionalExtension};
 use thiserror::Error;
@@ -77,7 +77,24 @@ const MIGRATION_3: &str = r#"
         ON security_auth_decisions (operation, logged_at);
 "#;
 
-pub const SECURITY_SQLITE_MIGRATIONS: &[&str] = &[MIGRATION_1, MIGRATION_2, MIGRATION_3];
+/// Migration 4 — validade temporal de políticas.
+const MIGRATION_4: &str = r#"
+    ALTER TABLE security_policies ADD COLUMN valid_from TEXT;
+    ALTER TABLE security_policies ADD COLUMN valid_to   TEXT;
+"#;
+
+/// Migration 5 — nível de evidência nas decisões de autorização.
+const MIGRATION_5: &str = r#"
+    ALTER TABLE security_auth_decisions ADD COLUMN evidence_level TEXT NOT NULL DEFAULT 'none';
+"#;
+
+pub const SECURITY_SQLITE_MIGRATIONS: &[&str] = &[
+    MIGRATION_1,
+    MIGRATION_2,
+    MIGRATION_3,
+    MIGRATION_4,
+    MIGRATION_5,
+];
 
 // ── Error ─────────────────────────────────────────────────────────────────────
 
@@ -221,14 +238,16 @@ impl SecurityPolicyRepository for SecuritySqliteStore {
 
         conn.execute(
             "INSERT INTO security_policies
-                 (policy_id, version, mode, rules, created_at, revoked)
-             VALUES (?1, ?2, ?3, ?4, ?5, 0)",
+                 (policy_id, version, mode, rules, created_at, revoked, valid_from, valid_to)
+             VALUES (?1, ?2, ?3, ?4, ?5, 0, ?6, ?7)",
             params![
                 policy.policy_id,
                 policy.version,
                 mode_to_str(&policy.mode),
                 rules_json,
                 dt_to_str(now),
+                policy.valid_from.map(dt_to_str),
+                policy.valid_to.map(dt_to_str),
             ],
         )
         .map_err(|e| SecurityError::OperationFailed(e.to_string()))?;
@@ -242,7 +261,7 @@ impl SecurityPolicyRepository for SecuritySqliteStore {
             .map_err(|_| SecurityError::RepoUnavailable("lock poisoned".into()))?;
         let row = conn
             .query_row(
-                "SELECT policy_id, version, mode, rules
+                "SELECT policy_id, version, mode, rules, valid_from, valid_to
                  FROM security_policies WHERE policy_id = ?1",
                 params![policy_id],
                 |r| {
@@ -251,24 +270,34 @@ impl SecurityPolicyRepository for SecuritySqliteStore {
                         r.get::<_, String>(1)?,
                         r.get::<_, String>(2)?,
                         r.get::<_, String>(3)?,
+                        r.get::<_, Option<String>>(4)?,
+                        r.get::<_, Option<String>>(5)?,
                     ))
                 },
             )
             .optional()
             .map_err(|e| SecurityError::OperationFailed(e.to_string()))?;
 
-        let Some((id, version, mode_s, rules_s)) = row else {
+        let Some((id, version, mode_s, rules_s, vfrom_s, vto_s)) = row else {
             return Ok(None);
         };
         let mode =
             str_to_mode(&mode_s).map_err(|e| SecurityError::OperationFailed(e.to_string()))?;
         let rules =
             json_to_rules(&rules_s).map_err(|e| SecurityError::OperationFailed(e.to_string()))?;
+        let valid_from = vfrom_s
+            .map(|s| str_to_dt(&s).map_err(|e| SecurityError::OperationFailed(e.to_string())))
+            .transpose()?;
+        let valid_to = vto_s
+            .map(|s| str_to_dt(&s).map_err(|e| SecurityError::OperationFailed(e.to_string())))
+            .transpose()?;
         Ok(Some(Policy {
             policy_id: id,
             version,
             mode,
             rules,
+            valid_from,
+            valid_to,
         }))
     }
 
@@ -284,7 +313,7 @@ impl SecurityPolicyRepository for SecuritySqliteStore {
 
         let mut stmt = conn
             .prepare(
-                "SELECT policy_id, version, mode, rules
+                "SELECT policy_id, version, mode, rules, valid_from, valid_to
                  FROM security_policies WHERE revoked = 0
                  ORDER BY policy_id
                  LIMIT ?1 OFFSET ?2",
@@ -298,23 +327,33 @@ impl SecurityPolicyRepository for SecuritySqliteStore {
                     r.get::<_, String>(1)?,
                     r.get::<_, String>(2)?,
                     r.get::<_, String>(3)?,
+                    r.get::<_, Option<String>>(4)?,
+                    r.get::<_, Option<String>>(5)?,
                 ))
             })
             .map_err(|e| SecurityError::OperationFailed(e.to_string()))?;
 
         let mut result = Vec::new();
         for row in rows {
-            let (id, version, mode_s, rules_s) =
+            let (id, version, mode_s, rules_s, vfrom_s, vto_s) =
                 row.map_err(|e| SecurityError::OperationFailed(e.to_string()))?;
             let mode =
                 str_to_mode(&mode_s).map_err(|e| SecurityError::OperationFailed(e.to_string()))?;
             let rules = json_to_rules(&rules_s)
                 .map_err(|e| SecurityError::OperationFailed(e.to_string()))?;
+            let valid_from = vfrom_s
+                .map(|s| str_to_dt(&s).map_err(|e| SecurityError::OperationFailed(e.to_string())))
+                .transpose()?;
+            let valid_to = vto_s
+                .map(|s| str_to_dt(&s).map_err(|e| SecurityError::OperationFailed(e.to_string())))
+                .transpose()?;
             result.push(Policy {
                 policy_id: id,
                 version,
                 mode,
                 rules,
+                valid_from,
+                valid_to,
             });
         }
         Ok(result)
@@ -528,12 +567,17 @@ impl SecurityAuditLog for SecuritySqliteStore {
             AuditDecision::Granted => "granted",
             AuditDecision::Denied => "denied",
         };
+        let evidence_s = match entry.evidence_level {
+            EvidenceLevel::None => "none",
+            EvidenceLevel::Normal => "normal",
+            EvidenceLevel::Enhanced => "enhanced",
+        };
 
         conn.execute(
             "INSERT INTO security_auth_decisions
                  (logged_at, principal, operation, resource, correlation_id,
-                  decision, granted_by_kind, deny_reason)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+                  decision, granted_by_kind, deny_reason, evidence_level)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
             params![
                 dt_to_str(entry.logged_at),
                 entry.principal,
@@ -543,6 +587,7 @@ impl SecurityAuditLog for SecuritySqliteStore {
                 decision_s,
                 entry.granted_by_kind,
                 entry.deny_reason,
+                evidence_s,
             ],
         )
         .map_err(|e| SecurityError::OperationFailed(e.to_string()))?;
@@ -638,6 +683,8 @@ mod tests {
                 enabled: true,
                 description: Some("Autenticação mínima".into()),
             }],
+            valid_from: None,
+            valid_to: None,
         }
     }
 
@@ -767,6 +814,8 @@ mod tests {
                     description: None,
                 },
             ],
+            valid_from: None,
+            valid_to: None,
         };
         store.save_policy(&policy, now()).await.unwrap();
         let loaded = store.get_policy("pol-strict").await.unwrap().unwrap();
@@ -797,6 +846,8 @@ mod tests {
                             enabled: true,
                             description: None,
                         }],
+                        valid_from: None,
+                        valid_to: None,
                     },
                     now(),
                 )
@@ -1038,6 +1089,8 @@ mod tests {
                         enabled: true,
                         description: None,
                     }],
+                    valid_from: None,
+                    valid_to: None,
                 },
                 n,
             )
@@ -1088,6 +1141,8 @@ mod tests {
                         enabled: true,
                         description: None,
                     }],
+                    valid_from: None,
+                    valid_to: None,
                 },
                 n,
             )
@@ -1119,6 +1174,8 @@ mod tests {
                         enabled: true,
                         description: None,
                     }],
+                    valid_from: None,
+                    valid_to: None,
                 },
                 n,
             )
@@ -1210,6 +1267,8 @@ mod tests {
                         enabled: true,
                         description: None,
                     }],
+                    valid_from: None,
+                    valid_to: None,
                 },
                 n,
             )

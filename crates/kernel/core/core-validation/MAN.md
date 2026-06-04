@@ -259,6 +259,31 @@ O primeiro dígito deve ser validado contra o conjunto de séries válidas em pr
 por `path`. Determinístico independentemente da ordem de inserção — pode ser usado como
 identificador de integridade do pacote completo.
 
+Política de filesystem:
+
+- `sha256_file` e `manifest_file` usam `symlink_metadata` e rejeitam symlinks.
+- Em Windows, reparse points são rejeitados quando detectados pela API standard.
+- `manifest_file` rejeita paths que não sejam representáveis em UTF-8, para evitar
+  manifests com substituição lossy.
+- Paths no manifest usam `/` como separador canónico.
+
+### Verificação e entrega externa de email
+
+O `core-validation` define portos de email sem depender de rede, DNS ou providers.
+As implementações concretas vivem em infra.
+
+| Tipo | Descrição |
+|------|-----------|
+| `EmailVerificationPort` | Porto hexagonal para verificar rota DNS/MX de email. |
+| `EmailRouteEvidence` | Evidência com domínio ASCII, estado, MX encontrados e fallback A/AAAA. |
+| `EmailRouteStatus` | `MxFound`, `AddressFallbackFound` ou `NoRoute`. |
+| `EmailDeliveryPort` | Porto hexagonal para envio de email. |
+| `EmailMessage` | Mensagem com destinatários, assunto, corpo text/html e anexos base64. |
+| `EmailDeliveryEvidence` | Evidência de provider, id externo quando disponível e destinatários aceites. |
+
+Implementações concretas vivem em infra, por exemplo
+`email-infra::DnsEmailVerifier` e `email-infra::GraphEmailSender`.
+
 ### Coerência estrutural
 
 | Função                                                  | Módulo      | Descrição                                                              |
@@ -367,6 +392,8 @@ Componente: `core-validation`.
 | `MINI.VALIDATION.OPERATION_FAILED`   | Falha genérica de operação.                        |
 | `MINI.VALIDATION.FILE_NOT_FOUND`     | Ficheiro não encontrado.                           |
 | `MINI.VALIDATION.NOT_REGULAR_FILE`   | Path não corresponde a ficheiro regular.           |
+| `MINI.VALIDATION.UNSAFE_FILE_TYPE`   | Path é symlink, reparse point ou tipo proibido.    |
+| `MINI.VALIDATION.INVALID_PATH_ENCODING` | Path não é representável em UTF-8 canónico.     |
 | `MINI.VALIDATION.FILE_READ_FAILED`   | Falha de leitura de ficheiro.                      |
 | `MINI.VALIDATION.MANIFEST_FAILED`    | Falha na geração de manifesto.                     |
 | `MINI.VALIDATION.HASH_FAILED`        | Falha no cálculo de hash.                          |
@@ -484,10 +511,12 @@ No modelo edge/central do NORMORDIS, o `core-validation` tem dois papéis:
 - Não implementa `ValidationOverride` como tipo de primeira classe — existe
   `RuleOutcome::overridden()` mas sem `override_id`, `actor_id`, `timestamp`,
   `justification` para evidência COSO completa.
-- Sem política explícita de normalização canónica de `path` para symlinks e reparse points.
+- Sem mitigação completa de TOCTOU quando o host valida paths em directórios
+  mutáveis entre metadata e abertura do ficheiro.
 - Algoritmo de checksum do CC baseado na especificação técnica do IRN;
   requer validação contra casos reais de emissão antes de uso probatório.
-- Sem política explícita de filesystem para symlinks/reparse points e paths não UTF-8.
+- Verificação operacional de email requer adaptador externo via `EmailVerificationPort`;
+  o core não executa DNS por si.
 
 ---
 
@@ -496,9 +525,9 @@ No modelo edge/central do NORMORDIS, o `core-validation` tem dois papéis:
 **Estado:** production-ready interno/controlado — apto para validação estrutural
 e integridade determinística nas miniapps.
 
-**Reserva:** uso probatório em cenários de arquivo formal requer decisão adicional
-sobre política de filesystem (symlinks, reparse points, paths não UTF-8)
-e verificação externa do algoritmo de checksum do CC.
+**Reserva:** uso probatório em cenários de arquivo formal requer verificação externa
+do algoritmo de checksum do CC contra casos reais de emissão e controlo do risco
+TOCTOU pelo host quando paths vierem de directórios mutáveis.
 
 ---
 
@@ -510,7 +539,7 @@ e verificação externa do algoritmo de checksum do CC.
 | `v0.4`     | `ValidationRuleDescriptor` e rule registry com metadados (scope, versão, vigência). |
 | `v0.5`     | Mensagens em camadas (utilizador / técnica / auditável) por issue.               |
 | `v0.6`     | `ValidationOverride` como tipo de primeira classe com evidência COSO.            |
-| `v0.7`     | Filesystem hardening: symlinks, reparse points, paths não UTF-8.                 |
+| `v0.7`     | Hardening adicional: mitigação host-level de TOCTOU e políticas de sandbox de ficheiros. |
 
 ---
 
