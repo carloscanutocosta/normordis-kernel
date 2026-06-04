@@ -12,7 +12,7 @@ plain = ["rusqlite/bundled"]
 encrypted = ["rusqlite/bundled-sqlcipher-vendored-openssl", "dep:r2d2", "dep:r2d2_sqlite"]
 
 [dependencies]
-rusqlite = { version = "0.31" }
+rusqlite.workspace = true
 r2d2 = { version = "0.8", optional = true }
 r2d2_sqlite = { version = "0.24", optional = true }
 serde_json.workspace = true
