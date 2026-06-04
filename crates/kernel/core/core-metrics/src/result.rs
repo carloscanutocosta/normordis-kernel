@@ -27,6 +27,7 @@ impl MeasurementStatus {
         }
     }
 
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Option<Self> {
         match s {
             "calculated" => Some(Self::Calculated),
@@ -65,6 +66,7 @@ impl EvidenceType {
         }
     }
 
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Option<Self> {
         match s {
             "audit_event" => Some(Self::AuditEvent),

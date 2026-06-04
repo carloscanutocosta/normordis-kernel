@@ -10,9 +10,9 @@ description = "Adapter SQLite para core-security (políticas e delegações de s
 rusqlite.workspace = true
 thiserror.workspace = true
 chrono.workspace = true
-serde.workspace = true
 serde_json.workspace = true
 uuid.workspace = true
+sha2.workspace = true
 
 adapter-sqlite  = { path = "../adapter-sqlite" }
 core-security   = { path = "../../core/core-security" }
@@ -21,3 +21,5 @@ support-errors  = { path = "../../support/support-errors" }
 [dev-dependencies]
 tempfile.workspace = true
 tokio = { workspace = true, features = ["rt", "macros"] }
+[lints]
+workspace = true

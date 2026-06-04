@@ -14,7 +14,7 @@ mod tests {
     use chrono::{TimeZone, Utc};
 
     use super::*;
-    use crate::{AuditActor, AuditTarget};
+    use crate::{AuditActor, AuditOutcome, AuditTarget};
 
     #[test]
     fn event_hash_is_stable_for_same_event() {
@@ -24,6 +24,8 @@ mod tests {
             AuditActor::new("user-1").unwrap(),
             AuditTarget::new("document", "doc-1").unwrap(),
             Utc.with_ymd_and_hms(2026, 5, 11, 10, 0, 0).unwrap(),
+            AuditOutcome::NotApplicable,
+            None,
             None,
         )
         .unwrap();

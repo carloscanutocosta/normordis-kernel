@@ -1,0 +1,45 @@
+version: 2
+updates:
+  # ── GitHub Actions — actualiza SHAs das actions automaticamente ───────────
+  # Suporte ao CRA art. 13: actualizações de segurança atempadas na cadeia CI/CD.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "07:00"
+      timezone: "Europe/Lisbon"
+    commit-message:
+      prefix: "ci(deps)"
+    labels:
+      - "dependencies"
+      - "ci"
+    reviewers:
+      - "carloscanutocosta"
+
+  # ── Cargo — actualiza crates Rust ─────────────────────────────────────────
+  # Agrupamento de minor/patch para reduzir ruído; major updates individuais
+  # para revisão explícita (potencial breaking change).
+  - package-ecosystem: "cargo"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "07:00"
+      timezone: "Europe/Lisbon"
+    commit-message:
+      prefix: "deps"
+    labels:
+      - "dependencies"
+      - "rust"
+    reviewers:
+      - "carloscanutocosta"
+    open-pull-requests-limit: 5
+    groups:
+      # Minor e patch agrupados — revisão única por semana
+      rust-minor-patch:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"

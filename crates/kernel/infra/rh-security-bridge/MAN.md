@@ -2,122 +2,114 @@
 
 ## Objectivo
 
-Ponte SQLite entre o domínio de RH/organização e o sistema de autorização de `core-security`. Persiste memberships principal→role com temporalidade e auditoria de atribuição.
+`rh-security-bridge` liga dados de RH/organização ao domínio de autorização de
+`core-security`. Implementa memberships principal→role e validação de âmbito
+orgânico para decisões contextuais.
 
----
+## Responsabilidade
+
+- Persistir atribuições de roles com validade temporal.
+- Revogar memberships sem apagar histórico.
+- Implementar `RoleMembershipRepository`.
+- Implementar `OrgScopeValidator` consultando afectações RH.
+- Resolver opcionalmente principal IAM/técnico para pessoa RH.
+
+## Não-responsabilidade
+
+- Não decide autorização.
+- Não autentica principals.
+- Não sincroniza automaticamente AD/LDAP/Entra ID.
+- Não modela cargos, contratos ou organigramas; consulta a tabela RH existente.
 
 ## Contrato público
 
 ```rust
-pub struct RhSecurityBridgeStore {
-    conn: Arc<Mutex<rusqlite::Connection>>,
-}
+pub struct RhSecurityBridgeStore;
+pub struct MemberId(pub String);
 
 impl RhSecurityBridgeStore {
-    pub fn open(config: &SqliteRelationalConfig) -> Result<Self, SecurityError>;
+    pub fn open(config: &SqliteRelationalConfig) -> Result<Self, RhSecurityBridgeError>;
+    pub fn from_connection(conn: rusqlite::Connection) -> Result<Self, RhSecurityBridgeError>;
+    pub fn migrate(&self) -> Result<(), RhSecurityBridgeError>;
 
-    /// Atribui um role a um principal, com validade opcional.
     pub fn assign_principal_to_role(
         &self,
         principal_id: &str,
-        role_id: &str,
+        role_id: &RoleId,
         assigned_by: &str,
-        valid_from: Option<DateTime<Utc>>,
+        valid_from: DateTime<Utc>,
         valid_to: Option<DateTime<Utc>>,
-    ) -> Result<MemberId, SecurityError>;
+        now: DateTime<Utc>,
+    ) -> Result<MemberId, RhSecurityBridgeError>;
 
-    /// Revoga um membership pelo seu id.
     pub fn revoke_membership(
         &self,
         member_id: &MemberId,
         revoked_by: &str,
-    ) -> Result<(), SecurityError>;
+        now: DateTime<Utc>,
+    ) -> Result<(), RhSecurityBridgeError>;
 
-    /// Lista todos os roles activos de um principal (filtra por data actual).
-    pub fn list_principal_roles(
+    pub fn link_principal_to_person(
         &self,
         principal_id: &str,
-    ) -> Result<Vec<RoleId>, SecurityError>;
-
-    /// Lista todos os membros activos de um role (filtra por data actual).
-    pub fn list_role_members(
-        &self,
-        role_id: &RoleId,
-    ) -> Result<Vec<String>, SecurityError>;
+        person_id: &str,
+        linked_by: &str,
+        now: DateTime<Utc>,
+    ) -> Result<(), RhSecurityBridgeError>;
 }
 
-pub struct MemberId(pub String);
-
-/// Migrações exportadas.
-pub const RH_SECURITY_BRIDGE_MIGRATIONS: &[&str];
+impl RoleMembershipRepository for RhSecurityBridgeStore;
+impl OrgScopeValidator for RhSecurityBridgeStore;
 ```
 
-`RhSecurityBridgeStore` implementa `RoleMembershipRepository` de `core-security`.
+## Identidade principal → pessoa RH
 
----
+`OrgScopeValidator` consulta `person_assignment`. Em produção, o principal de IAM
+pode não ser o `person_id` RH. Para isso, usar `link_principal_to_person()`.
 
-## Schema
+Quando não existe ligação explícita, o adapter mantém fallback compatível:
+`principal_id` é usado como `person_id`. Este fallback deve ser uma convenção
+deliberada, não uma suposição escondida.
 
-```sql
-CREATE TABLE IF NOT EXISTS security_role_members (
-    MemberId     TEXT PRIMARY KEY,
-    PrincipalId  TEXT NOT NULL,
-    RoleId       TEXT NOT NULL,
-    AssignedBy   TEXT NOT NULL,
-    AssignedAt   TEXT NOT NULL,
-    ValidFrom    TEXT,            -- NULL = imediato
-    ValidTo      TEXT,            -- NULL = sem expiração
-    RevokedAt    TEXT,
-    RevokedBy    TEXT
-);
-CREATE INDEX IF NOT EXISTS idx_role_members_principal ON security_role_members(PrincipalId);
-CREATE INDEX IF NOT EXISTS idx_role_members_role ON security_role_members(RoleId);
-```
+## Migrações
 
----
+O adapter usa `_rh_security_bridge_migrations` com nomes estáveis:
 
-## Como usar
+1. `rh_security_bridge_001_role_members`: memberships de roles.
+2. `rh_security_bridge_002_principal_person_links`: ligação principal→pessoa.
+
+## Integração
 
 ```rust
-use rh_security_bridge::RhSecurityBridgeStore;
-use core_security::{SecurityService, SecuritySqliteStore};
+let repo = SecuritySqliteStore::open(&security_config)?;
+let audit = SecuritySqliteStore::open(&security_config)?;
+let roles = RhSecurityBridgeStore::open(&rh_config)?;
 
-let bridge = RhSecurityBridgeStore::open(&config)?;
-let repo = SecuritySqliteStore::open(&config)?;
-let audit = NoopSecurityAuditLog;
-
-// Injectar bridge como RoleMembershipRepository
-let svc = SecurityService::new(repo, audit, bridge);
-
-// Atribuir role com validade de 30 dias
-let member_id = bridge.assign_principal_to_role(
-    "trabalhador-1",
-    "role-chefia",
-    "rh-sistema",
-    Some(Utc::now()),
-    Some(Utc::now() + Duration::days(30)),
-)?;
+let svc = SecurityService::with_all(repo, audit, roles);
 ```
 
----
+Para `OrgScopeValidator`, a base de dados deve conter a tabela `person_assignment`
+do domínio RH, com `person_id`, `unit_id`, `valid_from` e `valid_until`.
 
 ## Invariantes
 
-- `list_principal_roles` e `list_role_members` filtram por `valid_from <= now <= valid_to` (ou NULL).
-- Memberships revogados não são eliminados — ficam marcados com `RevokedAt`.
-- `MemberId` é um UUID gerado internamente na atribuição.
-
----
+- Memberships revogados ficam marcados; não são removidos.
+- `valid_from <= now` e `valid_to > now` determinam vigência.
+- `valid_to = None` significa sem expiração.
+- `MemberId` é gerado internamente.
+- A validação de scope usa data civil UTC no formato `YYYY-MM-DD`, compatível com
+  as afectações RH existentes.
 
 ## Limites actuais
 
-- Sem sincronização automática com AD/LDAP.
-- Sem notificação de expiração de memberships (sem background job).
-- Roles são strings opacas — sem validação de existência do role.
+- Roles são strings opacas; a existência do role é governada fora do adapter.
+- Não há importação/sincronização batch.
+- Não há notificação automática de expiração.
+- A consulta de `person_assignment` é dependente do schema RH documentado.
 
----
+## Validação
 
-## ToDo
-
-- [ ] Job de expiração automática de memberships com `ValidTo` no passado.
-- [ ] Suporte a importação batch de memberships a partir de CSV/LDAP.
+```sh
+cargo test -p rh-security-bridge
+cargo clippy -p rh-security-bridge --all-targets -- -D warnings
+```

@@ -8,3 +8,5 @@ description = "Helpers headless para templates Typst"
 
 [dependencies]
 thiserror.workspace = true
+[lints]
+workspace = true

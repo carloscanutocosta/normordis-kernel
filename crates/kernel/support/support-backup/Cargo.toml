@@ -8,8 +8,9 @@ description = "Mecânica de backup: compressão gzip e cifragem via support-cryp
 
 [dependencies]
 thiserror.workspace = true
-serde.workspace = true
 serde_json.workspace = true
 flate2.workspace = true
 support-errors = { path = "../support-errors" }
 support-crypto = { path = "../support-crypto" }
+[lints]
+workspace = true

@@ -9,7 +9,6 @@ use domain_numerador::{
     ResetPolicy,
 };
 use rusqlite::{params, Connection, OptionalExtension};
-use serde_json;
 use thiserror::Error;
 
 pub const NUMERADOR_MIGRATIONS: &[&str] = &[r#"

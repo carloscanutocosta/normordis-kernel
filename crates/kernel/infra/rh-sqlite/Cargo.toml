@@ -9,6 +9,8 @@ description = "Adapter SQLite para identidade funcional/local do Mini-Kernel RS"
 [dependencies]
 rusqlite.workspace = true
 thiserror.workspace = true
+chrono.workspace = true
+serde_json.workspace = true
 
 adapter-sqlite = { path = "../adapter-sqlite" }
 core-rh = { path = "../../core/core-rh" }
@@ -16,3 +18,5 @@ support-errors = { path = "../../support/support-errors" }
 
 [dev-dependencies]
 tempfile.workspace = true
+[lints]
+workspace = true

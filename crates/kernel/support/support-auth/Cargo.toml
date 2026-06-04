@@ -24,3 +24,5 @@ subtle = { workspace = true }
 ed25519-dalek = { workspace = true }
 
 [dev-dependencies]
+[lints]
+workspace = true

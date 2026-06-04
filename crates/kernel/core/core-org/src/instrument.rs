@@ -48,6 +48,10 @@ impl InstrumentKind {
 
     /// Desserializa da representação canónica. Para `"outro:{valor}"` devolve
     /// `Some(Outro(valor))`; valores desconhecidos devolvem `None`.
+    ///
+    /// Inerente (devolve `Option`, não `Result`) — distinto de `FromStr`; o
+    /// `TryFrom<&str>` cobre o caso falível.
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Option<Self> {
         match s {
             "portaria" => Some(Self::Portaria),
@@ -103,6 +107,6 @@ impl LegalInstrument {
     }
 
     pub fn is_effective_at(&self, date: NaiveDate) -> bool {
-        date >= self.effective_from && self.effective_until.map_or(true, |u| date < u)
+        date >= self.effective_from && self.effective_until.is_none_or(|u| date < u)
     }
 }

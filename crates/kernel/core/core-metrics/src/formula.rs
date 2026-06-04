@@ -47,6 +47,7 @@ pub enum AggregationKind {
 }
 
 impl AggregationKind {
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Option<Self> {
         match s {
             "sum" => Some(Self::Sum),
@@ -151,12 +152,12 @@ fn aggregate(binding: &CalculationBinding, events: &[MetricEvent]) -> Result<f64
         }
         AggregationKind::Last => {
             let mut sorted = filtered.clone();
-            sorted.sort_by(|a, b| b.timestamp.cmp(&a.timestamp));
+            sorted.sort_by_key(|b| std::cmp::Reverse(b.timestamp));
             sorted[0].value
         }
         AggregationKind::First => {
             let mut sorted = filtered.clone();
-            sorted.sort_by(|a, b| a.timestamp.cmp(&b.timestamp));
+            sorted.sort_by_key(|a| a.timestamp);
             sorted[0].value
         }
         AggregationKind::Min => filtered

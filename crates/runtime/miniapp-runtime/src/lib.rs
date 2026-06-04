@@ -5,7 +5,7 @@
 //! Não conhece SQLite, filesystem, Tauri ou UI.
 
 use chrono::{DateTime, Utc};
-use core_audit::{AuditActor, AuditEvent, AuditStore, AuditTarget};
+use core_audit::{AuditActor, AuditEvent, AuditOutcome, AuditStore, AuditTarget};
 use core_documental::{
     DocumentCustody, DocumentEvent, DocumentEventId, DocumentEventType, DocumentId, DocumentStatus,
     EventActor, TemplateId,
@@ -144,6 +144,8 @@ pub fn record_document_created<R: AuditStore>(
         actor,
         target,
         at,
+        AuditOutcome::Success,
+        None,
         Some(serde_json::json!({
             "app": context.app_name,
             "template_id": document.template_id.as_str(),

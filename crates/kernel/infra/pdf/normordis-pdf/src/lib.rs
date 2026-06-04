@@ -50,6 +50,10 @@
 //! # Ok::<(), normordis_pdf::NormaxisPdfError>(())
 //! ```
 
+// Operações de desenho do backend PDF têm muitos parâmetros geométricos
+// (coordenadas, dimensões, cor, espaçamento) — intrínseco ao domínio de render.
+#![allow(clippy::too_many_arguments)]
+
 // ── Modules ───────────────────────────────────────────────────────────────────
 
 pub mod backend;

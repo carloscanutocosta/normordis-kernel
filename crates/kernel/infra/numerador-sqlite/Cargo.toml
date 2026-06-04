@@ -9,7 +9,6 @@ description = "Adapter SQLite para persistência do numerador (domain-numerador)
 [dependencies]
 domain-numerador = { path = "../../../domain/domain-numerador" }
 adapter-sqlite   = { path = "../adapter-sqlite" }
-core-rh          = { path = "../../core/core-rh" }
 support-errors   = { path = "../../support/support-errors" }
 rusqlite         = { workspace = true }
 serde_json       = { workspace = true }
@@ -18,3 +17,5 @@ thiserror        = { workspace = true }
 
 [dev-dependencies]
 tempfile = { workspace = true }
+[lints]
+workspace = true

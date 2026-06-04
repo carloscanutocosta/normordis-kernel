@@ -20,3 +20,5 @@ support-errors  = { path = "../../support/support-errors" }
 tempfile.workspace = true
 tokio = { workspace = true, features = ["rt", "macros"] }
 security-sqlite = { path = "../security-sqlite" }
+[lints]
+workspace = true

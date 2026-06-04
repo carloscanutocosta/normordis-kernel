@@ -293,11 +293,7 @@ impl SqliteWriteQueue {
             committed_batches: self.metrics.committed_batches.load(Ordering::Relaxed),
             retries: self.metrics.retries.load(Ordering::Relaxed),
             full_events: self.metrics.full_events.load(Ordering::Relaxed),
-            average_wait_ms: if processed == 0 {
-                0
-            } else {
-                total_wait / processed
-            },
+            average_wait_ms: total_wait.checked_div(processed).unwrap_or(0),
         }
     }
 

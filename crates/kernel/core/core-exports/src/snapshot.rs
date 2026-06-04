@@ -2,7 +2,7 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
-use core_audit::{AuditActor, AuditEvent, AuditTarget};
+use core_audit::{AuditActor, AuditEvent, AuditOutcome, AuditTarget};
 use core_documental::{validate_document_package, DocumentPackage};
 use core_validation::sha256_bytes;
 
@@ -224,8 +224,15 @@ fn build_audit_event(
         "manifest_hash": snapshot.manifest.hash,
     });
 
-    AuditEvent::new("export.generated", audit_actor, audit_target, Some(details))
-        .map_err(|e| ExportError::AuditError(e.to_string()))
+    AuditEvent::new(
+        "export.generated",
+        audit_actor,
+        audit_target,
+        AuditOutcome::Success,
+        None,
+        Some(details),
+    )
+    .map_err(|e| ExportError::AuditError(e.to_string()))
 }
 
 fn recompute_manifest_hash(snapshot: &ExportSnapshot) -> Result<String, ExportError> {

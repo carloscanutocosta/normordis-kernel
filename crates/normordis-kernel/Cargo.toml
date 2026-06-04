@@ -41,3 +41,5 @@ support-app-bootstrap = { path = "../kernel/infra/app-bootstrap",       optional
 
 [features]
 bootstrap = ["dep:runtime-bootstrap", "dep:support-app-bootstrap"]
+[lints]
+workspace = true

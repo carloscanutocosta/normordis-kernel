@@ -8,16 +8,25 @@
 # RustSec advisory database
 db-path = "~/.cargo/advisory-db"
 db-urls = ["https://github.com/rustsec/advisory-db"]
-# Falha em qualquer vulnerabilidade
-vulnerability = "deny"
 # Unmaintained: verificar todas as dependências (workspace + transitivas)
 # Valores válidos: "all" | "workspace" | "transitive" | "none"
 unmaintained = "all"
 # Yanked crates: bloquear
 yanked = "deny"
-# Avisos de segurança genéricos
-notice = "warn"
-ignore = []
+ignore = [
+  # rsa e usado apenas para verificacao publica de assinaturas JWT RSA.
+  # Nao ha uso de RsaPrivateKey, assinatura ou decriptacao privada no support-auth.
+  "RUSTSEC-2023-0071",
+  # bincode 1.3.3 chega por hyphenation/syntect na cadeia Typst/PDF.
+  # O advisory e de manutencao, sem upgrade seguro direto neste grafo.
+  "RUSTSEC-2025-0141",
+  # paste chega por hayagriva/rav1e na cadeia Typst/PDF.
+  # O advisory e de manutencao, sem upgrade seguro direto neste grafo.
+  "RUSTSEC-2024-0436",
+  # yaml-rust chega por syntect na cadeia Typst/PDF.
+  # O advisory e de manutencao, sem upgrade seguro direto neste grafo.
+  "RUSTSEC-2024-0320",
+]
 
 [licenses]
 # Licenças permitidas para dependências do normordis-kernel.
@@ -28,33 +37,17 @@ allow = [
   "Apache-2.0 WITH LLVM-exception",
   "BSD-2-Clause",
   "BSD-3-Clause",
+  "NCSA",                # equiv. a BSD-3-Clause; aparece em libfuzzer-sys via rav1e
+  "CDLA-Permissive-2.0", # Linux Foundation permissiva; aparece em webpki-roots
   "ISC",
   "Zlib",
   "CC0-1.0",
-  "Unicode-DFS-2016",
   "Unicode-3.0",
-  "OpenSSL",
   "BSL-1.0",
   "MPL-2.0",
   "EUPL-1.2",
 ]
-# LGPL é compatível com EUPL sob condições mas evitar por precaução
-# GPL/AGPL são incompatíveis com distribuição proprietária
-deny = [
-  "GPL-2.0",
-  "GPL-3.0",
-  "AGPL-3.0",
-  "LGPL-2.0",
-  "LGPL-2.1",
-  "LGPL-3.0",
-]
-# Tolerar crates sem licença SPDX clara (alguns crates do ecossistema Rust)
-unlicensed = "deny"
-# Avisa sobre licenças que requerem aviso de copyright
-copyleft = "warn"
-# Permite crates com múltiplas licenças (qualquer uma das listadas)
-allow-osi-fsf-free = "neither"
-default = "deny"
+# Todas as licenças não listadas acima são negadas por omissão.
 confidence-threshold = 0.8
 
 [[licenses.exceptions]]
@@ -63,11 +56,7 @@ name = "ring"
 version = "*"
 allow = ["MIT", "ISC", "OpenSSL"]
 
-[[licenses.exceptions]]
-# webpki — licença ISC
-name = "webpki"
-version = "*"
-allow = ["ISC"]
+# (excepção webpki removida — crate substituído por webpki-roots; CDLA-Permissive-2.0 na lista global)
 
 [bans]
 # Versões múltiplas da mesma crate: avisar (dependências transitivas podem divergir)

@@ -8,9 +8,11 @@ description = "Modelo de domínio da estrutura orgânica institucional (position
 
 [dependencies]
 serde.workspace = true
+serde_json.workspace = true
 chrono.workspace = true
 thiserror.workspace = true
 uuid.workspace = true
 
 support-errors = { path = "../../support/support-errors" }
-core-validation = { path = "../core-validation" }
+[lints]
+workspace = true

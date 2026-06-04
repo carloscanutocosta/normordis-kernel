@@ -1,11 +1,58 @@
 //! Ports de persistência (hexagonal) para todos os agregados de `core-org`.
+//!
+//! ## Escrita governada com evidência transaccional
+//!
+//! As operações de escrita governadas (via serviço) usam variantes `*_audited`,
+//! que persistem a mudança de estado **e** enfileiram o `OrgAuditEvent` no outbox
+//! na **mesma transação** — eliminando a possibilidade de estado sem evidência.
+//! O [`OrgAuditOutbox`] entrega depois os eventos ao [`OrgAuditPort`] (drain
+//! idempotente). As variantes simples (`create`/`update`/`save`/`deactivate`)
+//! permanecem para importação e uso directo (sem evidência).
 
 use chrono::NaiveDate;
 
 use crate::{
+    audit::{OrgAuditEvent, OrgAuditPort},
+    domain_events::{OrgDomainEvent, OrgDomainEventPort},
+    pagination::{OrgPage, PagedResult},
     Competency, CompetencyId, Delegation, DelegationId, LegalInstrument, LegalInstrumentId,
-    OrgError, OrgLevel, OrgPosition, OrgPositionId, OrgUnit, OrgUnitId,
+    OrgError, OrgLevel, OrgPosition, OrgPositionId, OrgUnit, OrgUnitId, PositionKind,
 };
+
+// ── OrgAuditOutbox (evidência + eventos transaccionais) ───────────────────────
+
+/// Outbox de evidência de auditoria e de eventos de domínio, co-localizado com o
+/// estado (mesma BD).
+///
+/// Garante que a evidência (e os eventos de integração) são capturados
+/// atomicamente com a mudança de estado (via métodos `*_audited` das repos) e
+/// entregues de forma fiável e idempotente aos respectivos portos, mesmo que a
+/// entrega imediata falhe. Mensagens que esgotam as tentativas de entrega são
+/// movidas para *dead-letter* (não bloqueiam a fila).
+pub trait OrgAuditOutbox {
+    /// Enfileira um evento de auditoria independente (ex.: falhas — sem mudança de
+    /// estado associada, logo sem necessidade de atomicidade com estado).
+    fn enqueue_audit(&self, event: &OrgAuditEvent) -> Result<(), OrgError>;
+
+    /// Entrega os eventos de auditoria pendentes ao `audit`. **Idempotente** e
+    /// **resiliente a poison messages**: uma mensagem que falha repetidamente é
+    /// movida para dead-letter sem bloquear as restantes. Devolve nº entregue.
+    fn drain_audit_outbox(&self, audit: &dyn OrgAuditPort) -> Result<usize, OrgError>;
+
+    /// Entrega os eventos de domínio pendentes ao `events` (mesmas garantias).
+    fn drain_domain_outbox(&self, events: &dyn OrgDomainEventPort) -> Result<usize, OrgError>;
+
+    /// Nº de eventos de auditoria por entregar (observabilidade / health).
+    fn pending_audit_count(&self) -> Result<u64, OrgError>;
+    /// Nº de eventos de auditoria em dead-letter (esgotaram tentativas).
+    fn dead_letter_audit_count(&self) -> Result<u64, OrgError>;
+    /// Nº de eventos de domínio por entregar.
+    fn pending_domain_count(&self) -> Result<u64, OrgError>;
+    /// Nº de eventos de domínio em dead-letter.
+    fn dead_letter_domain_count(&self) -> Result<u64, OrgError>;
+}
+
+// ── OrgUnitRepository ─────────────────────────────────────────────────────────
 
 pub trait OrgUnitRepository {
     fn get(&self, id: &OrgUnitId) -> Result<Option<OrgUnit>, OrgError>;
@@ -13,48 +60,132 @@ pub trait OrgUnitRepository {
     fn list_active_at(&self, date: NaiveDate) -> Result<Vec<OrgUnit>, OrgError>;
     fn list_by_level(&self, level: OrgLevel) -> Result<Vec<OrgUnit>, OrgError>;
     fn list_children(&self, parent_id: &OrgUnitId) -> Result<Vec<OrgUnit>, OrgError>;
+    /// Pesquisa por nome (short_name ou full_name), unidades não-extintas, paginado.
+    fn search_by_name(&self, term: &str, page: OrgPage) -> Result<PagedResult<OrgUnit>, OrgError>;
     /// Retorna a cadeia hierárquica da unidade até à raiz, na data indicada.
+    /// Ordenado por nível descendente: a própria unidade primeiro, raiz por último.
     fn hierarchy_at(&self, id: &OrgUnitId, date: NaiveDate) -> Result<Vec<OrgUnit>, OrgError>;
+    /// Retorna todos os descendentes directos e indirectos de uma unidade, numa data.
+    /// Inclui a própria unidade raiz. Ordenado por nível ascendente, depois por nome.
+    fn list_subtree(&self, root_id: &OrgUnitId, date: NaiveDate) -> Result<Vec<OrgUnit>, OrgError>;
+    /// Retorna todas as unidades não-extintas numa data (árvore completa).
+    fn full_tree_at(&self, date: NaiveDate) -> Result<Vec<OrgUnit>, OrgError>;
     /// Criação explícita — falha com `AlreadyExists` se a unidade já existe.
-    /// Implementações DEVEM rejeitar se `unit.id` já constar na base de dados.
     fn create(&self, unit: &OrgUnit) -> Result<(), OrgError>;
-    /// Actualização — falha com `UnitNotFound` se a unidade não existe.
-    /// Upsert implícito (`save`) está disponível via método separado para
-    /// cenários de carregamento de dados onde a distinção não é crítica.
+    /// Actualização com OCC — falha com `VersionConflict` se a versão não coincide,
+    /// ou `UnitNotFound` se a unidade não existe. Incrementa `version` na BD.
     fn update(&self, unit: &OrgUnit) -> Result<(), OrgError>;
     /// Upsert (criar-ou-actualizar). Usar apenas em importações e testes.
-    /// Preferir `create`/`update` em código de aplicação.
     fn save(&self, unit: &OrgUnit) -> Result<(), OrgError>;
     /// Desactiva a unidade, definindo `valid_until` e transitando para `Extinct`.
-    /// Implementações DEVEM rejeitar se a unidade tiver filhos ou posições activas,
-    /// devolvendo `CannotDeactivateWithActiveChildren` / `CannotDeactivateWithActivePositions`.
     fn deactivate(&self, id: &OrgUnitId, valid_until: NaiveDate) -> Result<(), OrgError>;
+
+    // ── Variantes auditadas (estado + outbox de auditoria + de domínio, 1 txn) ─
+    /// Cria a unidade e enfileira o evento de auditoria e (se presente) o evento
+    /// de domínio no outbox, tudo na mesma transação.
+    fn create_audited(
+        &self,
+        unit: &OrgUnit,
+        event: &OrgAuditEvent,
+        domain: Option<&OrgDomainEvent>,
+    ) -> Result<(), OrgError>;
+    /// Actualiza (OCC) a unidade; captura evidência + evento atomicamente.
+    fn update_audited(
+        &self,
+        unit: &OrgUnit,
+        event: &OrgAuditEvent,
+        domain: Option<&OrgDomainEvent>,
+    ) -> Result<(), OrgError>;
+    /// Upsert da unidade; captura evidência + evento atomicamente (importação).
+    fn save_audited(
+        &self,
+        unit: &OrgUnit,
+        event: &OrgAuditEvent,
+        domain: Option<&OrgDomainEvent>,
+    ) -> Result<(), OrgError>;
+    /// Desactiva a unidade; captura evidência + evento atomicamente.
+    fn deactivate_audited(
+        &self,
+        id: &OrgUnitId,
+        valid_until: NaiveDate,
+        event: &OrgAuditEvent,
+        domain: Option<&OrgDomainEvent>,
+    ) -> Result<(), OrgError>;
 }
+
+// ── OrgPositionRepository ─────────────────────────────────────────────────────
 
 pub trait OrgPositionRepository {
     fn get(&self, id: &OrgPositionId) -> Result<Option<OrgPosition>, OrgError>;
+    fn find_by_code(&self, code: &str) -> Result<Option<OrgPosition>, OrgError>;
     fn list_for_unit(&self, unit_id: &OrgUnitId) -> Result<Vec<OrgPosition>, OrgError>;
     fn list_for_unit_at(
         &self,
         unit_id: &OrgUnitId,
         date: NaiveDate,
     ) -> Result<Vec<OrgPosition>, OrgError>;
+    /// Lista posições activas de um dado tipo, numa data (todos os serviços).
+    fn list_by_kind(
+        &self,
+        kind: &PositionKind,
+        date: NaiveDate,
+    ) -> Result<Vec<OrgPosition>, OrgError>;
+    /// Lista posições activas de um dado tipo numa unidade específica, numa data.
+    fn list_for_unit_and_kind(
+        &self,
+        unit_id: &OrgUnitId,
+        kind: &PositionKind,
+        date: NaiveDate,
+    ) -> Result<Vec<OrgPosition>, OrgError>;
+    /// Lista todas as posições activas em todos os serviços, numa data.
+    fn list_all_at(&self, date: NaiveDate) -> Result<Vec<OrgPosition>, OrgError>;
+    /// Devolve a posição que é substituto legal da posição dada, se existir e estiver activa.
+    fn find_effective_substitute(
+        &self,
+        position_id: &OrgPositionId,
+        date: NaiveDate,
+    ) -> Result<Option<OrgPosition>, OrgError>;
     /// Criação explícita — falha com `AlreadyExists` se a posição já existe.
     fn create(&self, position: &OrgPosition) -> Result<(), OrgError>;
-    /// Actualização — falha com `PositionNotFound` se a posição não existe.
+    /// Actualização com OCC — falha com `VersionConflict` ou `PositionNotFound`.
     fn update(&self, position: &OrgPosition) -> Result<(), OrgError>;
-    /// Upsert. Usar apenas em importações e testes; preferir `create`/`update`.
+    /// Upsert. Usar apenas em importações e testes.
     fn save(&self, position: &OrgPosition) -> Result<(), OrgError>;
+    /// Desactiva a posição, definindo `valid_until` e status `Extinct`.
+    fn deactivate(&self, id: &OrgPositionId, valid_until: NaiveDate) -> Result<(), OrgError>;
+
+    // ── Variantes auditadas (estado + outbox de auditoria + de domínio, 1 txn) ─
+    fn create_audited(
+        &self,
+        position: &OrgPosition,
+        event: &OrgAuditEvent,
+        domain: Option<&OrgDomainEvent>,
+    ) -> Result<(), OrgError>;
+    fn update_audited(
+        &self,
+        position: &OrgPosition,
+        event: &OrgAuditEvent,
+        domain: Option<&OrgDomainEvent>,
+    ) -> Result<(), OrgError>;
+    fn deactivate_audited(
+        &self,
+        id: &OrgPositionId,
+        valid_until: NaiveDate,
+        event: &OrgAuditEvent,
+        domain: Option<&OrgDomainEvent>,
+    ) -> Result<(), OrgError>;
 }
+
+// ── LegalInstrumentRepository ─────────────────────────────────────────────────
 
 pub trait LegalInstrumentRepository {
     fn get(&self, id: &LegalInstrumentId) -> Result<Option<LegalInstrument>, OrgError>;
     fn list(&self) -> Result<Vec<LegalInstrument>, OrgError>;
     fn list_effective_at(&self, date: NaiveDate) -> Result<Vec<LegalInstrument>, OrgError>;
-    /// Upsert — instrumentos jurídicos são referência imutável na prática,
-    /// mas o upsert permite correcções editoriais.
     fn save(&self, instrument: &LegalInstrument) -> Result<(), OrgError>;
 }
+
+// ── CompetencyRepository ──────────────────────────────────────────────────────
 
 pub trait CompetencyRepository {
     fn get(&self, id: &CompetencyId) -> Result<Option<Competency>, OrgError>;
@@ -63,8 +194,25 @@ pub trait CompetencyRepository {
         position_id: &OrgPositionId,
         date: NaiveDate,
     ) -> Result<Vec<Competency>, OrgError>;
+    /// Upsert. Usar apenas em importações e testes.
     fn save(&self, competency: &Competency) -> Result<(), OrgError>;
+    /// Actualização com OCC — falha com `VersionConflict` ou `CompetencyNotFound`.
+    fn update(&self, competency: &Competency) -> Result<(), OrgError>;
+
+    // ── Variantes auditadas ───────────────────────────────────────────────────
+    fn create_audited(
+        &self,
+        competency: &Competency,
+        event: &OrgAuditEvent,
+    ) -> Result<(), OrgError>;
+    fn update_audited(
+        &self,
+        competency: &Competency,
+        event: &OrgAuditEvent,
+    ) -> Result<(), OrgError>;
 }
+
+// ── DelegationRepository ──────────────────────────────────────────────────────
 
 pub trait DelegationRepository {
     fn get(&self, id: &DelegationId) -> Result<Option<Delegation>, OrgError>;
@@ -74,5 +222,20 @@ pub trait DelegationRepository {
         to_position: &OrgPositionId,
         date: NaiveDate,
     ) -> Result<Vec<Delegation>, OrgError>;
+    /// Upsert. Usar apenas em importações e testes.
     fn save(&self, delegation: &Delegation) -> Result<(), OrgError>;
+    /// Actualização com OCC — falha com `VersionConflict` ou `DelegationNotFound`.
+    fn update(&self, delegation: &Delegation) -> Result<(), OrgError>;
+
+    // ── Variantes auditadas ───────────────────────────────────────────────────
+    fn create_audited(
+        &self,
+        delegation: &Delegation,
+        event: &OrgAuditEvent,
+    ) -> Result<(), OrgError>;
+    fn update_audited(
+        &self,
+        delegation: &Delegation,
+        event: &OrgAuditEvent,
+    ) -> Result<(), OrgError>;
 }

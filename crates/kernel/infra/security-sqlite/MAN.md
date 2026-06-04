@@ -2,135 +2,93 @@
 
 ## Objectivo
 
-Persistência SQLite para o domínio de segurança e autorização. Implementa `SecurityPolicyRepository` e `SecurityAuditLog` de `core-security` com revogação em cascata de delegações via CTE recursiva.
+`security-sqlite` é o adapter SQLite de `core-security`. Implementa
+`SecurityPolicyRepository` e `SecurityAuditLog`, persistindo políticas, delegações
+temporais, revogações em cascata e decisões de autorização.
 
----
+## Responsabilidade
+
+- Executar schema/migrações do adapter.
+- Persistir políticas soberanas versionadas.
+- Persistir delegações com vigência, recurso opcional, condições e cadeia `granted_via`.
+- Revogar delegações em cascata por CTE recursiva.
+- Registar decisões de autorização para auditoria operacional com cadeia de hash local.
+
+## Não-responsabilidade
+
+- Não decide autorização; essa lógica pertence a `core-security`.
+- Não autentica principals.
+- Não fornece WORM/hash chain/assinatura probatória forte.
+- Não faz purge/retention automático.
+- Não gere roles; isso pertence a `rh-security-bridge` ou outro adapter.
 
 ## Contrato público
 
 ```rust
-pub struct SecuritySqliteStore {
-    conn: Arc<Mutex<rusqlite::Connection>>,
-}
+pub struct SecuritySqliteStore;
 
 impl SecuritySqliteStore {
-    pub fn open(config: &SqliteRelationalConfig) -> Result<Self, SecurityError>;
+    pub fn open(config: &SqliteRelationalConfig) -> Result<Self, SecuritySqliteError>;
+    pub fn from_connection(conn: rusqlite::Connection) -> Result<Self, SecuritySqliteError>;
+    pub fn migrate(&self) -> Result<(), SecuritySqliteError>;
+    pub fn verify_audit_chain(&self) -> Result<bool, SecuritySqliteError>;
 }
 
-/// Migrações SQL exportadas para uso externo.
+impl SecurityPolicyRepository for SecuritySqliteStore;
+impl SecurityAuditLog for SecuritySqliteStore;
+
 pub const SECURITY_SQLITE_MIGRATIONS: &[&str];
 ```
 
-`SecuritySqliteStore` implementa:
+## Migrações
 
-```rust
-impl SecurityPolicyRepository for SecuritySqliteStore { ... }
-impl SecurityAuditLog for SecuritySqliteStore { ... }
-```
+O adapter usa uma tabela local `_security_sqlite_migrations` com nomes estáveis,
+independentes do texto SQL. Campos adicionados por `ALTER TABLE` são aplicados
+apenas quando a coluna ainda não existe, evitando falhas em bases já migradas.
 
----
+Migrações actuais:
 
-## Schema (3 migrações)
-
-**Migração 1 — Políticas:**
-```sql
-CREATE TABLE IF NOT EXISTS security_policies (
-    PrincipalId  TEXT PRIMARY KEY,
-    PolicyJson   TEXT NOT NULL,
-    UpdatedAt    TEXT NOT NULL
-);
-```
-
-**Migração 2 — Delegações:**
-```sql
-CREATE TABLE IF NOT EXISTS security_delegations (
-    Id              TEXT PRIMARY KEY,
-    FromPrincipal   TEXT NOT NULL,
-    ToPrincipal     TEXT NOT NULL,
-    ActionCode      TEXT NOT NULL,
-    ResourcePattern TEXT,
-    GrantedAt       TEXT NOT NULL,
-    ExpiresAt       TEXT,
-    GrantedVia      TEXT,          -- FK para outra delegação (cadeia)
-    RevokedAt       TEXT,
-    RevokedBy       TEXT,
-    RevocationReason TEXT
-);
-CREATE INDEX IF NOT EXISTS idx_delegations_to ON security_delegations(ToPrincipal);
-CREATE INDEX IF NOT EXISTS idx_delegations_from ON security_delegations(FromPrincipal);
-```
-
-**Migração 3 — Auditoria:**
-```sql
-CREATE TABLE IF NOT EXISTS security_auth_decisions (
-    Id          TEXT PRIMARY KEY,
-    Principal   TEXT NOT NULL,
-    Action      TEXT NOT NULL,
-    Resource    TEXT,
-    Decision    TEXT NOT NULL,  -- 'Granted' | 'Denied'
-    GrantedBy   TEXT,
-    DecidedAt   TEXT NOT NULL
-);
-CREATE INDEX IF NOT EXISTS idx_auth_decisions_principal ON security_auth_decisions(Principal);
-```
-
----
-
-## Revogação em cascata
-
-`revoke_delegation` usa uma CTE recursiva para revogar automaticamente todas as delegações cuja cadeia `granted_via` inclua o id revogado:
-
-```sql
-WITH RECURSIVE cascade(id) AS (
-    SELECT ?1
-    UNION ALL
-    SELECT d.Id FROM security_delegations d
-    INNER JOIN cascade c ON d.GrantedVia = c.id
-    WHERE d.RevokedAt IS NULL
-)
-UPDATE security_delegations
-SET RevokedAt = ?2, RevokedBy = ?3, RevocationReason = ?4
-WHERE Id IN (SELECT id FROM cascade);
-```
-
----
-
-## Como usar
-
-```rust
-use security_sqlite::SecuritySqliteStore;
-use adapter_sqlite::SqliteRelationalConfig;
-use core_security::{SecurityService, InMemoryRoleMembership, NoopSecurityAuditLog};
-
-let config = SqliteRelationalConfig::read_write_create("security.db");
-let repo = SecuritySqliteStore::open(&config)?;
-
-// Para auditoria persistente, usar também SecuritySqliteStore como audit log:
-let audit = SecuritySqliteStore::open(&config)?;
-
-let svc = SecurityService::new(repo, audit, InMemoryRoleMembership::new());
-```
-
----
+1. `security_sqlite_001_base`: `security_policies`, `security_delegations` e índices base.
+2. `security_sqlite_002_delegation_chain`: coluna `granted_via` e índice de cadeia.
+3. `security_sqlite_003_auth_decisions`: `security_auth_decisions` e índices.
+4. `security_sqlite_004_policy_validity`: `valid_from` e `valid_to` em políticas.
+5. `security_sqlite_005_evidence_level`: `evidence_level` em decisões.
+6. `security_sqlite_006_audit_hash_chain`: `previous_hash` e `entry_hash`.
 
 ## Invariantes
 
-- As migrações são idempotentes (`CREATE TABLE IF NOT EXISTS`).
-- `open()` executa as 3 migrações em sequência antes de devolver o store.
-- A ligação é partilhada via `Arc<Mutex<Connection>>` — thread-safe.
-- Delegações revogadas não são eliminadas — ficam marcadas com `RevokedAt`.
+- `open()` executa migrações antes de devolver o store.
+- Políticas revogadas não são eliminadas.
+- Delegações revogadas não são eliminadas.
+- `list_delegations()` devolve apenas delegações activas no instante fornecido.
+- `revoke_delegation()` revoga a delegação raiz e descendentes via `granted_via`.
+- Decisões de autorização são inseridas, não actualizadas pela API pública.
+- Cada nova decisão guarda `previous_hash` e `entry_hash` SHA-256 sobre payload canónico.
+- `verify_audit_chain()` detecta alteração local de payload ou quebra de cadeia.
 
----
+## Integração recomendada
+
+```rust
+let repo = SecuritySqliteStore::open(&config)?;
+let audit = SecuritySqliteStore::open(&config)?;
+let svc = SecurityService::with_audit(repo, audit);
+```
+
+Para produção, manter `SecurityRuntimePolicy::production()` e garantir que o
+adapter de auditoria está disponível antes de aceitar operações sensíveis.
 
 ## Limites actuais
 
-- Sem encriptação da base de dados.
-- Auditoria cresce indefinidamente (sem purge/rotate automático).
-- A CTE recursiva de revogação em cascata requer que SQLite tenha `RECURSIVE` habilitado (padrão desde 3.8.3).
+- A cadeia de hash local aumenta integridade operacional, mas não substitui WORM,
+  assinatura externa, retenção legal ou custódia probatória em `core-audit`.
+- Usa `Arc<Mutex<rusqlite::Connection>>`; para carga concorrente alta considerar
+  pool ou adapter assíncrono dedicado.
+- Sem encriptação própria da base de dados.
+- Sem política de retenção/purge.
 
----
+## Validação
 
-## ToDo
-
-- [ ] Purge de registos de auditoria por política de retenção.
-- [ ] Índice composto `(ToPrincipal, ActionCode)` para queries de autorização frequentes.
+```sh
+cargo test -p security-sqlite
+cargo clippy -p security-sqlite --all-targets -- -D warnings
+```

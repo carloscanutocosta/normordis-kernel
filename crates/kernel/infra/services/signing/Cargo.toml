@@ -21,3 +21,5 @@ zeroize = { workspace = true }
 [features]
 default = []
 native-pkcs11 = ["dep:cryptoki"]
+[lints]
+workspace = true

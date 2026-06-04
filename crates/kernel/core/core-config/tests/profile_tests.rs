@@ -777,16 +777,46 @@ fn all_error_codes_are_unique() {
 #[test]
 fn config_error_code_matches_variant() {
     let cases: &[(ConfigError, &str)] = &[
-        (ConfigError::InvalidAppProfile { reason: "x".into() }, INVALID_APP_PROFILE),
-        (ConfigError::InvalidRuntimeProfile { reason: "x".into() }, INVALID_RUNTIME_PROFILE),
-        (ConfigError::InvalidStorageProfile { reason: "x".into() }, INVALID_STORAGE_PROFILE),
-        (ConfigError::DuplicateStorageProfile { name: "x".into() }, DUPLICATE_STORAGE_PROFILE),
-        (ConfigError::MissingStorageProfile { name: "x".into() }, MISSING_STORAGE_PROFILE),
-        (ConfigError::InvalidCryptoProfile { reason: "x".into() }, INVALID_CRYPTO_PROFILE),
-        (ConfigError::InvalidLoggingProfile { reason: "x".into() }, INVALID_LOGGING_PROFILE),
-        (ConfigError::InvalidAuditProfile { reason: "x".into() }, INVALID_AUDIT_PROFILE),
-        (ConfigError::InconsistentProfile { reason: "x".into() }, INCONSISTENT_PROFILE),
-        (ConfigError::MalformedJson { reason: "x".into() }, MALFORMED_JSON),
+        (
+            ConfigError::InvalidAppProfile { reason: "x".into() },
+            INVALID_APP_PROFILE,
+        ),
+        (
+            ConfigError::InvalidRuntimeProfile { reason: "x".into() },
+            INVALID_RUNTIME_PROFILE,
+        ),
+        (
+            ConfigError::InvalidStorageProfile { reason: "x".into() },
+            INVALID_STORAGE_PROFILE,
+        ),
+        (
+            ConfigError::DuplicateStorageProfile { name: "x".into() },
+            DUPLICATE_STORAGE_PROFILE,
+        ),
+        (
+            ConfigError::MissingStorageProfile { name: "x".into() },
+            MISSING_STORAGE_PROFILE,
+        ),
+        (
+            ConfigError::InvalidCryptoProfile { reason: "x".into() },
+            INVALID_CRYPTO_PROFILE,
+        ),
+        (
+            ConfigError::InvalidLoggingProfile { reason: "x".into() },
+            INVALID_LOGGING_PROFILE,
+        ),
+        (
+            ConfigError::InvalidAuditProfile { reason: "x".into() },
+            INVALID_AUDIT_PROFILE,
+        ),
+        (
+            ConfigError::InconsistentProfile { reason: "x".into() },
+            INCONSISTENT_PROFILE,
+        ),
+        (
+            ConfigError::MalformedJson { reason: "x".into() },
+            MALFORMED_JSON,
+        ),
     ];
 
     for (err, expected_code) in cases {

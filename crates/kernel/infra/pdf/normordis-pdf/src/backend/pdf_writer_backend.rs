@@ -478,7 +478,7 @@ impl PdfWriterBackend {
         self.current_page_fonts.clear();
 
         // Move pending links to the deferred list now that the page dict is sealed.
-        for (link, aref) in pending_links.into_iter().zip(link_refs.into_iter()) {
+        for (link, aref) in pending_links.into_iter().zip(link_refs) {
             self.deferred_links.push(DeferredLinkAnnot {
                 annot_ref: aref,
                 rect_pt: link.rect_pt,
@@ -762,7 +762,7 @@ impl PdfBackend for PdfWriterBackend {
             .filter(|(idx, _)| {
                 self.used_glyphs
                     .get(&(*idx as u32))
-                    .map_or(false, |s| !s.is_empty())
+                    .is_some_and(|s| !s.is_empty())
             })
             .map(|(idx, e)| {
                 let used = self.used_glyphs.get(&(idx as u32)).unwrap_or(&empty_set);
@@ -898,9 +898,7 @@ impl PdfBackend for PdfWriterBackend {
         // ── Write pages tree ──────────────────────────────────────────────────
         let page_count = self.page_refs.len() as i32;
         let page_refs: Vec<Ref> = self.page_refs.clone();
-        pdf.pages(self.pages_ref)
-            .count(page_count)
-            .kids(page_refs.into_iter());
+        pdf.pages(self.pages_ref).count(page_count).kids(page_refs);
 
         // ── Signature objects ─────────────────────────────────────────────────
         // Extract all sig data before taking another &mut pdf borrow.
@@ -999,8 +997,8 @@ impl PdfBackend for PdfWriterBackend {
                         nodes[p].children.push(ni);
                     }
                     level_last[lv] = Some(ni);
-                    for l in (lv + 1)..4 {
-                        level_last[l] = None;
+                    for slot in level_last.iter_mut().skip(lv + 1) {
+                        *slot = None;
                     }
                 }
 

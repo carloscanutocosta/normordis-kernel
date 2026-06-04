@@ -11,7 +11,8 @@ serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true
 chrono.workspace = true
-uuid.workspace = true
 
 core-rh  = { path = "../core-rh" }
 core-org = { path = "../core-org" }
+[lints]
+workspace = true

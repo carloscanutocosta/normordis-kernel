@@ -26,6 +26,7 @@ fn dt(year: i32, month: u32, day: u32) -> chrono::DateTime<Utc> {
     Utc.with_ymd_and_hms(year, month, day, 9, 0, 0).unwrap()
 }
 
+#[allow(clippy::too_many_arguments)]
 fn seq(
     sequence_id: &str,
     entity_id: &str,

@@ -1,7 +1,7 @@
 use chrono::{DateTime, Utc};
 use serde_json::json;
 
-use core_audit::{AuditActor, AuditEvent, AuditTarget};
+use core_audit::{AuditActor, AuditEvent, AuditOutcome, AuditTarget};
 use core_exports::{canonical_bytes, validate_export_snapshot};
 use core_validation::sha256_bytes;
 
@@ -387,6 +387,8 @@ pub fn build_ingest_audit_event(
         evidence.audit.action.as_str(),
         audit_actor,
         audit_target,
+        AuditOutcome::Success,
+        None,
         Some(details),
     )
     .map_err(|e| IngestError::AuditError(e.to_string()))
@@ -534,6 +536,8 @@ fn emergency_audit_event(evidence: &IngestEvidence, actor: &str) -> AuditEvent {
         action,
         AuditActor::new(actor_id).expect("emergency actor is valid"),
         AuditTarget::new("ingest", subject).expect("emergency target is valid"),
+        AuditOutcome::Success,
+        None,
         None,
     )
     .expect("emergency audit event is valid")

@@ -1,0 +1,170 @@
+{
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.6",
+  "version": 1,
+  "serialNumber": "urn:uuid:a3f2e1b0-4c7d-4e8f-9a1b-2c3d4e5f6a7b",
+  "metadata": {
+    "timestamp": "2026-06-04T00:00:00Z",
+    "authors": [
+      {
+        "name": "carloscanutocosta",
+        "email": "carloscanutocosta@gmail.com"
+      }
+    ],
+    "component": {
+      "type": "library",
+      "bom-ref": "normordis-kernel",
+      "name": "normordis-kernel",
+      "version": "0.3.0",
+      "description": "Kernel de conformidade para a Administração Pública portuguesa",
+      "licenses": [
+        { "license": { "id": "EUPL-1.2" } }
+      ],
+      "purl": "pkg:cargo/normordis-kernel@0.3.0"
+    },
+    "properties": [
+      {
+        "name": "normordis:vex:policy",
+        "value": "CRA (UE 2024/2847) art. 13 n.6 — documentação de vulnerabilidades conhecidas com análise de exploitabilidade"
+      },
+      {
+        "name": "normordis:vex:reviewed-by",
+        "value": "carloscanutocosta"
+      },
+      {
+        "name": "normordis:vex:next-review",
+        "value": "2026-09-04"
+      }
+    ]
+  },
+  "vulnerabilities": [
+    {
+      "bom-ref": "vex-RUSTSEC-2023-0071",
+      "id": "RUSTSEC-2023-0071",
+      "source": {
+        "name": "RustSec Advisory Database",
+        "url": "https://rustsec.org/advisories/RUSTSEC-2023-0071.html"
+      },
+      "ratings": [
+        {
+          "source": { "name": "RustSec" },
+          "severity": "medium",
+          "method": "other"
+        }
+      ],
+      "description": "Marvin Attack: potential key recovery through timing side-channels in RSA decryption operations (RsaPrivateKey).",
+      "analysis": {
+        "state": "not_affected",
+        "justification": "code_not_reachable",
+        "detail": "O normordis-kernel usa a crate `rsa` exclusivamente para verificação de assinaturas JWT via chave pública (RsaPublicKey::verify). O advisory descreve um ataque de canal lateral em operações de desencriptação privada (RsaPrivateKey::decrypt). Não existe nenhum uso de RsaPrivateKey, assinatura privada ou desencriptação no workspace. O caminho de código vulnerável é estruturalmente inatingível pelo normordis-kernel. Evidência: grep 'RsaPrivateKey' crates/ retorna zero ocorrências.",
+        "response": ["will_not_fix"],
+        "firstIssued": "2026-06-04T00:00:00Z",
+        "lastUpdated": "2026-06-04T00:00:00Z"
+      },
+      "affects": [
+        {
+          "ref": "pkg:cargo/rsa",
+          "versions": [
+            { "version": "0.9.x", "status": "unaffected" }
+          ]
+        }
+      ]
+    },
+    {
+      "bom-ref": "vex-RUSTSEC-2025-0141",
+      "id": "RUSTSEC-2025-0141",
+      "source": {
+        "name": "RustSec Advisory Database",
+        "url": "https://rustsec.org/advisories/RUSTSEC-2025-0141.html"
+      },
+      "ratings": [
+        {
+          "source": { "name": "RustSec" },
+          "severity": "none",
+          "method": "other"
+        }
+      ],
+      "description": "bincode 1.3.3 é considerada unmaintained (advisory de manutenção, sem CVE).",
+      "analysis": {
+        "state": "not_affected",
+        "justification": "code_not_present",
+        "detail": "bincode 1.3.3 chega como dependência transitiva pela cadeia hyphenation → syntect → Typst → normordis-pdf. O normordis-kernel não usa bincode directamente nem expõe interfaces que dependam de bincode para processar dados não confiáveis. O advisory é de manutenção (sem CVE, sem exploit conhecido). Não existe caminho de upgrade directo neste grafo de dependências sem substituir syntect/hyphenation, o que está fora do âmbito desta versão. Risco residual: baixo — bincode é usado em código de renderização PDF, isolado de entradas externas.",
+        "response": ["update"],
+        "firstIssued": "2026-06-04T00:00:00Z",
+        "lastUpdated": "2026-06-04T00:00:00Z"
+      },
+      "affects": [
+        {
+          "ref": "pkg:cargo/bincode@1.3.3",
+          "versions": [
+            { "version": "1.3.3", "status": "unaffected" }
+          ]
+        }
+      ]
+    },
+    {
+      "bom-ref": "vex-RUSTSEC-2024-0436",
+      "id": "RUSTSEC-2024-0436",
+      "source": {
+        "name": "RustSec Advisory Database",
+        "url": "https://rustsec.org/advisories/RUSTSEC-2024-0436.html"
+      },
+      "ratings": [
+        {
+          "source": { "name": "RustSec" },
+          "severity": "none",
+          "method": "other"
+        }
+      ],
+      "description": "paste é considerada unmaintained (advisory de manutenção, sem CVE).",
+      "analysis": {
+        "state": "not_affected",
+        "justification": "code_not_present",
+        "detail": "paste chega como dependência transitiva pela cadeia hayagriva → rav1e → Typst → normordis-pdf. O normordis-kernel não usa paste directamente. O advisory é de manutenção (sem CVE, sem exploit conhecido). paste é uma crate de macros de procedimento usada em tempo de compilação, sem execução em runtime. Risco residual: negligenciável — código de macro, sem superfície de ataque em runtime.",
+        "response": ["update"],
+        "firstIssued": "2026-06-04T00:00:00Z",
+        "lastUpdated": "2026-06-04T00:00:00Z"
+      },
+      "affects": [
+        {
+          "ref": "pkg:cargo/paste",
+          "versions": [
+            { "version": "*", "status": "unaffected" }
+          ]
+        }
+      ]
+    },
+    {
+      "bom-ref": "vex-RUSTSEC-2024-0320",
+      "id": "RUSTSEC-2024-0320",
+      "source": {
+        "name": "RustSec Advisory Database",
+        "url": "https://rustsec.org/advisories/RUSTSEC-2024-0320.html"
+      },
+      "ratings": [
+        {
+          "source": { "name": "RustSec" },
+          "severity": "none",
+          "method": "other"
+        }
+      ],
+      "description": "yaml-rust é considerada unmaintained (advisory de manutenção, sem CVE).",
+      "analysis": {
+        "state": "not_affected",
+        "justification": "code_not_present",
+        "detail": "yaml-rust chega como dependência transitiva pela cadeia syntect → Typst → normordis-pdf. O normordis-kernel não usa yaml-rust directamente nem processa YAML de fontes externas via este caminho. O advisory é de manutenção (sem CVE, sem exploit conhecido). O uso de yaml-rust em syntect destina-se a carregar ficheiros de sintaxe em formato TextMate (bundled, read-only) — não processa YAML controlado por utilizadores externos. Risco residual: baixo — sem superfície de injecção de dados não confiáveis.",
+        "response": ["update"],
+        "firstIssued": "2026-06-04T00:00:00Z",
+        "lastUpdated": "2026-06-04T00:00:00Z"
+      },
+      "affects": [
+        {
+          "ref": "pkg:cargo/yaml-rust",
+          "versions": [
+            { "version": "*", "status": "unaffected" }
+          ]
+        }
+      ]
+    }
+  ]
+}

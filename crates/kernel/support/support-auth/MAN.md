@@ -36,10 +36,18 @@ verify_flow(service, store, reference, code, subject_ref, now) -> Result<OtcVeri
 
 - `support-auth` trata apenas autenticação protocolar técnica.
 - O módulo não decide significado institucional de claims.
-- `issuer`, `audience` e validade temporal são validados antes de aceitar token.
+- `issuer`, `audience` e validade temporal são validadas antes de aceitar token.
 - O provider concreto (Keycloak, Entra ID, etc.) é injetável via `OidcFetcher`.
 - O código OTC nunca aparece em claro no `OtcState` — apenas hash+salt.
 - O estado OTC é efémero; `should_delete=true` no resultado sinaliza limpeza.
+
+## Segurança
+
+- `support-auth` usa `rsa` apenas para verificação de assinaturas JWT RSA com chave pública.
+- O crate `rsa` tem um advisory conhecido de timing sidechannel para operações de chave privada (`RUSTSEC-2023-0071`).
+- No fluxo de produção actual não há uso de `RsaPrivateKey` nem de assinatura/decriptação privada.
+- Esta mitigação deve ser mantida: evitar operações de chave privada com `rsa` e manter o uso limitado à verificação pública.
+- Avaliar uma migração para outra biblioteca de verificação JWT/RSA se for necessário reduzir exposição a dependências criptográficas ou suportar futuros requisitos de segurança.
 
 ## Dependências
 

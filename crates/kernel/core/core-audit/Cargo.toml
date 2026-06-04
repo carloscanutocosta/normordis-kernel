@@ -19,3 +19,5 @@ zeroize.workspace = true
 ed25519-dalek.workspace = true
 support-errors = { path = "../../support/support-errors" }
 support-storage = { path = "../../support/support-storage" }
+[lints]
+workspace = true

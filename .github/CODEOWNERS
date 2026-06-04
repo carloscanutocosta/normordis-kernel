@@ -1,0 +1,23 @@
+# CODEOWNERS — normordis-kernel
+#
+# Ficheiros de CI/CD, segurança e conformidade requerem revisão explícita do
+# responsável de segurança antes de qualquer merge. Esta política suporta o
+# requisito de two-party review do SLSA L3 e o CRA art. 13 n.º 4.
+#
+# Para activar a aplicação automática: Settings → Branches → Branch protection rules
+# → "Require a pull request before merging" + "Require review from Code Owners"
+
+# Workflows de CI/CD — qualquer alteração requer aprovação
+/.github/workflows/   @carloscanutocosta
+/.github/CODEOWNERS   @carloscanutocosta
+
+# Configuração de segurança e conformidade
+/security/            @carloscanutocosta
+/deny.toml            @carloscanutocosta
+/.cargo/audit.toml    @carloscanutocosta
+/SECURITY.md          @carloscanutocosta
+
+# Documentação de compliance (auditável)
+/docs/pt/compliance/  @carloscanutocosta
+/docs/governance/     @carloscanutocosta
+/docs/adr/            @carloscanutocosta

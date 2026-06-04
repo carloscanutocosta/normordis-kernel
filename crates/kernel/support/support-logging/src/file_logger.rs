@@ -269,7 +269,7 @@ mod tests {
         for index in 0..16 {
             let logger = std::sync::Arc::clone(&logger);
             handles.push(thread::spawn(move || {
-                logger.info("runtime", &format!("message-{index}"));
+                logger.info("runtime", format!("message-{index}"));
             }));
         }
 

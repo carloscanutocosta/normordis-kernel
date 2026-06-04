@@ -55,4 +55,17 @@ impl ValidationIssue {
             message,
         )
     }
+
+    pub fn info(
+        rule_id: impl Into<String>,
+        field: impl Into<String>,
+        message: impl Into<String>,
+    ) -> Self {
+        Self::new(
+            rule_id,
+            Some(field.into()),
+            ValidationSeverity::Info,
+            message,
+        )
+    }
 }

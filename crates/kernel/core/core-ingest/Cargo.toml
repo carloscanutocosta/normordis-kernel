@@ -23,3 +23,5 @@ test-helpers = []
 [dev-dependencies]
 core-documental = { path = "../core-documental" }
 core-ingest     = { path = ".", features = ["test-helpers"] }
+[lints]
+workspace = true

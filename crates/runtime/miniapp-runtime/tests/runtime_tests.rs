@@ -161,6 +161,7 @@ fn sample_org() -> OrgUnit {
         valid_from: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
         valid_until: None,
         status: OrgUnitStatus::Active,
+        version: 0,
     }
 }
 

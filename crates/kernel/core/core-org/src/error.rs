@@ -35,6 +35,12 @@ pub enum OrgError {
     CannotDeactivateWithActivePositions,
     #[error("campo obrigatório vazio: {0}")]
     EmptyField(String),
+    #[error("campo de contacto inválido: {0}")]
+    InvalidContactField(String),
+    #[error("conflito de versão: a entidade foi modificada por outra operação: {0}")]
+    VersionConflict(String),
+    #[error("ciclo de substituição detectado na cadeia de posições")]
+    SubstitutionCycle,
     #[error("operação falhou: {0}")]
     OperationFailed(String),
 }
@@ -58,6 +64,9 @@ impl OrgError {
                 "MINI.ORG.CANNOT_DEACTIVATE_WITH_POSITIONS"
             }
             Self::EmptyField(_) => "MINI.ORG.EMPTY_FIELD",
+            Self::InvalidContactField(_) => "MINI.ORG.INVALID_CONTACT_FIELD",
+            Self::VersionConflict(_) => "MINI.ORG.VERSION_CONFLICT",
+            Self::SubstitutionCycle => "MINI.ORG.SUBSTITUTION_CYCLE",
             Self::OperationFailed(_) => "MINI.ORG.OPERATION_FAILED",
         }
     }

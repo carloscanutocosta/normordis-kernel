@@ -223,21 +223,21 @@ impl Document {
         // Embed fonts
         let mut font_map: HashMap<String, FontRef> = HashMap::new();
         for (family_name, family) in fonts.families() {
-            if let Ok(fr) = backend.embed_font(&family.regular.bytes, &family_name, false, false) {
+            if let Ok(fr) = backend.embed_font(&family.regular.bytes, family_name, false, false) {
                 font_map.insert(format!("{family_name}::regular"), fr);
             }
             if let Some(ref v) = family.bold {
-                if let Ok(fr) = backend.embed_font(&v.bytes, &family_name, true, false) {
+                if let Ok(fr) = backend.embed_font(&v.bytes, family_name, true, false) {
                     font_map.insert(format!("{family_name}::bold"), fr);
                 }
             }
             if let Some(ref v) = family.italic {
-                if let Ok(fr) = backend.embed_font(&v.bytes, &family_name, false, true) {
+                if let Ok(fr) = backend.embed_font(&v.bytes, family_name, false, true) {
                     font_map.insert(format!("{family_name}::italic"), fr);
                 }
             }
             if let Some(ref v) = family.bold_italic {
-                if let Ok(fr) = backend.embed_font(&v.bytes, &family_name, true, true) {
+                if let Ok(fr) = backend.embed_font(&v.bytes, family_name, true, true) {
                     font_map.insert(format!("{family_name}::bold_italic"), fr);
                 }
             }
@@ -398,9 +398,9 @@ fn header_height_mm(
 }
 
 #[allow(clippy::too_many_arguments)]
-fn flush_page<'e>(
+fn flush_page(
     ctx: &mut RenderContext,
-    fixed_pending: &mut Vec<(i32, &'e dyn Element)>,
+    fixed_pending: &mut Vec<(i32, &dyn Element)>,
     footnote_acc: &mut FootnoteAccumulator,
     footer: &Option<Box<dyn Element>>,
     sectioned_footer: &Option<SectionedFooter>,

@@ -21,6 +21,12 @@ pub enum SecurityError {
     AlreadyExists(String),
     #[error("repositório indisponível: {0}")]
     RepoUnavailable(String),
+    #[error("auditoria indisponível: {0}")]
+    AuditUnavailable(String),
+    #[error("publicação de evento de segurança falhou: {0}")]
+    EventPublishFailed(String),
+    #[error("histórico SoD indisponível: {0}")]
+    SodHistoryUnavailable(String),
     #[error("delegação inválida: {0}")]
     InvalidDelegation(String),
     #[error("operação falhou: {0}")]
@@ -37,6 +43,9 @@ impl SecurityError {
             Self::DelegationNotFound(_) => "MINI.SECURITY.DELEGATION_NOT_FOUND",
             Self::AlreadyExists(_) => "MINI.SECURITY.ALREADY_EXISTS",
             Self::RepoUnavailable(_) => "MINI.SECURITY.REPO_UNAVAILABLE",
+            Self::AuditUnavailable(_) => "MINI.SECURITY.AUDIT_UNAVAILABLE",
+            Self::EventPublishFailed(_) => "MINI.SECURITY.EVENT_PUBLISH_FAILED",
+            Self::SodHistoryUnavailable(_) => "MINI.SECURITY.SOD_HISTORY_UNAVAILABLE",
             Self::InvalidDelegation(_) => "MINI.SECURITY.INVALID_DELEGATION",
             Self::OperationFailed(_) => "MINI.SECURITY.OPERATION_FAILED",
         }

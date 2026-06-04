@@ -24,3 +24,5 @@ chrono = { workspace = true }
 serde_json.workspace = true
 core-org = { path = "../../core/core-org" }
 core-rh  = { path = "../../core/core-rh" }
+[lints]
+workspace = true

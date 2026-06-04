@@ -15,7 +15,7 @@ impl MetricVersionStore for MetricsSqliteStore {
         let binding_json = v
             .calculation_binding
             .as_ref()
-            .map(|b| serde_json::to_string(b))
+            .map(serde_json::to_string)
             .transpose()
             .map_err(|_| MetricError::MarshalFailed)?;
         let evidence_json = serde_json::to_string(&v.evidence_requirements)

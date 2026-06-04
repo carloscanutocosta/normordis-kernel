@@ -207,13 +207,12 @@ pub fn validate_logging_profile(profile: &LoggingProfile) -> Result<(), ConfigEr
         return Ok(());
     }
 
-    let log_dir =
-        profile
-            .log_dir
-            .as_ref()
-            .ok_or_else(|| ConfigError::InvalidLoggingProfile {
-                reason: "log_dir is required when logging is enabled".to_owned(),
-            })?;
+    let log_dir = profile
+        .log_dir
+        .as_ref()
+        .ok_or_else(|| ConfigError::InvalidLoggingProfile {
+            reason: "log_dir is required when logging is enabled".to_owned(),
+        })?;
 
     if log_dir.as_os_str().is_empty() {
         return Err(ConfigError::InvalidLoggingProfile {
@@ -286,11 +285,11 @@ pub fn validate_audit_profile(
         });
     }
 
-    let audit_storage = storage
-        .profile(&profile.storage_profile)
-        .ok_or_else(|| ConfigError::MissingStorageProfile {
+    let audit_storage = storage.profile(&profile.storage_profile).ok_or_else(|| {
+        ConfigError::MissingStorageProfile {
             name: profile.storage_profile.clone(),
-        })?;
+        }
+    })?;
 
     if audit_storage.purpose != StoragePurpose::Audit {
         return Err(ConfigError::InvalidAuditProfile {

@@ -26,3 +26,5 @@ discovery = ["dep:mdns-sd"]
 [dependencies.mdns-sd]
 version = "0.11"
 optional = true
+[lints]
+workspace = true

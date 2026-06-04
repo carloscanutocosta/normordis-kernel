@@ -22,7 +22,10 @@ impl ErrorCode {
     /// Only use with string literals whose validity is guaranteed by the caller.
     pub fn new_static(value: &'static str) -> Self {
         debug_assert!(!value.is_empty(), "error code cannot be empty");
-        debug_assert!(value.starts_with("MINI."), "error code must start with MINI.");
+        debug_assert!(
+            value.starts_with("MINI."),
+            "error code must start with MINI."
+        );
         debug_assert!(
             !value.chars().any(char::is_whitespace),
             "error code cannot contain spaces"
