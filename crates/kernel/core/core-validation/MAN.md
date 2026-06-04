@@ -227,7 +227,7 @@ O primeiro dígito deve ser validado contra o conjunto de séries válidas em pr
 | `required(field, val)`           | `string`   | Campo não vazio após trim.                         |
 | `max_length(field, val, max)`    | `string`   | Comprimento máximo.                                |
 | `validate_email(field, val)`     | `email`    | Forma estrutural: sem espaços, contém `@`.         |
-| `validate_uuid(field, val)`      | `uuid`     | UUID v4 via crate `uuid`.                          |
+| `validate_uuid(field, val)`      | `uuid`     | Qualquer UUID válido (v1/v3/v4/v5/v7/nil) via crate `uuid`. |
 
 ### JSON / payload
 
@@ -249,18 +249,16 @@ O primeiro dígito deve ser validado contra o conjunto de séries válidas em pr
 
 | Função                                                  | Módulo      | Descrição                                                              |
 |---------------------------------------------------------|-------------|------------------------------------------------------------------------|
-| `validate_date_range(field, start, end)`                | `coherence` | `start ≤ end` em `YYYY-MM-DD`; valida formato e valores (mês, dia).   |
-| `validate_datetime_range(field, start, end)`            | `coherence` | `start ≤ end` em `YYYY-MM-DDTHH:MM:SS*`; valida semântica e offset.   |
+| `validate_date_range(field, start, end)`                | `coherence` | `start ≤ end` em `YYYY-MM-DD`; valida formato, mês [1–12] e dia por mês (com ano bissexto). |
+| `validate_datetime_range(field, start, end)`            | `coherence` | `start ≤ end` em RFC 3339; comparação correcta em UTC (cross-offset).  |
 | `validate_state_transition(field, from, to, allowed)`   | `coherence` | Par `(from, to)` na lista de transições permitidas.                    |
 
 #### Comportamento de offset em `validate_datetime_range`
 
-A comparação é lexicográfica e correcta quando ambas as strings têm o mesmo offset.
-`Z` e `+00:00` são normalizados internamente — não geram aviso.
-Quando os offsets são detectavelmente distintos (ex: `+01:00` vs `Z`),
-é emitido `DATETIME_OFFSET_MISMATCH` como **Warning**: a comparação é feita na mesma,
-mas o resultado pode estar errado. O chamador deve normalizar para UTC antes de chamar
-este validator quando os inputs podem ter offsets mistos.
+A comparação é feita em UTC via `chrono::DateTime::parse_from_rfc3339` —
+correcta para qualquer combinação de offsets. `"2026-01-01T10:00:00+01:00"` e
+`"2026-01-01T09:00:00Z"` são considerados iguais (mesmo instante). Fractional
+seconds são aceites. Leap seconds (segundo 60) são aceites per RFC 3339.
 
 ---
 
@@ -327,7 +325,6 @@ As constantes canónicas de `rule_id` estão em `core_validation::rules`.
 |-----------------------------|------------------------------------------------|
 | `DATE_FORMAT_INVALID`       | `"validation.coherence.date_format"`           |
 | `DATE_RANGE_INVALID`        | `"validation.coherence.date_range"`            |
-| `DATETIME_OFFSET_MISMATCH`  | `"validation.coherence.datetime_offset_mismatch"` |
 | `STATE_TRANSITION_INVALID`  | `"validation.coherence.state_transition"`      |
 
 ---
@@ -462,8 +459,7 @@ No modelo edge/central do NORMORDIS, o `core-validation` tem dois papéis:
 - Não implementa `ValidationOverride` como tipo de primeira classe — existe
   `RuleOutcome::overridden()` mas sem `override_id`, `actor_id`, `timestamp`,
   `justification` para evidência COSO completa.
-- Sem `ManifestList` para pacotes multi-ficheiro — cada ficheiro é manifested
-  individualmente.
+- Sem política explícita de normalização canónica de `path` para symlinks e reparse points.
 - Algoritmo de checksum do CC baseado na especificação técnica do IRN;
   requer validação contra casos reais de emissão antes de uso probatório.
 - Sem política explícita de filesystem para symlinks/reparse points e paths não UTF-8.
@@ -476,7 +472,8 @@ No modelo edge/central do NORMORDIS, o `core-validation` tem dois papéis:
 e integridade determinística nas miniapps.
 
 **Reserva:** uso probatório em cenários de arquivo formal requer decisão adicional
-sobre `ManifestList`, política de filesystem e verificação externa do algoritmo CC.
+sobre política de filesystem (symlinks, reparse points, paths não UTF-8)
+e verificação externa do algoritmo de checksum do CC.
 
 ---
 
@@ -484,12 +481,11 @@ sobre `ManifestList`, política de filesystem e verificação externa do algorit
 
 | Versão     | Âmbito                                                                           |
 |------------|----------------------------------------------------------------------------------|
-| `v0.3 atual` | Validação estrutural, integridade SHA-256, `ValidationResult`, NISS, CC, coerência. |
+| `v0.3 atual` | Validação estrutural e semântica completa, integridade SHA-256, `ValidationResult`, NISS, CC, CP, telefone PT, MIME, semver, range, `ManifestList`, coerência com leap year. |
 | `v0.4`     | `ValidationRuleDescriptor` e rule registry com metadados (scope, versão, vigência). |
 | `v0.5`     | Mensagens em camadas (utilizador / técnica / auditável) por issue.               |
 | `v0.6`     | `ValidationOverride` como tipo de primeira classe com evidência COSO.            |
-| `v0.7`     | `ManifestList` e convenção canónica para pacotes multi-ficheiro.                 |
-| `v0.8`     | Filesystem hardening: symlinks, reparse points, paths não UTF-8.                 |
+| `v0.7`     | Filesystem hardening: symlinks, reparse points, paths não UTF-8.                 |
 
 ---
 

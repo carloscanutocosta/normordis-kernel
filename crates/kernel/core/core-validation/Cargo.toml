@@ -13,6 +13,7 @@ sha2.workspace = true
 hex.workspace = true
 thiserror.workspace = true
 uuid.workspace = true
+chrono.workspace = true
 support-errors = { path = "../../support/support-errors" }
 support-normalization = { path = "../../support/support-normalization" }
 support-ids = { path = "../../support/support-ids" }

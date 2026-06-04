@@ -2,9 +2,9 @@ use crate::{rules, ValidationIssue, ValidationReport};
 
 /// Valida que `value` está no intervalo `[min, max]` (inclusive em ambos os extremos).
 ///
-/// Rejeita valores não-finitos (NaN, infinito) com `NUMERIC_RANGE_INVALID`.
-/// Os parâmetros `min` e `max` devem ser finitos e satisfazer `min <= max` —
-/// caso contrário o comportamento é indeterminado (use `debug_assert!` em chamadores).
+/// Rejeita valores não-finitos (NaN, infinito).
+/// Os parâmetros `min` e `max` devem ser finitos com `min <= max`.
+/// Se não forem, é um erro de programação: `debug_assert!` em debug, erro em release.
 ///
 /// Para percentagens: `validate_in_range(field, value, 0.0, 100.0)`.
 /// Para scores normalizados: `validate_in_range(field, value, 0.0, 1.0)`.
@@ -14,9 +14,15 @@ pub fn validate_in_range(
     min: f64,
     max: f64,
 ) -> ValidationReport {
-    debug_assert!(min <= max, "validate_in_range: min must be <= max");
-
     let field = field.into();
+
+    if !min.is_finite() || !max.is_finite() || min > max {
+        return ValidationReport::with_issue(ValidationIssue::error(
+            rules::NUMERIC_RANGE_INVALID,
+            field,
+            "range bounds must be finite numbers with min <= max",
+        ));
+    }
 
     if !value.is_finite() {
         return ValidationReport::with_issue(ValidationIssue::error(

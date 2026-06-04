@@ -27,5 +27,4 @@ pub const HASH_SHA256_FORMAT: &str = "validation.hash.sha256_format";
 // ── Coerência estrutural ──────────────────────────────────────────────────────
 pub const DATE_FORMAT_INVALID: &str = "validation.coherence.date_format";
 pub const DATE_RANGE_INVALID: &str = "validation.coherence.date_range";
-pub const DATETIME_OFFSET_MISMATCH: &str = "validation.coherence.datetime_offset_mismatch";
 pub const STATE_TRANSITION_INVALID: &str = "validation.coherence.state_transition";

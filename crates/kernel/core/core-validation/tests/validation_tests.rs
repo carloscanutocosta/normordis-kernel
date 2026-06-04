@@ -565,30 +565,44 @@ fn datetime_range_rejects_mixed_formats() {
     );
 }
 
-// ── Cross-offset warning ──────────────────────────────────────────────────────
+// ── Cross-offset com comparação UTC correcta ──────────────────────────────────
 
 #[test]
-fn datetime_range_same_z_offset_no_warning() {
-    let report =
-        coherence::validate_datetime_range("t", "2026-01-01T08:00:00Z", "2026-01-01T18:00:00Z");
-    assert!(report.is_valid());
-    assert!(report.issues.is_empty());
+fn datetime_range_cross_offset_same_instant_is_valid() {
+    // "2026-01-01T10:00:00+01:00" = 09:00 UTC = "2026-01-01T09:00:00Z" → mesmo instante → válido
+    assert!(coherence::validate_datetime_range(
+        "t",
+        "2026-01-01T10:00:00+01:00",
+        "2026-01-01T09:00:00Z",
+    )
+    .is_valid());
 }
 
 #[test]
-fn datetime_range_same_named_offset_no_warning() {
-    let report = coherence::validate_datetime_range(
+fn datetime_range_cross_offset_start_before_end_in_utc_is_valid() {
+    // "2026-01-01T08:00:00+01:00" = 07:00 UTC < "2026-01-01T09:00:00Z" = 09:00 UTC → válido
+    assert!(coherence::validate_datetime_range(
         "t",
         "2026-01-01T08:00:00+01:00",
-        "2026-01-01T18:00:00+01:00",
-    );
-    assert!(report.is_valid());
-    assert!(report.issues.is_empty());
+        "2026-01-01T09:00:00Z",
+    )
+    .is_valid());
 }
 
 #[test]
-fn datetime_range_z_and_plus_zero_no_warning() {
-    // Z e +00:00 são normalizados para o mesmo offset — sem aviso
+fn datetime_range_cross_offset_start_after_end_in_utc_is_invalid() {
+    // "2026-01-01T18:00:00+01:00" = 17:00 UTC > "2026-01-01T08:00:00Z" = 08:00 UTC → inválido
+    assert!(!coherence::validate_datetime_range(
+        "t",
+        "2026-01-01T18:00:00+01:00",
+        "2026-01-01T08:00:00Z",
+    )
+    .is_valid());
+}
+
+#[test]
+fn datetime_range_z_and_plus_zero_same_instant() {
+    // Z e +00:00 representam o mesmo instante → válido, sem issues
     let report = coherence::validate_datetime_range(
         "t",
         "2026-01-01T08:00:00Z",
@@ -599,35 +613,13 @@ fn datetime_range_z_and_plus_zero_no_warning() {
 }
 
 #[test]
-fn datetime_range_cross_offset_produces_warning_but_valid() {
-    let report = coherence::validate_datetime_range(
+fn datetime_range_fractional_seconds_accepted() {
+    assert!(coherence::validate_datetime_range(
         "t",
-        "2026-01-01T08:00:00+01:00",
-        "2026-01-01T09:00:00Z",
-    );
-    // o intervalo é "válido" lexicograficamente mas com aviso
-    assert!(report.is_valid());
-    assert_eq!(report.issues.len(), 1);
-    assert_eq!(
-        report.issues[0].severity,
-        core_validation::ValidationSeverity::Warning
-    );
-    assert_eq!(
-        report.issues[0].rule_id,
-        core_validation::DATETIME_OFFSET_MISMATCH
-    );
-}
-
-#[test]
-fn datetime_range_cross_offset_and_inverted_has_warning_and_error() {
-    // offsets distintos E start > end → Warning + Error
-    let report = coherence::validate_datetime_range(
-        "t",
-        "2026-01-01T18:00:00+01:00",
-        "2026-01-01T08:00:00Z",
-    );
-    assert!(!report.is_valid());
-    assert_eq!(report.issues.len(), 2);
+        "2026-01-01T08:00:00.123Z",
+        "2026-01-01T18:00:00.456Z",
+    )
+    .is_valid());
 }
 
 // ── Validação semântica de datas e datetimes ──────────────────────────────────
@@ -675,8 +667,9 @@ fn datetime_range_rejects_minute_out_of_range() {
 }
 
 #[test]
-fn datetime_range_rejects_second_out_of_range() {
-    assert!(!coherence::validate_datetime_range(
+fn datetime_range_accepts_leap_second() {
+    // Segundo 60 é válido em RFC 3339 (leap second) — chrono aceita-o correctamente
+    assert!(coherence::validate_datetime_range(
         "t",
         "2026-01-01T08:00:60Z",
         "2026-01-01T09:00:00Z"
@@ -919,9 +912,9 @@ fn manifest_list_empty_is_valid() {
 }
 
 #[test]
-fn crate_does_not_depend_on_chrono() {
+fn crate_depends_on_chrono_for_datetime_comparison() {
     let manifest = include_str!("../Cargo.toml");
-    assert!(!manifest.contains("chrono"));
+    assert!(manifest.contains("chrono"));
 }
 
 // ── min_length ────────────────────────────────────────────────────────────────
@@ -1149,4 +1142,108 @@ fn range_works_for_normalized_score() {
 fn range_works_for_integers() {
     assert!(range::validate_in_range("n", 5.0, 1.0, 10.0).is_valid());
     assert!(!range::validate_in_range("n", 11.0, 1.0, 10.0).is_valid());
+}
+
+// ── Validação de dia por mês (com ano bissexto) ───────────────────────────────
+
+#[test]
+fn date_range_rejects_february_31() {
+    assert!(!coherence::validate_date_range("d", "2026-02-31", "2026-03-01").is_valid());
+}
+
+#[test]
+fn date_range_rejects_april_31() {
+    assert!(!coherence::validate_date_range("d", "2026-04-31", "2026-05-01").is_valid());
+}
+
+#[test]
+fn date_range_accepts_february_28_in_common_year() {
+    assert!(coherence::validate_date_range("d", "2026-02-01", "2026-02-28").is_valid());
+}
+
+#[test]
+fn date_range_rejects_february_29_in_common_year() {
+    assert!(!coherence::validate_date_range("d", "2026-02-01", "2026-02-29").is_valid());
+}
+
+#[test]
+fn date_range_accepts_february_29_in_leap_year() {
+    assert!(coherence::validate_date_range("d", "2024-02-01", "2024-02-29").is_valid());
+}
+
+#[test]
+fn date_range_rejects_february_30_in_leap_year() {
+    assert!(!coherence::validate_date_range("d", "2024-02-01", "2024-02-30").is_valid());
+}
+
+// ── Semver zeros à esquerda e sufixo ─────────────────────────────────────────
+
+#[test]
+fn semver_rejects_leading_zeros_in_major() {
+    assert!(!semver::validate_semver("v", "01.0.0").is_valid());
+}
+
+#[test]
+fn semver_rejects_leading_zeros_in_minor() {
+    assert!(!semver::validate_semver("v", "1.01.0").is_valid());
+}
+
+#[test]
+fn semver_rejects_leading_zeros_in_patch() {
+    assert!(!semver::validate_semver("v", "1.0.01").is_valid());
+}
+
+#[test]
+fn semver_accepts_zero_components() {
+    assert!(semver::validate_semver("v", "0.0.0").is_valid());
+}
+
+#[test]
+fn semver_rejects_invalid_chars_in_prerelease() {
+    assert!(!semver::validate_semver("v", "1.0.0-rc!1").is_valid());
+}
+
+#[test]
+fn semver_rejects_empty_prerelease_segment() {
+    assert!(!semver::validate_semver("v", "1.0.0-rc..1").is_valid());
+}
+
+#[test]
+fn semver_accepts_hyphen_in_prerelease_identifier() {
+    assert!(semver::validate_semver("v", "1.0.0-rc-final.1").is_valid());
+}
+
+// ── validate_in_range bounds em release ──────────────────────────────────────
+
+#[test]
+fn range_rejects_nan_min() {
+    assert!(!range::validate_in_range("v", 5.0, f64::NAN, 10.0).is_valid());
+}
+
+#[test]
+fn range_rejects_infinite_max() {
+    assert!(!range::validate_in_range("v", 5.0, 0.0, f64::INFINITY).is_valid());
+}
+
+#[test]
+fn range_rejects_inverted_bounds() {
+    assert!(!range::validate_in_range("v", 5.0, 10.0, 0.0).is_valid());
+}
+
+// ── UUID aceita qualquer versão ───────────────────────────────────────────────
+
+#[test]
+fn uuid_accepts_v4() {
+    assert!(uuid::validate_uuid("id", "550e8400-e29b-41d4-a716-446655440000").is_valid());
+}
+
+#[test]
+fn uuid_accepts_nil() {
+    assert!(uuid::validate_uuid("id", "00000000-0000-0000-0000-000000000000").is_valid());
+}
+
+#[test]
+fn uuid_accepts_v7_format() {
+    // UUID v7 — time-ordered; aceito porque validate_uuid é agnostico de versão
+    assert!(uuid::validate_uuid("id", "018f4a1c-0000-7000-8000-000000000000").is_valid());
 }
