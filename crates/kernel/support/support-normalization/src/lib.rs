@@ -201,13 +201,28 @@ pub fn money_cents_to_words_eur(cents: i64) -> Result<String, NormalizationError
         return Err(NormalizationError::NumberOutOfRange);
     }
 
+    let negative = cents < 0;
+
+    if euros == 0 && centimos > 0 {
+        let centimos_words = if centimos == 1 {
+            "um cêntimo".to_string()
+        } else {
+            format!("{} cêntimos", number_to_words_positive(centimos))
+        };
+        return Ok(if negative {
+            format!("menos {centimos_words}")
+        } else {
+            centimos_words
+        });
+    }
+
     let euros_words = if euros == 1 {
         "um euro".to_string()
     } else {
         format!("{} euros", number_to_words_positive(euros))
     };
 
-    let mut result = if cents < 0 {
+    let mut result = if negative {
         format!("menos {euros_words}")
     } else {
         euros_words
@@ -371,7 +386,7 @@ fn parse_decimal_parts(value: &str, max_fraction: Option<usize>) -> Option<(bool
         || !valid_integer_grouping(integer_part)
         || fraction_part.chars().any(|ch| !ch.is_ascii_digit())
         || fraction_part.contains(' ')
-        || fraction_part.is_empty() && decimal_index.is_some()
+        || (fraction_part.is_empty() && decimal_index.is_some())
     {
         return None;
     }
