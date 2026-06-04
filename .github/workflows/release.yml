@@ -48,7 +48,7 @@ jobs:
           toolchain: stable
       - uses: Swatinem/rust-cache@23869a5bd66c73db3c0ac40331f3206eb23791dc  # v2.9.1
       - name: Build release
-        run: cargo build --frozen --release --workspace
+        run: cargo build --locked --release --workspace
       - name: Upload Windows artifacts
         uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1  # v4.6.1
         with:
@@ -67,7 +67,7 @@ jobs:
           toolchain: stable
       - uses: Swatinem/rust-cache@23869a5bd66c73db3c0ac40331f3206eb23791dc  # v2.9.1
       - name: Build release
-        run: cargo build --frozen --release --workspace
+        run: cargo build --locked --release --workspace
       - name: Upload Linux artifacts
         uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1  # v4.6.1
         with:

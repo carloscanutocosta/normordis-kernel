@@ -37,8 +37,8 @@ jobs:
           toolchain: stable
           components: clippy
       - uses: Swatinem/rust-cache@23869a5bd66c73db3c0ac40331f3206eb23791dc  # v2.9.1
-      - run: cargo check --frozen --workspace --all-targets
-      - run: cargo clippy --frozen --workspace --all-targets -- -D warnings
+      - run: cargo check --locked --workspace --all-targets
+      - run: cargo clippy --locked --workspace --all-targets -- -D warnings
 
   # ── Check + Clippy em Linux (valida agnóstico de plataforma) ──────────────────
   check-linux:
@@ -51,8 +51,8 @@ jobs:
           toolchain: stable
           components: clippy
       - uses: Swatinem/rust-cache@23869a5bd66c73db3c0ac40331f3206eb23791dc  # v2.9.1
-      - run: cargo check --frozen --workspace --all-targets
-      - run: cargo clippy --frozen --workspace --all-targets -- -D warnings
+      - run: cargo check --locked --workspace --all-targets
+      - run: cargo clippy --locked --workspace --all-targets -- -D warnings
 
   # ── Testes em Windows ────────────────────────────────────────────────────────
   test-windows:
@@ -65,7 +65,7 @@ jobs:
         with:
           toolchain: stable
       - uses: Swatinem/rust-cache@23869a5bd66c73db3c0ac40331f3206eb23791dc  # v2.9.1
-      - run: cargo test --frozen --workspace
+      - run: cargo test --locked --workspace
 
   # ── Testes em Linux ──────────────────────────────────────────────────────────
   test-linux:
@@ -78,7 +78,7 @@ jobs:
         with:
           toolchain: stable
       - uses: Swatinem/rust-cache@23869a5bd66c73db3c0ac40331f3206eb23791dc  # v2.9.1
-      - run: cargo test --frozen --workspace
+      - run: cargo test --locked --workspace
 
       - name: Validate PDF accessibility (poppler-utils / EN 301 549)
         # Verifica que os PDFs produzidos pelos testes têm estrutura Tagged —
