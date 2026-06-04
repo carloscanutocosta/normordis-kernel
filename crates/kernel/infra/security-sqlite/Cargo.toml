@@ -13,6 +13,7 @@ chrono.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 uuid.workspace = true
+sha2.workspace = true
 
 adapter-sqlite  = { path = "../adapter-sqlite" }
 core-security   = { path = "../../core/core-security" }

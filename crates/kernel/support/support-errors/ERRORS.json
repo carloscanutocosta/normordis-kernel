@@ -1015,6 +1015,27 @@
       "public_message_policy": "Generica. Nao expor backend concreto nem detalhes de conectividade."
     },
     {
+      "code": "MINI.SECURITY.AUDIT_UNAVAILABLE",
+      "status": "active",
+      "component": "core-security",
+      "use": "Auditoria de decisoes de autorizacao indisponivel em modo fail-closed.",
+      "public_message_policy": "Generica. Nao expor backend concreto nem detalhes internos da auditoria."
+    },
+    {
+      "code": "MINI.SECURITY.EVENT_PUBLISH_FAILED",
+      "status": "active",
+      "component": "core-security",
+      "use": "Publicacao de evento de seguranca falhou em modo fail-closed.",
+      "public_message_policy": "Generica. Nao expor filas, destinos SIEM, tokens ou detalhes internos."
+    },
+    {
+      "code": "MINI.SECURITY.SOD_HISTORY_UNAVAILABLE",
+      "status": "active",
+      "component": "core-security",
+      "use": "Historico de segregacao de funcoes indisponivel em modo fail-closed.",
+      "public_message_policy": "Generica. Nao expor backend de auditoria nem dados historicos sensiveis."
+    },
+    {
       "code": "MINI.SECURITY.INVALID_DELEGATION",
       "status": "active",
       "component": "core-security",

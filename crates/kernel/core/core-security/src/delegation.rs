@@ -70,9 +70,9 @@ pub struct DelegationRequest {
     pub granted_by: String,
     pub valid_from: DateTime<Utc>,
     pub valid_to: DateTime<Utc>,
-    /// Condições adicionais opcionais (JSON, CEL, etc.).
-    /// **Reservado para uso futuro — não avaliado pelo motor de autorização.**
-    /// Qualquer valor aqui é armazenado e devolvido mas não tem efeito na decisão de acesso.
+    /// Condições adicionais opcionais em JSON.
+    /// Avaliadas por `SecurityService::authorize_contextual()`. O método simples
+    /// `authorize()` recusa delegações condicionais por não receber atributos do recurso.
     pub conditions: Option<String>,
     /// Delegação-pai de que este pedido deriva, para rastreabilidade de cadeia
     /// e revogação em cascata. `None` = delegação raiz (concedida directamente
@@ -113,8 +113,7 @@ pub struct Delegation {
     pub granted_at: DateTime<Utc>,
     pub valid_from: DateTime<Utc>,
     pub valid_to: DateTime<Utc>,
-    /// Condições adicionais opcionais (JSON, CEL, etc.).
-    /// **Reservado para uso futuro — não avaliado pelo motor de autorização.**
+    /// Condições adicionais opcionais em JSON, avaliadas no caminho contextual.
     pub conditions: Option<String>,
     pub revoked: bool,
     /// Delegação-pai da qual esta deriva. `None` = delegação raiz.

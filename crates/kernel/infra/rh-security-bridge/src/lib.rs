@@ -28,9 +28,7 @@
 
 use std::sync::{Arc, Mutex};
 
-use adapter_sqlite::{
-    open_relational_connection, run_relational_migrations, SqliteRelationalConfig,
-};
+use adapter_sqlite::{open_relational_connection, SqliteRelationalConfig};
 use chrono::{DateTime, Utc};
 use core_security::{OrgScope, OrgScopeValidator, RoleId, RoleMembershipRepository, SecurityError};
 use rusqlite::params;
@@ -60,7 +58,19 @@ const MIGRATION_1: &str = r#"
         ON security_role_members (role_id, valid_from, revoked);
 "#;
 
-pub const RH_SECURITY_BRIDGE_MIGRATIONS: &[&str] = &[MIGRATION_1];
+const MIGRATION_2: &str = r#"
+    CREATE TABLE IF NOT EXISTS security_principal_person_links (
+        principal_id TEXT PRIMARY KEY,
+        person_id    TEXT NOT NULL,
+        linked_by    TEXT NOT NULL,
+        linked_at    TEXT NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_sppl_person
+        ON security_principal_person_links (person_id);
+"#;
+
+pub const RH_SECURITY_BRIDGE_MIGRATIONS: &[&str] = &[MIGRATION_1, MIGRATION_2];
 
 // ── Error ─────────────────────────────────────────────────────────────────────
 
@@ -130,7 +140,36 @@ impl RhSecurityBridgeStore {
             .conn
             .lock()
             .map_err(|_| RhSecurityBridgeError::Sqlite(rusqlite::Error::InvalidQuery))?;
-        run_relational_migrations(&conn, RH_SECURITY_BRIDGE_MIGRATIONS)?;
+        ensure_rh_security_schema(&conn)?;
+        Ok(())
+    }
+
+    /// Liga explicitamente um principal técnico/IAM a uma pessoa RH.
+    ///
+    /// Quando não existe ligação, `OrgScopeValidator` mantém fallback compatível:
+    /// usa `principal_id` como `person_id`. Em produção, configurar esta ligação
+    /// evita depender dessa convenção.
+    pub fn link_principal_to_person(
+        &self,
+        principal_id: &str,
+        person_id: &str,
+        linked_by: &str,
+        now: DateTime<Utc>,
+    ) -> Result<(), RhSecurityBridgeError> {
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|_| RhSecurityBridgeError::Sqlite(rusqlite::Error::InvalidQuery))?;
+        conn.execute(
+            "INSERT INTO security_principal_person_links
+                 (principal_id, person_id, linked_by, linked_at)
+             VALUES (?1, ?2, ?3, ?4)
+             ON CONFLICT(principal_id) DO UPDATE SET
+                 person_id = excluded.person_id,
+                 linked_by = excluded.linked_by,
+                 linked_at = excluded.linked_at",
+            params![principal_id, person_id, linked_by, dt_to_str(now)],
+        )?;
         Ok(())
     }
 
@@ -248,6 +287,52 @@ impl RhSecurityBridgeStore {
     }
 }
 
+fn ensure_rh_security_schema(conn: &Connection) -> Result<(), RhSecurityBridgeError> {
+    conn.execute_batch(
+        "CREATE TABLE IF NOT EXISTS _rh_security_bridge_migrations (
+            name TEXT PRIMARY KEY,
+            applied_at TEXT NOT NULL
+        );",
+    )?;
+    run_named_migration(conn, "rh_security_bridge_001_role_members", |conn| {
+        conn.execute_batch(MIGRATION_1)?;
+        Ok(())
+    })?;
+    run_named_migration(
+        conn,
+        "rh_security_bridge_002_principal_person_links",
+        |conn| {
+            conn.execute_batch(MIGRATION_2)?;
+            Ok(())
+        },
+    )?;
+    Ok(())
+}
+
+fn run_named_migration<F>(
+    conn: &Connection,
+    name: &str,
+    migration: F,
+) -> Result<(), RhSecurityBridgeError>
+where
+    F: FnOnce(&Connection) -> Result<(), RhSecurityBridgeError>,
+{
+    let applied: bool = conn.query_row(
+        "SELECT COUNT(*) > 0 FROM _rh_security_bridge_migrations WHERE name = ?1",
+        [name],
+        |row| row.get(0),
+    )?;
+    if applied {
+        return Ok(());
+    }
+    migration(conn)?;
+    conn.execute(
+        "INSERT OR IGNORE INTO _rh_security_bridge_migrations (name, applied_at) VALUES (?1, ?2)",
+        params![name, dt_to_str(Utc::now())],
+    )?;
+    Ok(())
+}
+
 // ── RoleMembershipRepository ──────────────────────────────────────────────────
 
 impl RoleMembershipRepository for RhSecurityBridgeStore {
@@ -291,6 +376,7 @@ impl OrgScopeValidator for RhSecurityBridgeStore {
             .lock()
             .map_err(|_| SecurityError::RepoUnavailable("lock poisoned".into()))?;
 
+        let person_id = resolve_person_id(&conn, principal_id)?;
         let count: i64 = conn
             .query_row(
                 "SELECT COUNT(*) FROM person_assignment
@@ -298,12 +384,33 @@ impl OrgScopeValidator for RhSecurityBridgeStore {
                    AND unit_id    = ?2
                    AND valid_from <= ?3
                    AND (valid_until IS NULL OR valid_until > ?3)",
-                rusqlite::params![principal_id, org_scope.as_str(), date_str],
+                rusqlite::params![person_id, org_scope.as_str(), date_str],
                 |r| r.get(0),
             )
             .map_err(|e| SecurityError::RepoUnavailable(e.to_string()))?;
 
         Ok(count > 0)
+    }
+}
+
+fn resolve_person_id(conn: &Connection, principal_id: &str) -> Result<String, SecurityError> {
+    let mut stmt = conn
+        .prepare(
+            "SELECT person_id FROM security_principal_person_links
+             WHERE principal_id = ?1",
+        )
+        .map_err(|e| SecurityError::RepoUnavailable(e.to_string()))?;
+    let mut rows = stmt
+        .query(rusqlite::params![principal_id])
+        .map_err(|e| SecurityError::RepoUnavailable(e.to_string()))?;
+    match rows
+        .next()
+        .map_err(|e| SecurityError::RepoUnavailable(e.to_string()))?
+    {
+        Some(row) => row
+            .get::<_, String>(0)
+            .map_err(|e| SecurityError::RepoUnavailable(e.to_string())),
+        None => Ok(principal_id.to_string()),
     }
 }
 
@@ -643,6 +750,26 @@ mod tests {
             .await
             .unwrap();
         assert!(result, "alice tem afectação activa em SF-1234");
+    }
+
+    #[tokio::test]
+    async fn org_scope_validator_usa_ligacao_principal_pessoa() {
+        use core_security::OrgScopeValidator;
+        let store = test_store();
+        setup_person_assignment(&store);
+        insert_assignment(&store, "person:alice", "SF-1234", "2026-01-01", None);
+        store
+            .link_principal_to_person("aad:alice", "person:alice", "admin", now())
+            .unwrap();
+
+        let result = store
+            .is_principal_in_scope("aad:alice", &OrgScope::new("SF-1234"), now())
+            .await
+            .unwrap();
+        assert!(
+            result,
+            "principal IAM deve resolver para a pessoa RH ligada"
+        );
     }
 
     #[tokio::test]

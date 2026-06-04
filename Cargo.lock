@@ -4338,6 +4338,7 @@ dependencies = [
  "rusqlite",
  "serde",
  "serde_json",
+ "sha2",
  "support-errors",
  "tempfile",
  "thiserror",
@@ -4754,7 +4755,6 @@ dependencies = [
  "chrono",
  "idna",
  "rust_decimal",
- "tempfile",
  "thiserror",
  "unicode-normalization",
 ]

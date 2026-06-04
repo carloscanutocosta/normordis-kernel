@@ -1,8 +1,6 @@
 use std::sync::{Arc, Mutex};
 
-use adapter_sqlite::{
-    open_relational_connection, run_relational_migrations, SqliteRelationalConfig,
-};
+use adapter_sqlite::{open_relational_connection, SqliteRelationalConfig};
 use chrono::{DateTime, Utc};
 use core_security::{
     validate_policy, AuditDecision, Delegation, DelegationId, DelegationRequest, EvidenceLevel,
@@ -10,6 +8,7 @@ use core_security::{
     SecurityAuthDecision, SecurityError, SecurityPolicyRepository,
 };
 use rusqlite::{params, Connection, OptionalExtension};
+use sha2::{Digest, Sha256};
 use thiserror::Error;
 use uuid::Uuid;
 
@@ -88,12 +87,19 @@ const MIGRATION_5: &str = r#"
     ALTER TABLE security_auth_decisions ADD COLUMN evidence_level TEXT NOT NULL DEFAULT 'none';
 "#;
 
+/// Migration 6 — cadeia de hash local para integridade operacional.
+const MIGRATION_6: &str = r#"
+    ALTER TABLE security_auth_decisions ADD COLUMN previous_hash TEXT;
+    ALTER TABLE security_auth_decisions ADD COLUMN entry_hash TEXT;
+"#;
+
 pub const SECURITY_SQLITE_MIGRATIONS: &[&str] = &[
     MIGRATION_1,
     MIGRATION_2,
     MIGRATION_3,
     MIGRATION_4,
     MIGRATION_5,
+    MIGRATION_6,
 ];
 
 // ── Error ─────────────────────────────────────────────────────────────────────
@@ -157,9 +163,132 @@ impl SecuritySqliteStore {
             .conn
             .lock()
             .map_err(|_| SecuritySqliteError::Sqlite(rusqlite::Error::InvalidQuery))?;
-        run_relational_migrations(&conn, SECURITY_SQLITE_MIGRATIONS)?;
+        ensure_security_sqlite_schema(&conn)?;
         Ok(())
     }
+
+    /// Verifica a cadeia de hash das decisões de autorização registadas.
+    ///
+    /// Devolve `false` se existir entrada sem hash, se a cadeia anterior não
+    /// corresponder, ou se o payload persistido tiver sido alterado.
+    pub fn verify_audit_chain(&self) -> Result<bool, SecuritySqliteError> {
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|_| SecuritySqliteError::Sqlite(rusqlite::Error::InvalidQuery))?;
+        verify_audit_chain(&conn)
+    }
+}
+
+fn ensure_security_sqlite_schema(conn: &Connection) -> Result<(), SecuritySqliteError> {
+    conn.execute_batch(
+        "CREATE TABLE IF NOT EXISTS _security_sqlite_migrations (
+            name TEXT PRIMARY KEY,
+            applied_at TEXT NOT NULL
+        );",
+    )?;
+
+    run_named_migration(conn, "security_sqlite_001_base", |conn| {
+        conn.execute_batch(MIGRATION_1)?;
+        Ok(())
+    })?;
+    run_named_migration(conn, "security_sqlite_002_delegation_chain", |conn| {
+        add_column_if_missing(
+            conn,
+            "security_delegations",
+            "granted_via",
+            "ALTER TABLE security_delegations ADD COLUMN granted_via TEXT REFERENCES security_delegations(delegation_id);",
+        )?;
+        conn.execute_batch(
+            "CREATE INDEX IF NOT EXISTS idx_security_delegations_granted_via
+                ON security_delegations (granted_via);",
+        )?;
+        Ok(())
+    })?;
+    run_named_migration(conn, "security_sqlite_003_auth_decisions", |conn| {
+        conn.execute_batch(MIGRATION_3)?;
+        Ok(())
+    })?;
+    run_named_migration(conn, "security_sqlite_004_policy_validity", |conn| {
+        add_column_if_missing(
+            conn,
+            "security_policies",
+            "valid_from",
+            "ALTER TABLE security_policies ADD COLUMN valid_from TEXT;",
+        )?;
+        add_column_if_missing(
+            conn,
+            "security_policies",
+            "valid_to",
+            "ALTER TABLE security_policies ADD COLUMN valid_to TEXT;",
+        )?;
+        Ok(())
+    })?;
+    run_named_migration(conn, "security_sqlite_005_evidence_level", |conn| {
+        add_column_if_missing(
+            conn,
+            "security_auth_decisions",
+            "evidence_level",
+            "ALTER TABLE security_auth_decisions ADD COLUMN evidence_level TEXT NOT NULL DEFAULT 'none';",
+        )?;
+        Ok(())
+    })?;
+    run_named_migration(conn, "security_sqlite_006_audit_hash_chain", |conn| {
+        add_column_if_missing(
+            conn,
+            "security_auth_decisions",
+            "previous_hash",
+            "ALTER TABLE security_auth_decisions ADD COLUMN previous_hash TEXT;",
+        )?;
+        add_column_if_missing(
+            conn,
+            "security_auth_decisions",
+            "entry_hash",
+            "ALTER TABLE security_auth_decisions ADD COLUMN entry_hash TEXT;",
+        )?;
+        Ok(())
+    })?;
+    Ok(())
+}
+
+fn run_named_migration<F>(
+    conn: &Connection,
+    name: &str,
+    migration: F,
+) -> Result<(), SecuritySqliteError>
+where
+    F: FnOnce(&Connection) -> Result<(), SecuritySqliteError>,
+{
+    let applied: bool = conn.query_row(
+        "SELECT COUNT(*) > 0 FROM _security_sqlite_migrations WHERE name = ?1",
+        [name],
+        |row| row.get(0),
+    )?;
+    if applied {
+        return Ok(());
+    }
+    migration(conn)?;
+    conn.execute(
+        "INSERT OR IGNORE INTO _security_sqlite_migrations (name, applied_at) VALUES (?1, ?2)",
+        params![name, dt_to_str(Utc::now())],
+    )?;
+    Ok(())
+}
+
+fn add_column_if_missing(
+    conn: &Connection,
+    table: &str,
+    column: &str,
+    ddl: &str,
+) -> Result<(), SecuritySqliteError> {
+    let mut stmt = conn.prepare(&format!("PRAGMA table_info({table})"))?;
+    let columns = stmt
+        .query_map([], |row| row.get::<_, String>(1))?
+        .collect::<Result<Vec<_>, _>>()?;
+    if !columns.iter().any(|c| c == column) {
+        conn.execute_batch(ddl)?;
+    }
+    Ok(())
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -572,12 +701,24 @@ impl SecurityAuditLog for SecuritySqliteStore {
             EvidenceLevel::Normal => "normal",
             EvidenceLevel::Enhanced => "enhanced",
         };
+        let previous_hash: Option<String> = conn
+            .query_row(
+                "SELECT entry_hash FROM security_auth_decisions
+                 WHERE entry_hash IS NOT NULL
+                 ORDER BY id DESC LIMIT 1",
+                [],
+                |r| r.get(0),
+            )
+            .optional()
+            .map_err(|e| SecurityError::OperationFailed(e.to_string()))?;
+        let entry_hash = audit_entry_hash(entry, evidence_s, previous_hash.as_deref());
 
         conn.execute(
             "INSERT INTO security_auth_decisions
                  (logged_at, principal, operation, resource, correlation_id,
-                  decision, granted_by_kind, deny_reason, evidence_level)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+                  decision, granted_by_kind, deny_reason, evidence_level,
+                  previous_hash, entry_hash)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
             params![
                 dt_to_str(entry.logged_at),
                 entry.principal,
@@ -588,11 +729,98 @@ impl SecurityAuditLog for SecuritySqliteStore {
                 entry.granted_by_kind,
                 entry.deny_reason,
                 evidence_s,
+                previous_hash,
+                entry_hash,
             ],
         )
         .map_err(|e| SecurityError::OperationFailed(e.to_string()))?;
         Ok(())
     }
+}
+
+fn audit_entry_hash(
+    entry: &SecurityAuthDecision,
+    evidence_level: &str,
+    previous_hash: Option<&str>,
+) -> String {
+    let decision = match entry.decision {
+        AuditDecision::Granted => "granted",
+        AuditDecision::Denied => "denied",
+    };
+    let payload = format!(
+        "{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}",
+        previous_hash.unwrap_or(""),
+        dt_to_str(entry.logged_at),
+        entry.principal,
+        entry.operation,
+        entry.resource.as_deref().unwrap_or(""),
+        entry.correlation_id,
+        decision,
+        entry.granted_by_kind.as_deref().unwrap_or(""),
+        entry.deny_reason.as_deref().unwrap_or(""),
+        evidence_level,
+    );
+    let digest = Sha256::digest(payload.as_bytes());
+    format!("{digest:x}")
+}
+
+fn verify_audit_chain(conn: &Connection) -> Result<bool, SecuritySqliteError> {
+    let mut stmt = conn.prepare(
+        "SELECT logged_at, principal, operation, resource, correlation_id,
+                decision, granted_by_kind, deny_reason, evidence_level,
+                previous_hash, entry_hash
+         FROM security_auth_decisions
+         ORDER BY id ASC",
+    )?;
+    let rows = stmt.query_map([], |row| {
+        let logged_at: String = row.get(0)?;
+        let decision_s: String = row.get(5)?;
+        let evidence_s: String = row.get(8)?;
+        let decision = match decision_s.as_str() {
+            "granted" => AuditDecision::Granted,
+            "denied" => AuditDecision::Denied,
+            _ => return Err(rusqlite::Error::InvalidQuery),
+        };
+        let evidence_level = match evidence_s.as_str() {
+            "none" => EvidenceLevel::None,
+            "normal" => EvidenceLevel::Normal,
+            "enhanced" => EvidenceLevel::Enhanced,
+            _ => return Err(rusqlite::Error::InvalidQuery),
+        };
+        Ok((
+            SecurityAuthDecision {
+                logged_at: str_to_dt(&logged_at).map_err(|_| rusqlite::Error::InvalidQuery)?,
+                principal: row.get(1)?,
+                operation: row.get(2)?,
+                resource: row.get(3)?,
+                correlation_id: row.get(4)?,
+                decision,
+                granted_by_kind: row.get(6)?,
+                deny_reason: row.get(7)?,
+                evidence_level,
+            },
+            evidence_s,
+            row.get::<_, Option<String>>(9)?,
+            row.get::<_, Option<String>>(10)?,
+        ))
+    })?;
+
+    let mut previous: Option<String> = None;
+    for row in rows {
+        let (entry, evidence, stored_previous, stored_hash) = row?;
+        if stored_previous != previous {
+            return Ok(false);
+        }
+        let Some(stored_hash) = stored_hash else {
+            return Ok(false);
+        };
+        let expected = audit_entry_hash(&entry, &evidence, previous.as_deref());
+        if stored_hash != expected {
+            return Ok(false);
+        }
+        previous = Some(stored_hash);
+    }
+    Ok(true)
 }
 
 // ── Convenience façade ────────────────────────────────────────────────────────
@@ -1064,7 +1292,8 @@ mod tests {
     async fn service_bootstrap_sem_politicas() {
         use core_security::{GrantedBy, SecurityService};
         let store = test_store();
-        let svc = SecurityService::new(store);
+        let svc = SecurityService::new(store)
+            .with_runtime_policy(core_security::SecurityRuntimePolicy::bootstrap_permissive());
         let dec = svc
             .authorize(&human_ctx("user:alice", "doc.sign"), None, now())
             .await
@@ -1224,7 +1453,8 @@ mod tests {
                 .unwrap();
 
         // SecuritySqliteStore implementa tanto SecurityPolicyRepository como SecurityAuditLog
-        let svc = SecurityService::with_audit(store.clone(), store.clone());
+        let svc = SecurityService::with_audit(store.clone(), store.clone())
+            .with_runtime_policy(core_security::SecurityRuntimePolicy::bootstrap_permissive());
 
         let _ = svc
             .authorize(&human_ctx("user:alice", "any.op"), None, now())
@@ -1248,6 +1478,35 @@ mod tests {
             .unwrap();
         assert_eq!(decision, "granted");
         assert_eq!(principal, "user:alice");
+    }
+
+    #[tokio::test]
+    async fn audit_hash_chain_detecta_adulteracao() {
+        use core_security::SecurityService;
+        let tmp = NamedTempFile::new().unwrap();
+        let store =
+            SecuritySqliteStore::open(&SqliteRelationalConfig::read_write_create(tmp.path()))
+                .unwrap();
+        let svc = SecurityService::with_audit(store.clone(), store.clone())
+            .with_runtime_policy(core_security::SecurityRuntimePolicy::bootstrap_permissive());
+
+        svc.authorize(&human_ctx("user:alice", "any.op"), None, now())
+            .await
+            .unwrap();
+        svc.authorize(&human_ctx("user:bob", "any.op"), None, now())
+            .await
+            .unwrap();
+        assert!(store.verify_audit_chain().unwrap());
+
+        let conn = store.conn.lock().unwrap();
+        conn.execute(
+            "UPDATE security_auth_decisions SET principal = 'user:eve' WHERE id = 1",
+            [],
+        )
+        .unwrap();
+        drop(conn);
+
+        assert!(!store.verify_audit_chain().unwrap());
     }
 
     #[tokio::test]

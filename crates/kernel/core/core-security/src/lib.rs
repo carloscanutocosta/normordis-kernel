@@ -66,7 +66,10 @@ pub use audit_log::InMemoryAuditLog;
 pub use audit_log::{AuditDecision, NoopSecurityAuditLog, SecurityAuditLog, SecurityAuthDecision};
 
 // ── service ───────────────────────────────────────────────────────────────────
-pub use service::{AuthorizationToken, GrantedBy, SecurityService};
+pub use service::{
+    AuthorizationToken, BootstrapAuthorization, GrantedBy, SecurityFailureMode,
+    SecurityRuntimePolicy, SecurityService,
+};
 
 // ── role ──────────────────────────────────────────────────────────────────────
 #[cfg(any(test, feature = "test-helpers"))]

@@ -9,7 +9,8 @@
 //! Gate 2b: roles do principal → delegação de role (role, op, resource)?
 //!           └─ Sim → AuthorizationToken(RoleDelegation)
 //! Gate 3: políticas activas?
-//!          ├─ Nenhuma                           → AuthorizationToken(Bootstrap)
+//!          ├─ Nenhuma + bootstrap opt-in        → AuthorizationToken(Bootstrap)
+//!          ├─ Nenhuma em produção               → Err(InvariantViolated)
 //!          ├─ Rule disabled para esta op        → AuthorizationToken(ExemptedByRule)
 //!          ├─ Strict OU rule enabled para op    → Err(InvariantViolated)
 //!          └─ Baseline, sem rule                → AuthorizationToken(BaselinePolicy)
@@ -84,6 +85,81 @@ pub enum GrantedBy {
     Bootstrap,
 }
 
+/// Comportamento quando ainda não existem políticas activas.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum BootstrapAuthorization {
+    /// Deny-by-default: sem política activa, não há autorização.
+    Deny,
+    /// Permite operações durante bootstrap controlado.
+    Allow,
+}
+
+/// Política perante falhas de componentes de evidência/observabilidade.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SecurityFailureMode {
+    /// A falha bloqueia a autorização, adequado a produção institucional.
+    FailClosed,
+    /// A falha é reportada para stderr mas não bloqueia a decisão.
+    BestEffort,
+}
+
+/// Política operacional do motor de autorização.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct SecurityRuntimePolicy {
+    pub bootstrap_authorization: BootstrapAuthorization,
+    pub audit_failure: SecurityFailureMode,
+    pub event_failure: SecurityFailureMode,
+    pub sod_history_failure: SecurityFailureMode,
+}
+
+impl SecurityRuntimePolicy {
+    /// Política recomendada para produção: deny-by-default e evidência obrigatória.
+    pub const fn production() -> Self {
+        Self {
+            bootstrap_authorization: BootstrapAuthorization::Deny,
+            audit_failure: SecurityFailureMode::FailClosed,
+            event_failure: SecurityFailureMode::FailClosed,
+            sod_history_failure: SecurityFailureMode::FailClosed,
+        }
+    }
+
+    /// Política para bootstrap/testes: mantém o comportamento permissivo legado.
+    pub const fn bootstrap_permissive() -> Self {
+        Self {
+            bootstrap_authorization: BootstrapAuthorization::Allow,
+            audit_failure: SecurityFailureMode::BestEffort,
+            event_failure: SecurityFailureMode::BestEffort,
+            sod_history_failure: SecurityFailureMode::BestEffort,
+        }
+    }
+
+    pub const fn with_bootstrap_authorization(mut self, mode: BootstrapAuthorization) -> Self {
+        self.bootstrap_authorization = mode;
+        self
+    }
+
+    pub const fn with_audit_failure(mut self, mode: SecurityFailureMode) -> Self {
+        self.audit_failure = mode;
+        self
+    }
+
+    pub const fn with_event_failure(mut self, mode: SecurityFailureMode) -> Self {
+        self.event_failure = mode;
+        self
+    }
+
+    pub const fn with_sod_history_failure(mut self, mode: SecurityFailureMode) -> Self {
+        self.sod_history_failure = mode;
+        self
+    }
+}
+
+impl Default for SecurityRuntimePolicy {
+    fn default() -> Self {
+        Self::production()
+    }
+}
+
 /// Motor de autorização de `core-security`.
 ///
 /// Quatro genéricos com defaults:
@@ -101,6 +177,7 @@ pub struct SecurityService<
     audit: A,
     roles: M,
     events: P,
+    runtime_policy: SecurityRuntimePolicy,
 }
 
 // ── Construtores ──────────────────────────────────────────────────────────────
@@ -114,6 +191,7 @@ impl<R: SecurityPolicyRepository>
             audit: NoopSecurityAuditLog,
             roles: NoopRoleMembership,
             events: NoopSecurityEventPublisher,
+            runtime_policy: SecurityRuntimePolicy::production(),
         }
     }
 }
@@ -127,6 +205,7 @@ impl<R: SecurityPolicyRepository, A: SecurityAuditLog>
             audit,
             roles: NoopRoleMembership,
             events: NoopSecurityEventPublisher,
+            runtime_policy: SecurityRuntimePolicy::production(),
         }
     }
 }
@@ -143,6 +222,7 @@ where
             audit,
             roles,
             events: NoopSecurityEventPublisher,
+            runtime_policy: SecurityRuntimePolicy::production(),
         }
     }
 }
@@ -161,7 +241,17 @@ where
             audit,
             roles,
             events,
+            runtime_policy: SecurityRuntimePolicy::production(),
         }
+    }
+
+    pub fn with_runtime_policy(mut self, runtime_policy: SecurityRuntimePolicy) -> Self {
+        self.runtime_policy = runtime_policy;
+        self
+    }
+
+    pub fn runtime_policy(&self) -> SecurityRuntimePolicy {
+        self.runtime_policy
     }
 
     pub fn repo(&self) -> &R {
@@ -232,9 +322,7 @@ where
                 evidence_level: EvidenceLevel::None,
             },
         };
-        if let Err(e) = self.audit.record_decision(&entry).await {
-            eprintln!("[core-security] audit log failed: {e}");
-        }
+        self.handle_audit_result(self.audit.record_decision(&entry).await)?;
         // Emitir evento de segurança em caso de recusa
         if result.is_err() {
             let evt = SecurityEvent::new(
@@ -244,9 +332,7 @@ where
             )
             .with_principal(principal_id)
             .with_operation(&ctx.operation);
-            if let Err(e) = self.events.publish(&evt).await {
-                eprintln!("[core-security] event publish failed: {e}");
-            }
+            self.handle_event_result(self.events.publish(&evt).await)?;
         }
 
         result
@@ -317,12 +403,15 @@ where
                 SecurityEvent::new(SecurityEventKind::PolicyEvaluated, &ctx.correlation_id, now)
                     .with_principal(principal_id)
                     .with_operation(&ctx.operation);
-            if let Err(e) = self.events.publish(&evt).await {
-                eprintln!("[core-security] event publish failed: {e}");
-            }
+            self.handle_event_result(self.events.publish(&evt).await)?;
         }
 
         if policies.is_empty() {
+            if self.runtime_policy.bootstrap_authorization == BootstrapAuthorization::Deny {
+                return Err(SecurityError::InvariantViolated(
+                    "sem políticas activas; bootstrap permissivo não está habilitado".into(),
+                ));
+            }
             return Ok(self.token(
                 principal_id,
                 &ctx.operation,
@@ -403,7 +492,14 @@ where
 
         // Para principais humanos, verificar autoridade e recolher a delegação-pai
         // para propagar automaticamente em `granted_via`.
-        let parent_id = if !policies.is_empty() && granter.principal.is_human() {
+        let parent_id = if policies.is_empty()
+            && granter.principal.is_human()
+            && self.runtime_policy.bootstrap_authorization == BootstrapAuthorization::Deny
+        {
+            return Err(SecurityError::InvariantViolated(
+                "sem políticas activas; concessão humana em bootstrap não está habilitada".into(),
+            ));
+        } else if !policies.is_empty() && granter.principal.is_human() {
             match self
                 .find_granting_delegation(
                     granter.principal.id(),
@@ -515,7 +611,8 @@ where
     /// ## Deny-by-default
     ///
     /// Qualquer falha (campo vazio, nível insuficiente, sem delegação em modo strict)
-    /// resulta em `AuthzDecision::deny(...)`. Ausência de política nunca significa permissão.
+    /// resulta em `AuthzDecision::deny(...)`. Ausência de política só permite
+    /// acesso quando `SecurityRuntimePolicy` habilita bootstrap permissivo.
     pub async fn authorize_contextual(
         &self,
         subject: &VerifiedPrincipal,
@@ -547,7 +644,9 @@ where
                         ),
                         "SEC.AUTHZ.ORG_SCOPE_MISMATCH",
                     );
-                    self.log_contextual_decision(subject, req, &decision).await;
+                    if let Err(e) = self.log_contextual_decision(subject, req, &decision).await {
+                        return decision_from_operational_error(e);
+                    }
                     let evt = SecurityEvent::new(
                         SecurityEventKind::AuthorizationDenied,
                         &req.correlation_id,
@@ -556,8 +655,8 @@ where
                     .with_principal(subject.id())
                     .with_operation(&req.action)
                     .with_details(format!("org_scope_mismatch: {ctx_scope} ≠ {res_ou}"));
-                    if let Err(e) = self.events.publish(&evt).await {
-                        eprintln!("[core-security] event publish failed: {e}");
+                    if let Err(e) = self.handle_event_result(self.events.publish(&evt).await) {
+                        return decision_from_operational_error(e);
                     }
                     return decision;
                 }
@@ -574,7 +673,9 @@ where
                     ),
                     "SEC.AUTHZ.INSUFFICIENT_AUTH_LEVEL",
                 );
-                self.log_contextual_decision(subject, req, &decision).await;
+                if let Err(e) = self.log_contextual_decision(subject, req, &decision).await {
+                    return decision_from_operational_error(e);
+                }
                 // Emitir evento: tentativa de operar sem nível suficiente
                 let evt = SecurityEvent::new(
                     SecurityEventKind::AuthorizationDenied,
@@ -584,8 +685,8 @@ where
                 .with_principal(subject.id())
                 .with_operation(&req.action)
                 .with_details(format!("auth_level insuficiente: {}", decision.reason));
-                if let Err(e) = self.events.publish(&evt).await {
-                    eprintln!("[core-security] event publish failed: {e}");
+                if let Err(e) = self.handle_event_result(self.events.publish(&evt).await) {
+                    return decision_from_operational_error(e);
                 }
                 return decision;
             }
@@ -627,7 +728,9 @@ where
             Err(err) => AuthzDecision::deny(err.to_string(), "SEC.AUTHZ.DENIED"),
         };
 
-        self.log_contextual_decision(subject, req, &decision).await;
+        if let Err(e) = self.log_contextual_decision(subject, req, &decision).await {
+            return decision_from_operational_error(e);
+        }
 
         // Emitir eventos de segurança
         let event_kind = if decision.is_denied() {
@@ -641,8 +744,8 @@ where
         let evt = SecurityEvent::new(event_kind, &req.correlation_id, req.at)
             .with_principal(subject.id())
             .with_operation(&req.action);
-        if let Err(e) = self.events.publish(&evt).await {
-            eprintln!("[core-security] event publish failed: {e}");
+        if let Err(e) = self.handle_event_result(self.events.publish(&evt).await) {
+            return decision_from_operational_error(e);
         }
 
         decision
@@ -653,7 +756,7 @@ where
         subject: &VerifiedPrincipal,
         req: &AuthzRequest,
         decision: &AuthzDecision,
-    ) {
+    ) -> Result<(), SecurityError> {
         let entry = SecurityAuthDecision {
             logged_at: req.at,
             principal: subject.id().into(),
@@ -677,9 +780,7 @@ where
             },
             evidence_level: decision.evidence_level,
         };
-        if let Err(e) = self.audit.record_decision(&entry).await {
-            eprintln!("[core-security] audit log contextual failed: {e}");
-        }
+        self.handle_audit_result(self.audit.record_decision(&entry).await)
     }
 
     // ── Segregação de funções ─────────────────────────────────────────────────
@@ -714,10 +815,19 @@ where
             .await
         {
             Ok(p) => p,
-            Err(e) => {
-                eprintln!("[core-security] SoD history fetch failed: {e}");
-                return None;
-            }
+            Err(e) => match self.runtime_policy.sod_history_failure {
+                SecurityFailureMode::BestEffort => {
+                    eprintln!("[core-security] SoD history fetch failed: {e}");
+                    return None;
+                }
+                SecurityFailureMode::FailClosed => {
+                    return Some(SodViolation {
+                        rule_id: "SOD.HISTORY.UNAVAILABLE".into(),
+                        description: format!("histórico SoD indisponível: {e}"),
+                        override_allowed: false,
+                    });
+                }
+            },
         };
 
         let violation = check_sod(rules, action, &previous);
@@ -729,12 +839,42 @@ where
                     .with_operation(action)
                     .with_resource(resource_id)
                     .with_details(v.to_string());
-            if let Err(e) = self.events.publish(&evt).await {
-                eprintln!("[core-security] event publish failed: {e}");
+            if let Err(e) = self.handle_event_result(self.events.publish(&evt).await) {
+                return Some(SodViolation {
+                    rule_id: "SOD.EVENT.UNAVAILABLE".into(),
+                    description: e.to_string(),
+                    override_allowed: false,
+                });
             }
         }
 
         violation
+    }
+
+    fn handle_audit_result(&self, result: Result<(), SecurityError>) -> Result<(), SecurityError> {
+        match (result, self.runtime_policy.audit_failure) {
+            (Ok(()), _) => Ok(()),
+            (Err(e), SecurityFailureMode::BestEffort) => {
+                eprintln!("[core-security] audit log failed: {e}");
+                Ok(())
+            }
+            (Err(e), SecurityFailureMode::FailClosed) => {
+                Err(SecurityError::AuditUnavailable(e.to_string()))
+            }
+        }
+    }
+
+    fn handle_event_result(&self, result: Result<(), SecurityError>) -> Result<(), SecurityError> {
+        match (result, self.runtime_policy.event_failure) {
+            (Ok(()), _) => Ok(()),
+            (Err(e), SecurityFailureMode::BestEffort) => {
+                eprintln!("[core-security] event publish failed: {e}");
+                Ok(())
+            }
+            (Err(e), SecurityFailureMode::FailClosed) => {
+                Err(SecurityError::EventPublishFailed(e.to_string()))
+            }
+        }
     }
 }
 
@@ -807,6 +947,16 @@ fn granted_by_kind(g: &GrantedBy) -> String {
         GrantedBy::ExemptedByRule => "exempted".into(),
         GrantedBy::Bootstrap => "bootstrap".into(),
     }
+}
+
+fn decision_from_operational_error(err: SecurityError) -> AuthzDecision {
+    let code = match err {
+        SecurityError::AuditUnavailable(_) => "SEC.AUTHZ.AUDIT_UNAVAILABLE",
+        SecurityError::EventPublishFailed(_) => "SEC.AUTHZ.EVENT_UNAVAILABLE",
+        SecurityError::SodHistoryUnavailable(_) => "SEC.AUTHZ.SOD_HISTORY_UNAVAILABLE",
+        _ => "SEC.AUTHZ.OPERATIONAL_FAILURE",
+    };
+    AuthzDecision::deny(err.to_string(), code)
 }
 
 /// Resultado detalhado da verificação de uma delegação.
@@ -916,6 +1066,7 @@ mod tests {
 
     fn service() -> SecurityService<InMemorySecurityPolicyRepository> {
         SecurityService::new(InMemorySecurityPolicyRepository::new())
+            .with_runtime_policy(SecurityRuntimePolicy::bootstrap_permissive())
     }
 
     fn service_with_roles() -> SecurityService<
@@ -928,6 +1079,7 @@ mod tests {
             NoopSecurityAuditLog,
             InMemoryRoleMembership::new(),
         )
+        .with_runtime_policy(SecurityRuntimePolicy::bootstrap_permissive())
     }
 
     fn strict_policy(id: &str) -> Policy {
@@ -1544,7 +1696,8 @@ mod tests {
         use crate::InMemoryAuditLog;
         let audit = InMemoryAuditLog::new();
         let svc =
-            SecurityService::with_audit(InMemorySecurityPolicyRepository::new(), audit.clone());
+            SecurityService::with_audit(InMemorySecurityPolicyRepository::new(), audit.clone())
+                .with_runtime_policy(SecurityRuntimePolicy::bootstrap_permissive());
         let _ = svc
             .authorize(&human_ctx("user:alice", "any.op"), None, now())
             .await;
@@ -1557,7 +1710,8 @@ mod tests {
         use crate::InMemoryAuditLog;
         let audit = InMemoryAuditLog::new();
         let svc =
-            SecurityService::with_audit(InMemorySecurityPolicyRepository::new(), audit.clone());
+            SecurityService::with_audit(InMemorySecurityPolicyRepository::new(), audit.clone())
+                .with_runtime_policy(SecurityRuntimePolicy::bootstrap_permissive());
         svc.repo()
             .save_policy(&strict_policy("pol-s"), now())
             .await
@@ -1578,6 +1732,16 @@ mod tests {
             .await
             .unwrap();
         assert!(matches!(token.granted_by, GrantedBy::Bootstrap));
+    }
+
+    #[tokio::test]
+    async fn producao_sem_politicas_nega_por_defeito() {
+        let svc = SecurityService::new(InMemorySecurityPolicyRepository::new());
+        let err = svc
+            .authorize(&human_ctx("user:alice", "any.op"), None, now())
+            .await
+            .unwrap_err();
+        assert!(matches!(err, SecurityError::InvariantViolated(_)));
     }
 
     #[tokio::test]
@@ -1699,6 +1863,17 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn contextual_producao_sem_politicas_nega_por_defeito() {
+        let svc = SecurityService::new(InMemorySecurityPolicyRepository::new());
+        let subject = VerifiedPrincipal::human("user:alice");
+        let decision = svc
+            .authorize_contextual(&subject, &authz_req("doc.sign"), &normal_ctx("user:alice"))
+            .await;
+        assert!(decision.is_denied());
+        assert_eq!(decision.code, "SEC.AUTHZ.INVARIANT_VIOLATED");
+    }
+
+    #[tokio::test]
     async fn contextual_strict_sem_delegacao_nega() {
         let svc = service();
         svc.repo()
@@ -1807,7 +1982,8 @@ mod tests {
         use crate::InMemoryAuditLog;
         let audit = InMemoryAuditLog::new();
         let svc =
-            SecurityService::with_audit(InMemorySecurityPolicyRepository::new(), audit.clone());
+            SecurityService::with_audit(InMemorySecurityPolicyRepository::new(), audit.clone())
+                .with_runtime_policy(SecurityRuntimePolicy::bootstrap_permissive());
         let subject = VerifiedPrincipal::human("user:alice");
         svc.authorize_contextual(&subject, &authz_req("doc.read"), &normal_ctx("user:alice"))
             .await;
@@ -2218,7 +2394,8 @@ mod tests {
         use crate::InMemoryAuditLog;
         let audit = InMemoryAuditLog::new();
         let svc =
-            SecurityService::with_audit(InMemorySecurityPolicyRepository::new(), audit.clone());
+            SecurityService::with_audit(InMemorySecurityPolicyRepository::new(), audit.clone())
+                .with_runtime_policy(SecurityRuntimePolicy::bootstrap_permissive());
         svc.repo()
             .save_policy(&strict_policy("pol-s"), now())
             .await
@@ -2240,7 +2417,8 @@ mod tests {
         use crate::InMemoryAuditLog;
         let audit = InMemoryAuditLog::new();
         let svc =
-            SecurityService::with_audit(InMemorySecurityPolicyRepository::new(), audit.clone());
+            SecurityService::with_audit(InMemorySecurityPolicyRepository::new(), audit.clone())
+                .with_runtime_policy(SecurityRuntimePolicy::bootstrap_permissive());
         svc.repo()
             .save_policy(&strict_policy("pol-s"), now())
             .await
@@ -2265,7 +2443,8 @@ mod tests {
         use crate::InMemoryAuditLog;
         let audit = InMemoryAuditLog::new();
         let svc =
-            SecurityService::with_audit(InMemorySecurityPolicyRepository::new(), audit.clone());
+            SecurityService::with_audit(InMemorySecurityPolicyRepository::new(), audit.clone())
+                .with_runtime_policy(SecurityRuntimePolicy::bootstrap_permissive());
 
         // Sem políticas → Bootstrap → EvidenceLevel::None
         svc.authorize(&human_ctx("user:alice", "any.op"), None, now())

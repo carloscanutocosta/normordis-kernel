@@ -52,9 +52,9 @@ pub struct SecurityAuthDecision {
 
 /// Port de persistência de decisões de autorização.
 ///
-/// Chamado por `SecurityService::authorize()` após cada decisão.
-/// A falha do log não deve impedir a operação — tratar como best-effort
-/// ou registar em stderr consoante os requisitos do contexto.
+/// Chamado por `SecurityService` após cada decisão.
+/// Em produção, a política operacional recomendada é fail-closed: se o log
+/// não conseguir registar a decisão, a autorização é bloqueada.
 #[allow(async_fn_in_trait)]
 pub trait SecurityAuditLog {
     async fn record_decision(&self, entry: &SecurityAuthDecision) -> Result<(), SecurityError>;
