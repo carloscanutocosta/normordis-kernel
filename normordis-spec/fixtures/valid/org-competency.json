@@ -1,0 +1,10 @@
+{
+  "id": "comp-assinatura-001",
+  "code": "ASSIN-DESPACHOS",
+  "description": "Competência para assinar despachos de autorização de despesa até 10.000 EUR",
+  "scope": "Despesas correntes e de capital do orçamento da unidade",
+  "assigned_to": "pos-dgae-001",
+  "granted_by": "instr-portaria-2026-001",
+  "valid_from": "2026-01-01",
+  "version": 1
+}

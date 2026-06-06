@@ -1,0 +1,12 @@
+{
+  "event_id": "a31f172d-6690-47ff-9ee6-673048ea0a9d",
+  "event_type": "user.login",
+  "actor": {
+    "actor_id": "   "
+  },
+  "target": {
+    "target_type": "session",
+    "target_id": "sess-20260115-005"
+  },
+  "occurred_at_utc": "2026-01-15T09:32:00Z"
+}

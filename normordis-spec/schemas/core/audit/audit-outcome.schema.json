@@ -1,0 +1,9 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://normordis.local/spec/schemas/core/audit/audit-outcome.schema.json",
+  "title": "AuditOutcome",
+  "description": "Resultado de um acto auditável. Mapeado de core_audit::AuditOutcome (serde rename_all = snake_case).",
+  "type": "string",
+  "enum": ["success", "failure", "partial_success", "not_applicable"],
+  "default": "not_applicable"
+}

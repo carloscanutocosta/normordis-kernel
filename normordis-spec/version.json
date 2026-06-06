@@ -1,0 +1,8 @@
+{
+  "spec_id": "normordis-spec",
+  "version": "0.8.0",
+  "stability": "pre-release",
+  "description": "Contrato soberano de interoperabilidade do ecossistema Normordis.",
+  "schema_dialect": "https://json-schema.org/draft/2020-12/schema",
+  "base_uri": "https://normordis.local/spec/schemas/"
+}

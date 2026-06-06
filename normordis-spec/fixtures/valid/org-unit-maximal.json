@@ -1,0 +1,28 @@
+{
+  "id": "unit-dsi-arq",
+  "short_name": "DSI-ARQ",
+  "full_name": "Divisão de Sistemas de Informação — Arquitectura",
+  "service_code": "DSI.ARQ.001",
+  "level": 2,
+  "parent_id": "unit-dsi",
+  "contacts": {
+    "email": "dsi.arq@normordis.local",
+    "phone": "211234599",
+    "fax": "211234598",
+    "address": {
+      "rua": "Avenida da República",
+      "numero": "42",
+      "porta": "3 Esq",
+      "local": "Edifício Central",
+      "cp4": "1050",
+      "cp3": "191",
+      "localidade": "Lisboa"
+    }
+  },
+  "created_by": "instr-portaria-2026-001",
+  "legal_reference": "Portaria n.º 45/2026, art.º 12",
+  "valid_from": "2026-02-01",
+  "valid_until": "2028-01-31",
+  "status": "active",
+  "version": 3
+}

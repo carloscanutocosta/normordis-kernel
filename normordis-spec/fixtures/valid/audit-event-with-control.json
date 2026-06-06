@@ -1,0 +1,21 @@
+{
+  "event_id": "8f7b54e2-5f1d-4d42-9a5c-5f6945b53b83",
+  "event_type": "document.sign",
+  "actor": {
+    "actor_id": "user:director@normordis.local",
+    "actor_name": "Director Geral",
+    "actor_type": "human"
+  },
+  "target": {
+    "target_type": "document",
+    "target_id": "doc-2026-001"
+  },
+  "occurred_at_utc": "2026-01-15T10:00:00Z",
+  "outcome": "success",
+  "control_id": "CTRL-INT-001",
+  "details_json": {
+    "document_type": "portaria",
+    "signature_algorithm": "ed25519",
+    "pages": 3
+  }
+}

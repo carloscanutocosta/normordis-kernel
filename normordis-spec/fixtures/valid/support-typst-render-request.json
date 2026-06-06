@@ -1,0 +1,7 @@
+{
+  "kind": "typst_text",
+  "source": "= Declaração\nEu, {{nome}}.",
+  "variables": {
+    "nome": "Ana Silva"
+  }
+}

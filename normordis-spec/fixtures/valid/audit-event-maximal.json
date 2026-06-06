@@ -1,0 +1,26 @@
+{
+  "event_id": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
+  "event_type": "document.classification.changed",
+  "actor": {
+    "actor_id": "user:director@normordis.local",
+    "actor_name": "Director Geral",
+    "actor_type": "human"
+  },
+  "target": {
+    "target_type": "document",
+    "target_id": "doc-2026-099"
+  },
+  "occurred_at_utc": "2026-06-06T15:30:45.123Z",
+  "outcome": "partial_success",
+  "control_id": "CTRL-PRIV-002",
+  "details_json": {
+    "previous_classification": "internal",
+    "new_classification": "restricted",
+    "reason": "contém dados de identificação",
+    "affected_pages": [1, 4, 7],
+    "review": {
+      "reviewer": "comissao-protecao-dados",
+      "approved": true
+    }
+  }
+}

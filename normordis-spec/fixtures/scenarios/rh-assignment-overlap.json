@@ -1,0 +1,18 @@
+[
+  {
+    "person_id": "user-001",
+    "position_id": "pos-001",
+    "unit_id": "unit-001",
+    "basis": "Despacho n.º 1/2024",
+    "valid_from": "2024-01-01",
+    "valid_until": "2024-09-30"
+  },
+  {
+    "person_id": "user-001",
+    "position_id": "pos-001",
+    "unit_id": "unit-001",
+    "basis": "Despacho n.º 2/2024",
+    "valid_from": "2024-06-01",
+    "valid_until": "2024-12-31"
+  }
+]

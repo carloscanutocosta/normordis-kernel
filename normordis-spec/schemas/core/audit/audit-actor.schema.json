@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://normordis.local/spec/schemas/core/audit/audit-actor.schema.json",
+  "title": "AuditActor",
+  "description": "Entidade que executa um acto auditável. Mapeado de core_audit::AuditActor. Nota: actor_name e actor_type são Option<String> sem skip_serializing_if — podem serializar como null; o schema aceita string | null.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["actor_id"],
+  "properties": {
+    "actor_id": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^\\S(?:.*\\S)?$",
+      "description": "Identificador único do actor (obrigatório, não vazio)."
+    },
+    "actor_name": {
+      "type": ["string", "null"],
+      "minLength": 1,
+      "pattern": "^\\S(?:.*\\S)?$",
+      "description": "Nome legível do actor (opcional). Null quando ausente no modelo Rust."
+    },
+    "actor_type": {
+      "type": ["string", "null"],
+      "minLength": 1,
+      "pattern": "^\\S(?:.*\\S)?$",
+      "description": "Categoria do actor: human, service, system, … (opcional). Null quando ausente no modelo Rust."
+    }
+  }
+}

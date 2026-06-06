@@ -73,6 +73,9 @@ members = [
   # ── Runtime ─────────────────────────────────────────────────────────────────
   "crates/runtime/miniapp-runtime",
   "crates/runtime/interoperability",
+
+  # ── Conformance (testes de contrato normordis-spec) ───────────────────────────
+  "crates/spec-conformance",
 ]
 
 [workspace.lints.rust]

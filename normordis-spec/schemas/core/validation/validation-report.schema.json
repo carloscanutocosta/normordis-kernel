@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://normordis.local/spec/schemas/core/validation/validation-report.schema.json",
+  "title": "ValidationReport",
+  "description": "Acumulador de resultados de validação. Agrega desvios de múltiplas regras; valid=false quando existe pelo menos um issue de severidade Error. Mapeado de core_validation::ValidationReport.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["valid", "issues"],
+  "properties": {
+    "valid": {
+      "type": "boolean",
+      "description": "false quando há pelo menos um ValidationIssue com severity=Error."
+    },
+    "issues": {
+      "type": "array",
+      "items": { "$ref": "validation-issue.schema.json" },
+      "description": "Lista de desvios detectados. Vazia quando valid=true e nenhuma regra produziu warnings ou info."
+    }
+  }
+}

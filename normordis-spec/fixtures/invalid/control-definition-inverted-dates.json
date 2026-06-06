@@ -1,0 +1,10 @@
+{
+  "control_id": "CTRL-AUTH-001",
+  "name": "Autenticação obrigatória",
+  "category": "auth",
+  "severity": "high",
+  "version": "1.0.0",
+  "valid_from": "2026-12-01T00:00:00Z",
+  "valid_to": "2026-01-01T00:00:00Z",
+  "active": true
+}

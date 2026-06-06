@@ -1,0 +1,12 @@
+{
+  "from_position": {
+    "id": "pos-001",
+    "title": "Director de Serviços",
+    "status": "active"
+  },
+  "delegation": {
+    "from_position": "pos-001",
+    "to_position": "pos-002",
+    "instrument_id": "desp-2024-001"
+  }
+}

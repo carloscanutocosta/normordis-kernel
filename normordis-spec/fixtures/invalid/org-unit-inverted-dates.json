@@ -1,0 +1,18 @@
+{
+  "id": "unit-test-001",
+  "short_name": "TEST",
+  "full_name": "Unidade de Teste",
+  "level": 1,
+  "contacts": {
+    "email": "test@normordis.local",
+    "phone": "210000000",
+    "address": {
+      "cp4": "1000",
+      "cp3": "001"
+    }
+  },
+  "valid_from": "2026-12-01",
+  "valid_until": "2026-01-01",
+  "status": "active",
+  "version": 1
+}

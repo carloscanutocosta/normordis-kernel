@@ -1,0 +1,10 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://normordis.local/spec/schemas/support/storage-key.schema.json",
+  "title": "StorageKey",
+  "type": "string",
+  "minLength": 1,
+  "maxLength": 256,
+  "pattern": "^[A-Za-z0-9_.-]+$",
+  "not": { "anyOf": [{ "pattern": "\\.\\." }, { "pattern": "[\\\\/:\\s]" }] }
+}

@@ -1,0 +1,37 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://normordis.local/spec/schemas/core/audit/audit-chain-link.schema.json",
+  "title": "AuditChainLink",
+  "description": "Elo de cadeia de integridade. O elo de génese (sequence=1) tem previous_record_hash=null; todos os outros têm um hash de 64 caracteres hex. Mapeado de core_audit::AuditChainLink.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["sequence", "record_hash"],
+  "properties": {
+    "sequence": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Posição monotonicamente crescente na cadeia. Começa em 1."
+    },
+    "previous_record_hash": {
+      "type": ["string", "null"],
+      "pattern": "^[0-9a-f]{64}$",
+      "description": "SHA-256 hex lowercase do elo anterior. Null no elo de génese (sequence=1)."
+    },
+    "record_hash": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$",
+      "description": "SHA-256 hex lowercase deste elo, calculado sobre o evento + previous_record_hash."
+    }
+  },
+  "if": {
+    "properties": { "sequence": { "const": 1 } },
+    "required": ["sequence"]
+  },
+  "then": {
+    "properties": { "previous_record_hash": { "type": "null" } }
+  },
+  "else": {
+    "required": ["previous_record_hash"],
+    "properties": { "previous_record_hash": { "type": "string", "pattern": "^[0-9a-f]{64}$" } }
+  }
+}

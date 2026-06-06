@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://normordis.local/spec/schemas/core/validation/validation-issue.schema.json",
+  "title": "ValidationIssue",
+  "description": "Desvio detectado por uma regra de validação. Componente de ValidationReport. Mapeado de core_validation::ValidationIssue.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["rule_id", "severity", "message"],
+  "properties": {
+    "rule_id": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^validation\\.[a-z0-9_.]+$",
+      "description": "Identificador canónico da regra (ex: validation.nif.checksum)."
+    },
+    "field": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Campo ao qual o desvio se refere (opcional)."
+    },
+    "severity": {
+      "$ref": "validation-severity.schema.json"
+    },
+    "message": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Descrição legível do desvio."
+    }
+  }
+}

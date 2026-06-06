@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://normordis.local/spec/schemas/core/audit/signed-audit-export-manifest.schema.json",
+  "title": "SignedAuditExportManifest",
+  "description": "Manifesto de exportação com assinatura digital. Combina AuditExportManifest e AuditManifestSignature. Mapeado de core_audit::SignedAuditExportManifest.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["manifest", "signature"],
+  "properties": {
+    "manifest": { "$ref": "audit-export-manifest.schema.json" },
+    "signature": { "$ref": "audit-manifest-signature.schema.json" }
+  }
+}

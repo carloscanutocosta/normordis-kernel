@@ -1,0 +1,9 @@
+{
+  "event_id": "550e8400-e29b-41d4-a716-446655440001",
+  "event_type": "user.login",
+  "target": {
+    "target_type": "session",
+    "target_id": "sess-20260115-002"
+  },
+  "occurred_at_utc": "2026-01-15T09:31:00Z"
+}

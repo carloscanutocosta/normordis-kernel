@@ -1,0 +1,14 @@
+{
+  "control_id": "CTRL-INT-003",
+  "name": "Integridade da cadeia de auditoria por hash encadeado",
+  "description": "Cada evento de auditoria deve encadear o hash do registo anterior, garantindo detecção de adulteração ou remoção de registos.",
+  "category": "integrity",
+  "severity": "high",
+  "owner": "Serviço de Auditoria Interna",
+  "implemented_by": ["core-audit", "adapter-audit-sqlite", "support-crypto"],
+  "references": ["ISO27001:A.12.4.2", "COSO:CC4.1", "RGPD:art.5.1.f"],
+  "version": "2.1.0",
+  "valid_from": "2026-01-01T00:00:00Z",
+  "valid_to": "2027-12-31T23:59:59Z",
+  "active": true
+}

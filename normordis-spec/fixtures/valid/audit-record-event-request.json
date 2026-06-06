@@ -1,0 +1,18 @@
+{
+  "event_type": "document.sign",
+  "actor": {
+    "actor_id": "user:director@normordis.local",
+    "actor_name": "Director Geral",
+    "actor_type": "human"
+  },
+  "target": {
+    "target_type": "document",
+    "target_id": "doc-2026-042"
+  },
+  "outcome": "success",
+  "control_id": "CTRL-INT-001",
+  "details_json": {
+    "document_type": "despacho",
+    "pages": 2
+  }
+}

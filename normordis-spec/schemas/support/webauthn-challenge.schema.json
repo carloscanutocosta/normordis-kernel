@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://normordis.local/spec/schemas/support/webauthn-challenge.schema.json",
+  "title": "WebAuthnChallenge",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "value", "user_id", "expires_at"],
+  "properties": {
+    "id": { "type": "string", "minLength": 1 },
+    "value": { "type": "string", "minLength": 1 },
+    "user_id": { "type": "string", "minLength": 1 },
+    "expires_at": { "$ref": "utc-timestamp.schema.json" }
+  }
+}

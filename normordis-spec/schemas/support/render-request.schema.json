@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://normordis.local/spec/schemas/support/render-request.schema.json",
+  "title": "RenderRequest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["kind", "source"],
+  "properties": {
+    "kind": { "type": "string", "enum": ["pdf", "typst_text", "docx_to_typst"] },
+    "source": { "type": "string", "minLength": 1 },
+    "variables": {
+      "type": "object",
+      "additionalProperties": { "type": "string" },
+      "description": "Variáveis de substituição de template. Exclusivo de kind=typst_text."
+    }
+  },
+  "if": {
+    "properties": { "kind": { "const": "typst_text" } },
+    "required": ["kind"]
+  },
+  "then": {},
+  "else": {
+    "properties": { "variables": false }
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "algorithm": "XCHACHA20-POLY1305",
+  "nonce_b64": "bm9uY2U",
+  "kdf": {
+    "algorithm": "external-key",
+    "memory_kib": 0,
+    "iterations": 0,
+    "parallelism": 0,
+    "salt_b64": ""
+  }
+}

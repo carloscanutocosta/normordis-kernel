@@ -1,0 +1,12 @@
+{
+  "event_id": "7127fb6d-c55d-4f0c-9f9b-c0de05fb5791",
+  "event_type": "user.login",
+  "actor": {
+    "actor_id": "user:staff@normordis.local"
+  },
+  "target": {
+    "target_type": "session",
+    "target_id": "sess-20260115-004"
+  },
+  "occurred_at_utc": "2026-01-15T09:31:00+01:00"
+}

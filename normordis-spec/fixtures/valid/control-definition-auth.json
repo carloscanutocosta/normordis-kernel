@@ -1,0 +1,13 @@
+{
+  "control_id": "CTRL-AUTH-001",
+  "name": "Autenticação obrigatória em actos auditáveis",
+  "description": "Todo acto auditável deve ter actor identificado e autenticado. A ausência de actor_id impede o registo.",
+  "category": "auth",
+  "severity": "high",
+  "owner": "Serviço de Segurança da Informação",
+  "implemented_by": ["core-audit", "core-security"],
+  "references": ["ISO27001:A.9.4.2", "COSO:CC6.1"],
+  "version": "1.0.0",
+  "valid_from": "2026-01-01T00:00:00Z",
+  "active": true
+}

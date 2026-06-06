@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://normordis.local/spec/schemas/support/backup-archive-ref.schema.json",
+  "title": "BackupArchiveRef",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["archive_id", "algorithm", "created_at_utc"],
+  "properties": {
+    "archive_id": { "type": "string", "minLength": 1, "pattern": "^\\S+$" },
+    "algorithm": { "type": "string", "enum": ["tar+gzip", "tar+gzip+chacha20poly1305"] },
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "created_at_utc": { "$ref": "utc-timestamp.schema.json" }
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "valid": false,
+  "issues": [
+    {
+      "rule_id": "validation.nif.checksum",
+      "field": "nif",
+      "severity": "Error",
+      "message": "nif checksum is invalid"
+    },
+    {
+      "rule_id": "validation.email.format",
+      "field": "email",
+      "severity": "Warning",
+      "message": "email domain could not be verified"
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "paths": {
+    "database_dir": "database",
+    "data_dir": "assets",
+    "artifacts_dir": "artifacts",
+    "temp_dir": "tmp",
+    "logs_dir": "logs"
+  },
+  "options": {
+    "app_name": "normordis",
+    "environment": "dev"
+  }
+}

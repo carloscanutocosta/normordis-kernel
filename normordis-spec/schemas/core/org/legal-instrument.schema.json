@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://normordis.local/spec/schemas/core/org/legal-instrument.schema.json",
+  "title": "LegalInstrument",
+  "description": "Enquadramento jurídico que fundamenta actos orgânicos (portarias, despachos, etc.). Mapeado de core_org::LegalInstrument.",
+  "$defs": {
+    "NaiveDate": {
+      "type": "string",
+      "format": "date",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+    },
+    "InstrumentKind": {
+      "description": "Tipo de instrumento jurídico (serde rename_all=snake_case). Outro serializa como {\"outro\": \"texto\"}.",
+      "oneOf": [
+        {
+          "type": "string",
+          "enum": ["portaria", "despacho", "deliberacao", "regulamento_organico"]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["outro"],
+          "properties": {
+            "outro": { "type": "string", "minLength": 1 }
+          }
+        }
+      ]
+    }
+  },
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "kind", "reference", "date", "description", "effective_from"],
+  "properties": {
+    "id": { "type": "string", "minLength": 1, "pattern": "^\\S+$" },
+    "kind": { "$ref": "#/$defs/InstrumentKind" },
+    "reference": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^\\S(?:.*\\S)?$",
+      "description": "Referência oficial do instrumento (ex: Portaria n.º 123/2026)."
+    },
+    "date": {
+      "$ref": "#/$defs/NaiveDate",
+      "description": "Data de publicação."
+    },
+    "description": { "type": "string", "minLength": 1 },
+    "effective_from": {
+      "$ref": "#/$defs/NaiveDate",
+      "description": "Data de entrada em vigor."
+    },
+    "effective_until": {
+      "anyOf": [{ "$ref": "#/$defs/NaiveDate" }, { "type": "null" }],
+      "description": "Data de cessação de vigência. Null quando em vigor sem prazo definido."
+    }
+  }
+}

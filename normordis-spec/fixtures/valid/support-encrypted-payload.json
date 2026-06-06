@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "algorithm": "XCHACHA20-POLY1305",
+  "key_id": "storage-main",
+  "nonce_b64": "bm9uY2U",
+  "ciphertext_b64": "Y2lwaGVydGV4dA",
+  "kdf": {
+    "algorithm": "external-key",
+    "memory_kib": 0,
+    "iterations": 0,
+    "parallelism": 0,
+    "salt_b64": ""
+  }
+}

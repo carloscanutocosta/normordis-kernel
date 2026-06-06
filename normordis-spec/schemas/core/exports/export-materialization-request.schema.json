@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://normordis.local/spec/schemas/core/exports/export-materialization-request.schema.json",
+  "title": "ExportMaterializationRequest",
+  "description": "Pedido de materialização de um dataset num formato concreto. Os campos snapshot, root_name, sheet_name e table_name são Option sem skip_serializing_if — serializam como null quando ausentes. Mapeado de core_exports::ExportMaterializationRequest.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["snapshot_id", "format", "profile", "dataset", "output_ref"],
+  "properties": {
+    "snapshot_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "ID do snapshot de origem.",
+      "$comment": "Referencia ExportSnapshot.snapshot_id (core_exports::ExportSnapshot)."
+    },
+    "format": {
+      "type": "string",
+      "enum": ["csv", "xml", "sqlite", "xlsx"],
+      "description": "Formato de saída. serde rename_all=snake_case."
+    },
+    "profile": {
+      "type": "string",
+      "enum": ["audit", "exchange", "reporting"],
+      "description": "Perfil de interoperabilidade. serde rename_all=snake_case."
+    },
+    "dataset": { "$ref": "tabular-dataset.schema.json" },
+    "snapshot": {
+      "type": ["object", "null"],
+      "description": "Snapshot completo opcional. Null quando não fornecido inline."
+    },
+    "output_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Referência de saída (caminho ou chave)."
+    },
+    "root_name": {
+      "type": ["string", "null"],
+      "minLength": 1,
+      "description": "Nome do elemento raiz (XML). Null se não aplicável."
+    },
+    "sheet_name": {
+      "type": ["string", "null"],
+      "minLength": 1,
+      "description": "Nome da folha (XLSX). Null se não aplicável."
+    },
+    "table_name": {
+      "type": ["string", "null"],
+      "minLength": 1,
+      "description": "Nome da tabela (SQLite). Null se não aplicável."
+    }
+  }
+}

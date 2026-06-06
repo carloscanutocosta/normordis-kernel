@@ -1,0 +1,11 @@
+{
+  "control_id": "AUTH-001",
+  "name": "Autenticação obrigatória em actos auditáveis",
+  "category": "auth",
+  "severity": "high",
+  "implemented_by": ["core-audit", "core-security"],
+  "references": ["ISO27001:A.9.4.2", "COSO:CC6.1"],
+  "version": "1.0.0",
+  "valid_from": "2026-01-01T00:00:00Z",
+  "active": true
+}

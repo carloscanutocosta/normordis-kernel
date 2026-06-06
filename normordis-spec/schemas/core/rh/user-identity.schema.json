@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://normordis.local/spec/schemas/core/rh/user-identity.schema.json",
+  "title": "UserIdentity",
+  "description": "Identidade de utilizador para criação ou actualização (upsert). Tipo de entrada do UserService::upsert_user(). Mapeado de core_rh::UserIdentity.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["user_id", "username", "display_name", "role"],
+  "properties": {
+    "user_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[a-zA-Z0-9_\\-.]+$",
+      "description": "Identificador único do utilizador. Sem espaços; apenas [a-zA-Z0-9_\\-.]."
+    },
+    "username": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^\\S+$",
+      "description": "Nome de utilizador sem espaços."
+    },
+    "display_name": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^\\S(?:.*\\S)?$",
+      "description": "Nome legível, não pode ser só espaços."
+    },
+    "email": {
+      "type": "string",
+      "format": "email",
+      "pattern": "^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$",
+      "description": "Endereço de e-mail válido (opcional)."
+    },
+    "role": {
+      "type": "string",
+      "enum": ["Utilizador", "Auditor", "Administrator"],
+      "description": "Papel de sistema. Serialização serde sem rename_all: PascalCase."
+    }
+  }
+}

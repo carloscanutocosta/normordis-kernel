@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://normordis.local/spec/schemas/core/audit/audit-target.schema.json",
+  "title": "AuditTarget",
+  "description": "Recurso sobre o qual o acto foi executado. Mapeado de core_audit::AuditTarget.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["target_type", "target_id"],
+  "properties": {
+    "target_type": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^\\S(?:.*\\S)?$",
+      "description": "Tipo do recurso: document, user, session, org_unit, …"
+    },
+    "target_id": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^\\S(?:.*\\S)?$",
+      "description": "Identificador único do recurso dentro do seu tipo."
+    }
+  }
+}

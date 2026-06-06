@@ -1,0 +1,6 @@
+{
+  "rule_id": "sod.no_self_approval",
+  "description": "Quem submete um acto não pode aprová-lo",
+  "conflicts_with": "document.submit",
+  "override_allowed": false
+}

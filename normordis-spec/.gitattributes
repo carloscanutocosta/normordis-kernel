@@ -1,0 +1,22 @@
+# normordis-spec — atributos de repositório
+#
+# Garante line endings consistentes (LF) em todos os ambientes.
+# Fixtures com CRLF produzem divergências de hash entre Windows e Linux
+# e erros de schema difíceis de diagnosticar.
+
+# Schemas e fixtures — sempre LF, nunca CRLF
+*.json          text eol=lf
+
+# Documentação
+*.md            text eol=lf
+
+# Workflows CI
+*.yml           text eol=lf
+*.yaml          text eol=lf
+
+# Scripts
+*.sh            text eol=lf
+
+# Binários — não tocar
+*.png           binary
+*.pdf           binary

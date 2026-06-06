@@ -1,0 +1,13 @@
+{
+  "id": "org-child",
+  "short_name": "DAG",
+  "full_name": "Divisão de Administração Geral",
+  "level": 2,
+  "contacts": {
+    "address": {}
+  },
+  "legal_reference": "Despacho n.º 2/2026",
+  "valid_from": "2026-01-01",
+  "status": "active",
+  "version": 0
+}

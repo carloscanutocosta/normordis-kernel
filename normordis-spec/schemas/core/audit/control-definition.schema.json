@@ -1,0 +1,80 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://normordis.local/spec/schemas/core/audit/control-definition.schema.json",
+  "title": "ControlDefinition",
+  "description": "Definição canónica de um controlo COSO. Mapeado de core_audit::ControlDefinition.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["control_id", "name", "category", "severity", "version", "valid_from", "active"],
+  "properties": {
+    "control_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64,
+      "pattern": "^CTRL-(AUTH|VAL|TRACE|DOC|INT|PRIV|SEC|ING|EXP|CONT)-[0-9]{3}$",
+      "description": "Identificador único do controlo (ex: CTRL-AUTH-001, CTRL-INT-003)."
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256,
+      "pattern": "^\\S(?:.*\\S)?$",
+      "description": "Nome legível do controlo."
+    },
+    "description": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^\\S(?:.*\\S)?$",
+      "description": "Descrição detalhada do objectivo do controlo (opcional)."
+    },
+    "category": {
+      "$ref": "control-category.schema.json#/$defs/ControlCategory",
+      "description": "Categoria COSO a que o controlo pertence."
+    },
+    "severity": {
+      "$ref": "control-category.schema.json#/$defs/ControlSeverity",
+      "description": "Gravidade do controlo."
+    },
+    "owner": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^\\S(?:.*\\S)?$",
+      "description": "Unidade orgânica responsável pelo controlo (opcional)."
+    },
+    "implemented_by": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^\\S(?:.*\\S)?$" },
+      "default": [],
+      "description": "Lista de crates ou módulos que implementam o controlo."
+    },
+    "references": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^\\S(?:.*\\S)?$" },
+      "default": [],
+      "description": "Referências externas (ISO, COSO, RGPD, …)."
+    },
+    "version": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^\\S(?:.*\\S)?$",
+      "description": "Versão semântica da definição do controlo."
+    },
+    "valid_from": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d+)?Z$",
+      "description": "Data de entrada em vigor."
+    },
+    "valid_to": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d+)?Z$",
+      "description": "Data de expiração (omitida se o controlo estiver activo sem prazo)."
+    },
+    "active": {
+      "type": "boolean",
+      "default": true,
+      "description": "Indica se o controlo está actualmente em vigor."
+    }
+  }
+}

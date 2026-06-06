@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://normordis.local/spec/schemas/core/exports/source-ref.schema.json",
+  "title": "SourceRef",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["kind", "subject_id", "version"],
+  "properties": {
+    "kind": { "type": "string", "minLength": 1, "pattern": "^\\S(?:.*\\S)?$" },
+    "subject_id": { "type": "string", "minLength": 1, "pattern": "^\\S(?:.*\\S)?$" },
+    "version": { "type": "string", "minLength": 1, "pattern": "^\\S(?:.*\\S)?$" }
+  }
+}

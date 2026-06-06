@@ -1,0 +1,9 @@
+# Seeds for failure cases proptest has generated in the past. It is
+# automatically read and these particular cases re-run before any
+# novel cases are generated.
+#
+# It is recommended to check this file in to source control so that
+# everyone who runs the test benefits from these saved cases.
+cc 7f86e5082796fa95ee72f9f0bb5ccab350e1259b655438d8a363fe02e11bc5a1 # shrinks to category = "AA", num = 1
+cc 42baec9ad4d1a84e993a82a15b997eccdf8e8c2b3f4457b719592620fe453266 # shrinks to key = ".."
+cc b1164b415bcf5bccc60f60fb53112ce4fcd3d5aec48df9bbec97c9f3cf16c90c # shrinks to actor_id = "aa", event_type = "aa._a", target_id = "a"

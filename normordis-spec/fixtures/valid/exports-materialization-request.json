@@ -1,0 +1,16 @@
+{
+  "snapshot_id": "exp:rh:unit-dgae:v1:a3f1c2d4e5b6a7f8",
+  "format": "csv",
+  "profile": "exchange",
+  "dataset": {
+    "columns": ["nif", "nome"],
+    "rows": [
+      { "nif": "501964843", "nome": "Empresa A" }
+    ]
+  },
+  "snapshot": null,
+  "output_ref": "exports/2026/dgae-export.csv",
+  "root_name": null,
+  "sheet_name": null,
+  "table_name": null
+}

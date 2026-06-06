@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://normordis.local/spec/schemas/core/org/org-position.schema.json",
+  "title": "OrgPosition",
+  "description": "Cargo orgânico independente de quem o ocupa. Mapeado de core_org::OrgPosition.",
+  "$defs": {
+    "NaiveDate": {
+      "type": "string",
+      "format": "date",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+      "description": "Data sem hora, formato ISO 8601 (YYYY-MM-DD)."
+    },
+    "PositionKind": {
+      "description": "Tipo de cargo. Variantes simples serializam como string; Outro serializa como objecto {\"Outro\": \"texto\"}.",
+      "oneOf": [
+        {
+          "type": "string",
+          "enum": ["Direcao", "Coordenacao", "Chefia", "Adjunto", "Tecnico"]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["Outro"],
+          "properties": {
+            "Outro": { "type": "string", "minLength": 1 }
+          }
+        }
+      ]
+    },
+    "OrgPositionStatus": {
+      "type": "string",
+      "enum": ["active", "suspended", "extinct"]
+    }
+  },
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "code", "title", "kind", "status", "unit_id", "created_by", "valid_from", "version"],
+  "properties": {
+    "id": { "type": "string", "minLength": 1, "pattern": "^\\S+$" },
+    "code": { "type": "string", "minLength": 1, "pattern": "^\\S(?:.*\\S)?$" },
+    "title": { "type": "string", "minLength": 1, "pattern": "^\\S(?:.*\\S)?$" },
+    "kind": { "$ref": "#/$defs/PositionKind" },
+    "status": { "$ref": "#/$defs/OrgPositionStatus" },
+    "unit_id": { "type": "string", "minLength": 1, "pattern": "^\\S+$" },
+    "created_by": { "type": "string", "minLength": 1 },
+    "substitutes": {
+      "type": ["string", "null"],
+      "minLength": 1,
+      "pattern": "^\\S+$",
+      "description": "ID da posição substituta legal. Null quando não existe substituto. Não pode ser igual ao próprio id (camada 3)."
+    },
+    "valid_from": { "$ref": "#/$defs/NaiveDate" },
+    "valid_until": {
+      "anyOf": [{ "$ref": "#/$defs/NaiveDate" }, { "type": "null" }],
+      "description": "Data de cessação de vigência. Null quando em vigor sem prazo definido."
+    },
+    "version": { "type": "integer", "minimum": 0 }
+  }
+}

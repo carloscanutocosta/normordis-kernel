@@ -1,0 +1,70 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://normordis.local/spec/schemas/core/audit/control-execution.schema.json",
+  "title": "ControlExecution",
+  "description": "Registo da execução de um controlo COSO num evento concreto. Mapeado de core_audit::ControlExecution.",
+  "$defs": {
+    "ControlExecutionResult": {
+      "type": "string",
+      "enum": ["passed", "failed", "dispensed"],
+      "description": "Resultado da execução. Mapeado de core_audit::ControlExecutionResult (serde rename_all = snake_case)."
+    }
+  },
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["execution_id", "control_id", "event_id", "result", "executed_at_utc"],
+  "allOf": [
+    {
+      "if": {
+        "properties": { "result": { "const": "dispensed" } },
+        "required": ["result"]
+      },
+      "then": { "required": ["notes"] }
+    }
+  ],
+  "properties": {
+    "execution_id": {
+      "type": "string",
+      "minLength": 1,
+      "format": "uuid",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+      "description": "UUID v4 único desta execução."
+    },
+    "control_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64,
+      "pattern": "^CTRL-(AUTH|VAL|TRACE|DOC|INT|PRIV|SEC|ING|EXP|CONT)-[0-9]{3}$",
+      "description": "Referência ao controlo executado."
+    },
+    "event_id": {
+      "type": "string",
+      "minLength": 1,
+      "format": "uuid",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+      "description": "Referência ao evento de auditoria que originou esta execução."
+    },
+    "result": {
+      "$ref": "#/$defs/ControlExecutionResult"
+    },
+    "executed_at_utc": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d+)?Z$",
+      "description": "Momento da execução do controlo."
+    },
+    "evidence_ref": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^\\S(?:.*\\S)?$",
+      "description": "Referência a evidência de suporte (opcional)."
+    },
+    "notes": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024,
+      "pattern": "^\\S(?:.*\\S)?$",
+      "description": "Notas sobre a execução (opcional)."
+    }
+  }
+}

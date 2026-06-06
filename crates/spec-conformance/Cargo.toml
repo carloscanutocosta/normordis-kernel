@@ -1,0 +1,30 @@
+[package]
+name = "spec-conformance"
+version.workspace = true
+edition.workspace = true
+publish = false
+description = "Testes de conformance dos crates core contra normordis-spec (schemas + fixtures)."
+
+[dependencies]
+
+[dev-dependencies]
+serde_json.workspace = true
+jsonschema = "0.28"
+core-audit = { path = "../kernel/core/core-audit" }
+core-config = { path = "../kernel/core/core-config" }
+core-exports = { path = "../kernel/core/core-exports" }
+core-ingest = { path = "../kernel/core/core-ingest" }
+core-org = { path = "../kernel/core/core-org" }
+core-rh = { path = "../kernel/core/core-rh" }
+core-security = { path = "../kernel/core/core-security" }
+core-validation = { path = "../kernel/core/core-validation" }
+support-address = { path = "../kernel/support/support-address" }
+support-errors = { path = "../kernel/support/support-errors" }
+support-ids = { path = "../kernel/support/support-ids" }
+support-logging = { path = "../kernel/support/support-logging" }
+support-normalization = { path = "../kernel/support/support-normalization" }
+support-storage = { path = "../kernel/support/support-storage" }
+support-versioning = { path = "../kernel/support/support-versioning" }
+support-auth = { path = "../kernel/support/support-auth" }
+support-crypto = { path = "../kernel/support/support-crypto" }
+proptest = "1"

@@ -1,0 +1,8 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://normordis.local/spec/schemas/core/security/auth-level.schema.json",
+  "title": "AuthLevel",
+  "description": "Nível de autenticação, ordenado: low < normal < reinforced < strong. serde rename_all=lowercase. Mapeado de core_security::AuthLevel.",
+  "type": "string",
+  "enum": ["low", "normal", "reinforced", "strong"]
+}

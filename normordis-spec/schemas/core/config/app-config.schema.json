@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://normordis.local/spec/schemas/core/config/app-config.schema.json",
+  "title": "AppConfig",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "paths": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "database_dir": { "$ref": "#/$defs/RelativePath" },
+        "data_dir": { "$ref": "#/$defs/RelativePath" },
+        "artifacts_dir": { "$ref": "#/$defs/RelativePath" },
+        "temp_dir": { "$ref": "#/$defs/RelativePath" },
+        "logs_dir": { "$ref": "#/$defs/RelativePath" }
+      }
+    },
+    "options": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "app_name": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^\\S(?:.*\\S)?$" },
+        "environment": { "type": "string", "enum": ["dev", "test", "prod"] }
+      }
+    }
+  },
+  "$defs": {
+    "RelativePath": {
+      "type": "string",
+      "minLength": 1,
+      "not": {
+        "anyOf": [
+          { "pattern": "^[A-Za-z]:" },
+          { "pattern": "^/" },
+          { "pattern": "^\\\\" },
+          { "pattern": "(^|[\\\\/])\\.\\.([\\\\/]|$)" }
+        ]
+      }
+    }
+  }
+}

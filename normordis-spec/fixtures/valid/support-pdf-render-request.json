@@ -1,0 +1,4 @@
+{
+  "kind": "pdf",
+  "source": "#set document(title: \"Teste\")\nTexto."
+}

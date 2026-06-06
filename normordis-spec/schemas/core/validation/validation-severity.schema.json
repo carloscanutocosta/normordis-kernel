@@ -1,0 +1,8 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://normordis.local/spec/schemas/core/validation/validation-severity.schema.json",
+  "title": "ValidationSeverity",
+  "description": "Gravidade de um resultado de validação. PascalCase — serde sem rename_all. Mapeado de core_validation::ValidationSeverity.",
+  "type": "string",
+  "enum": ["Info", "Warning", "Error"]
+}

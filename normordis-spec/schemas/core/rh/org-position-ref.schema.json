@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://normordis.local/spec/schemas/core/rh/org-position-ref.schema.json",
+  "title": "OrgPositionRef",
+  "description": "Referência leve a uma OrgPosition no contexto de sessão de utilizador. Inclui a competência e eventual delegação que fundamentam a posição activa. Mapeado de core_rh::OrgPositionRef.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["position_id", "unit_id", "competency_id"],
+  "properties": {
+    "position_id": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^\\S+$",
+      "$comment": "Referencia OrgPosition.id em schemas/core/org/org-position.schema.json"
+    },
+    "unit_id": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^\\S+$",
+      "$comment": "Referencia OrgUnit.id em schemas/core/org/org-unit.schema.json"
+    },
+    "competency_id": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^\\S+$",
+      "$comment": "Referencia Competency.id em schemas/core/org/competency.schema.json"
+    },
+    "delegation_id": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^\\S+$",
+      "$comment": "Referencia Delegation.id em schemas/core/org/delegation.schema.json (presente quando a posição é exercida por delegação)."
+    }
+  }
+}
