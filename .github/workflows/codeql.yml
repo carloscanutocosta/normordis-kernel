@@ -23,7 +23,7 @@ jobs:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
 
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@2a00a6e621b3efd9d09658ee2b02c1bb4668b985  # v3.36.1
+        uses: github/codeql-action/init@d77b13a0df3134d64a457ea9003f600b09fa1c8a  # v3.36.1
         with:
           languages: rust
           # security-and-quality inclui CWE-top-25, OWASP top-10 e qualidade
@@ -41,7 +41,7 @@ jobs:
           RUSTFLAGS: ""  # CodeQL instrumenta o binário; -D warnings interfere
 
       - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@2a00a6e621b3efd9d09658ee2b02c1bb4668b985  # v3.36.1
+        uses: github/codeql-action/analyze@d77b13a0df3134d64a457ea9003f600b09fa1c8a  # v3.36.1
         with:
           category: rust-sast
           # Resultados publicados no separador Security > Code scanning do repositório
