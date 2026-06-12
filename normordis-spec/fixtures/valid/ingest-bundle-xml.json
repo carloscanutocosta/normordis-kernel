@@ -1,0 +1,15 @@
+{
+  "bundle_id": "bnd:xml:cius-pt:2026-002",
+  "received_at": "2026-06-12T10:05:00Z",
+  "source": {
+    "kind": "cius-pt-invoice",
+    "subject_id": "inv-2026-00042",
+    "version": "2.1"
+  },
+  "raw": "PHJvb3QvPg==",
+  "content_type": "application/xml",
+  "meta": {
+    "sender_org": "NIF:500000001",
+    "protocol": "iAP-PI"
+  }
+}

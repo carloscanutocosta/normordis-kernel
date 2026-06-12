@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://normordis.local/spec/schemas/core/ingest/ingest-bundle.schema.json",
+  "title": "IngestBundle",
+  "description": "Bundle de dados externos tal como chegam ao sistema: bytes raw com metadados de fronteira. O hash é sempre calculado sobre raw antes de qualquer parsing (INGEST-R10).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["bundle_id", "received_at", "source", "raw", "content_type"],
+  "properties": {
+    "bundle_id": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^\\S(?:.*\\S)?$",
+      "description": "Identificador único do bundle."
+    },
+    "received_at": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d+)?Z$",
+      "description": "Timestamp UTC de recepção do bundle. Deve terminar em 'Z'."
+    },
+    "source": {
+      "$ref": "https://normordis.local/spec/schemas/core/ingest/source.schema.json",
+      "description": "Origem declarada do bundle."
+    },
+    "raw": {
+      "type": "string",
+      "contentEncoding": "base64",
+      "minLength": 1,
+      "description": "Bytes raw do bundle codificados em base64 standard (RFC 4648). Não parsados — o hash é calculado sobre o conteúdo decoded."
+    },
+    "content_type": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[a-zA-Z0-9][a-zA-Z0-9!#$&\\-^_]*\\/[a-zA-Z0-9][a-zA-Z0-9!#$&\\-^_.+]*$",
+      "description": "MIME type declarado pelo remetente (ex.: 'application/pdf', 'application/xml')."
+    },
+    "declared_hash": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "description": "Hash SHA-256 declarado pelo remetente no formato 'sha256:<hex64>'. Omitido quando o remetente não declarou hash."
+    },
+    "meta": {
+      "description": "Metadados livres do bundle (qualquer valor JSON válido)."
+    }
+  }
+}

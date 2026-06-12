@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://normordis.local/spec/schemas/core/ingest/hash-evidence.schema.json",
+  "title": "HashEvidence",
+  "description": "Evidência do cálculo de hash sobre os bytes raw do bundle. Hash calculado antes de qualquer parsing (INGEST-R10).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["algorithm", "declared_hash", "actual_hash", "verified"],
+  "properties": {
+    "algorithm": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Algoritmo usado para o cálculo (ex.: 'SHA-256')."
+    },
+    "declared_hash": {
+      "type": "string",
+      "pattern": "^(?:sha256:[0-9a-f]{64})?$",
+      "description": "Hash declarado pelo remetente no formato 'sha256:<hex64>'. String vazia quando o bundle não declarou hash."
+    },
+    "actual_hash": {
+      "type": "string",
+      "pattern": "^(?:sha256:[0-9a-f]{64})?$",
+      "description": "Hash calculado pelo pipeline sobre os bytes raw. String vazia em rejeições prematuras (antes do cálculo)."
+    },
+    "verified": {
+      "type": "boolean",
+      "description": "true quando declared_hash estava presente e coincide com actual_hash."
+    }
+  }
+}

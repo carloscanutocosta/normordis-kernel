@@ -6,7 +6,10 @@ use core_audit::{
 };
 use core_config::{validate_app_config, AppConfig};
 use core_exports::{ExportMaterializationRequest, SourceRef, TabularDataset};
-use core_ingest::IngestSource;
+use core_ingest::{
+    validate_ingest_bundle, validate_ingest_evidence, IngestBundle, IngestDecision, IngestEvidence,
+    IngestSource,
+};
 use core_org::{Competency, Delegation, LegalInstrument, OrgPosition, OrgUnit};
 use core_rh::{PersonAssignment, Role, UserIdentity, UserProfile};
 use core_security::{
@@ -71,6 +74,9 @@ pub enum ContractSchema {
     SecurityContext,
     ExportsTabularDataset,
     ExportsMaterializationRequest,
+    IngestBundle,
+    IngestDecision,
+    IngestEvidence,
 }
 
 // ── ScenarioKind ──────────────────────────────────────────────────────────────
@@ -171,6 +177,9 @@ pub fn schema_path_for(schema: ContractSchema) -> &'static str {
         ContractSchema::ExportsMaterializationRequest => {
             "schemas/core/exports/export-materialization-request.schema.json"
         }
+        ContractSchema::IngestBundle => "schemas/core/ingest/ingest-bundle.schema.json",
+        ContractSchema::IngestDecision => "schemas/core/ingest/ingest-decision.schema.json",
+        ContractSchema::IngestEvidence => "schemas/core/ingest/ingest-evidence.schema.json",
     }
 }
 
@@ -422,6 +431,20 @@ pub fn assert_native_valid(path: &str, schema: ContractSchema) {
         ContractSchema::SupportRenderRequest | ContractSchema::SupportBackupArchiveRef => {
             // Contratos de interoperabilidade — validação estrutural via schema é suficiente.
         }
+        ContractSchema::IngestBundle => {
+            let v = serde_json::from_value::<IngestBundle>(instance)
+                .unwrap_or_else(|e| panic!("{path}: {e}"));
+            validate_ingest_bundle(&v).unwrap_or_else(|e| panic!("{path}: {e}"));
+        }
+        ContractSchema::IngestDecision => {
+            serde_json::from_value::<IngestDecision>(instance)
+                .unwrap_or_else(|e| panic!("{path}: {e}"));
+        }
+        ContractSchema::IngestEvidence => {
+            let v = serde_json::from_value::<IngestEvidence>(instance)
+                .unwrap_or_else(|e| panic!("{path}: {e}"));
+            validate_ingest_evidence(&v).unwrap_or_else(|e| panic!("{path}: {e}"));
+        }
     }
 }
 
@@ -475,6 +498,9 @@ pub fn roundtrip_json(path: &str, schema: ContractSchema) -> Value {
         ContractSchema::SecurityContext => rt!(instance, SecurityContext),
         ContractSchema::ExportsTabularDataset => rt!(instance, TabularDataset),
         ContractSchema::ExportsMaterializationRequest => rt!(instance, ExportMaterializationRequest),
+        ContractSchema::IngestBundle => rt!(instance, IngestBundle),
+        ContractSchema::IngestDecision => rt!(instance, IngestDecision),
+        ContractSchema::IngestEvidence => rt!(instance, IngestEvidence),
         _ => instance,
     }
 }
@@ -503,6 +529,11 @@ pub fn assert_native_invalid(path: &str, schema: ContractSchema) {
             let v = serde_json::from_value::<PersonAssignment>(instance)
                 .unwrap_or_else(|e| panic!("{path} deveria desserializar: {e}"));
             assert!(v.validate().is_err(), "{path} deveria falhar validação nativa");
+        }
+        ContractSchema::IngestEvidence => {
+            let v = serde_json::from_value::<IngestEvidence>(instance)
+                .unwrap_or_else(|e| panic!("{path} deveria desserializar: {e}"));
+            assert!(validate_ingest_evidence(&v).is_err(), "{path} deveria falhar validação nativa");
         }
         other => panic!("assert_native_invalid não implementado para {other:?}"),
     }

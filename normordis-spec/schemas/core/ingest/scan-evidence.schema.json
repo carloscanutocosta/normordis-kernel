@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://normordis.local/spec/schemas/core/ingest/scan-evidence.schema.json",
+  "title": "ScanEvidence",
+  "description": "Evidência do scan antimalware sobre o bundle.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["adapter", "verdict"],
+  "properties": {
+    "adapter": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Identificador do adapter de scan utilizado."
+    },
+    "verdict": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Resultado do scan: 'clean', 'rejected', 'error', 'not_run'."
+    },
+    "reason": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Razão de rejeição ou erro (presente apenas quando verdict ≠ clean)."
+    }
+  }
+}

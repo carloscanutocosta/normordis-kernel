@@ -1,0 +1,8 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://normordis.local/spec/schemas/core/ingest/ingest-decision.schema.json",
+  "title": "IngestDecision",
+  "description": "Decisão de ingestão: accepted quando o bundle foi aceite e armazenado; rejected quando foi rejeitado em qualquer fase do pipeline.",
+  "type": "string",
+  "enum": ["accepted", "rejected"]
+}

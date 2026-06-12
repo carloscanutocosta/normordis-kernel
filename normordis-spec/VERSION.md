@@ -1,6 +1,6 @@
 # Versão da Spec
 
-Versão actual: `0.8.0`
+Versão actual: `0.9.0`
 
 ## Semântica de versionamento
 
@@ -30,3 +30,4 @@ Uma implementação é conforme a uma versão quando:
 | `0.6.0` | MINOR | Round-trip Rust→JSON→schema (guarda de drift); UserProfile + OrgUnitRef/OrgPositionRef com refs inter-domínio; ValidationReport/Issue/Severity; core-security (AuthLevel, ResourceClassification, SodRule, SecurityContext); core-exports (TabularDataset, ExportMaterializationRequest); fixtures maximais |
 | `0.7.0` | MINOR | Camada 4 scenario fixtures (CHAIN-R01/R02); IDs de regra em todos os ficheiros rules/; fixtures STOR-R03 + CRYPT-R03; PersonAssignment camada 3 normalizado; teste de resolução de $ref; conformance/README.md + fixtures/migration/ |
 | `0.8.0` | MINOR | Preparação para autonomização: `NORMORDIS_SPEC_PATH`, `.gitattributes`, `version.json`, secção de autonomização em GOVERNANCE.md, CI leve (`ci/spec-ci.yml`), guia de extracção (`EXTRACTING.md`) |
+| `0.9.0` | MINOR | core-ingest completo: `IngestBundle` (raw base64), `IngestDecision`, `IngestEvidence` + sub-schemas (HashEvidence, ScanEvidence, ValidationEvidence, AuditEvidence); regras INGEST-R09..R13; base64 serde em `IngestBundle.raw` |

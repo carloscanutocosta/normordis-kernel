@@ -1,6 +1,6 @@
 # Matriz de Cobertura
 
-Estado dos contratos executáveis em `normordis-spec`. Versão `0.8.0`.
+Estado dos contratos executáveis em `normordis-spec`. Versão `0.9.0`.
 
 > A fonte de verdade do mapeamento fixture→schema é o runner
 > `crates/spec-conformance/tests/contract_conformance.rs`. Esta matriz resume o estado.
@@ -15,7 +15,7 @@ Estado dos contratos executáveis em `normordis-spec`. Versão `0.8.0`.
 | `core-rh` | `Role`, `UserProfile`, `UserIdentity`, `PersonAssignment`, `OrgUnitRef`, `OrgPositionRef`, `UserRole` | `CurrentSession`, `UserContext` | **Completo forte** |
 | `core-security` | `Policy`, `Rule`, `PolicyMode`, `AuthLevel`, `ResourceClassification`, `SodRule`, `SecurityContext` | `OrgScope`, `SessionRef` (transparentes, cobertos inline) | **Completo forte** |
 | `core-validation` | `ValidationResult`, `RuleOutcome`, `ValidationStatus`, `ValidationContext`, `ValidationReport`, `ValidationIssue`, `ValidationSeverity` | `Normalized<T>` (genérico, não esquematizável) | **Completo** |
-| `core-ingest` | `IngestSource` | `IngestBundle`, `IngestRequest`, `IngestEvidence`, `IngestDecision` | Parcial |
+| `core-ingest` | `IngestSource`, `IngestBundle`, `IngestDecision`, `IngestEvidence`, `HashEvidence`, `ScanEvidence`, `ValidationEvidence`, `AuditEvidence` | `IngestConfig`, `ScanAdapter`, `ContentValidator`, `IngestStoragePort` (traits, não serializáveis) | **Completo forte** |
 | `core-exports` | `SourceRef`, `TabularDataset`, `ExportMaterializationRequest` | `ExportSnapshot` (ver nota), `Manifest`, `ExportArtefact`, `ExportMaterializationResult`, `ExportFormat`, `InteroperabilityProfile` | Parcial forte |
 | `core-documental` | — | Sem contrato nesta versão | Pendente |
 | `core-metrics` | — | Sem contrato nesta versão | Pendente |

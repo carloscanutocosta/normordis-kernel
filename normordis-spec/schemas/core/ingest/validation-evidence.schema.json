@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://normordis.local/spec/schemas/core/ingest/validation-evidence.schema.json",
+  "title": "ValidationEvidence",
+  "description": "Evidência da validação de conteúdo (estrutura, XXE prevention, XSD quando declarado).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["content_type", "valid"],
+  "properties": {
+    "content_type": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[a-zA-Z0-9][a-zA-Z0-9!#$&\\-^_]*\\/[a-zA-Z0-9][a-zA-Z0-9!#$&\\-^_.+]*$",
+      "description": "MIME type do bundle validado. Espelha IngestBundle.content_type."
+    },
+    "valid": {
+      "type": "boolean",
+      "description": "true quando a validação de conteúdo passou."
+    },
+    "reason": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Razão de falha de validação (presente apenas quando valid=false)."
+    }
+  }
+}

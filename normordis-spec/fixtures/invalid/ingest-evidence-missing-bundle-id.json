@@ -1,0 +1,33 @@
+{
+  "correlation_id": "corr:test:001",
+  "decision": "accepted",
+  "received_at": "2026-06-12T10:00:00Z",
+  "processed_at": "2026-06-12T10:00:01Z",
+  "source": {
+    "kind": "pdf-official",
+    "subject_id": "doc-001",
+    "version": "1.0"
+  },
+  "content_type": "application/pdf",
+  "hash": {
+    "algorithm": "SHA-256",
+    "declared_hash": "",
+    "actual_hash": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "verified": false
+  },
+  "scan": {
+    "adapter": "deterministic",
+    "verdict": "clean"
+  },
+  "validation": {
+    "content_type": "application/pdf",
+    "valid": true
+  },
+  "document_ref": "doc:e3b0c44298fc",
+  "audit": {
+    "required": true,
+    "emitted": true,
+    "action": "ingest.accepted",
+    "event_id": "f47ac10b-58cc-4372-a567-0e02b2c3d479"
+  }
+}

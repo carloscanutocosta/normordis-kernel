@@ -53,6 +53,13 @@ const VALID_FIXTURES: &[(&str, ContractSchema)] = &[
     ("fixtures/valid/validation-report-with-issues.json", ContractSchema::ValidationReport),
     // ── core-ingest ───────────────────────────────────────────────────────────
     ("fixtures/valid/ingest-source-config-bundle.json", ContractSchema::IngestSource),
+    ("fixtures/valid/ingest-bundle-pdf.json", ContractSchema::IngestBundle),
+    ("fixtures/valid/ingest-bundle-saft-pt.json", ContractSchema::IngestBundle),
+    ("fixtures/valid/ingest-bundle-xml.json", ContractSchema::IngestBundle),
+    ("fixtures/valid/ingest-decision-accepted.json", ContractSchema::IngestDecision),
+    ("fixtures/valid/ingest-decision-rejected.json", ContractSchema::IngestDecision),
+    ("fixtures/valid/ingest-evidence-accepted.json", ContractSchema::IngestEvidence),
+    ("fixtures/valid/ingest-evidence-rejected.json", ContractSchema::IngestEvidence),
     // ── core-exports ──────────────────────────────────────────────────────────
     ("fixtures/valid/exports-source-ref-config-profile.json", ContractSchema::ExportsSourceRef),
     ("fixtures/valid/exports-tabular-dataset.json", ContractSchema::ExportsTabularDataset),
@@ -113,6 +120,11 @@ const INVALID_FIXTURES: &[(&str, ContractSchema)] = &[
     ("fixtures/invalid/validation-report-missing-valid.json", ContractSchema::ValidationReport),
     // ── core-ingest ───────────────────────────────────────────────────────────
     ("fixtures/invalid/ingest-source-missing-kind.json", ContractSchema::IngestSource),
+    ("fixtures/invalid/ingest-bundle-missing-raw.json", ContractSchema::IngestBundle),
+    ("fixtures/invalid/ingest-bundle-empty-content-type.json", ContractSchema::IngestBundle),
+    ("fixtures/invalid/ingest-bundle-invalid-hash-prefix.json", ContractSchema::IngestBundle),
+    ("fixtures/invalid/ingest-decision-unknown.json", ContractSchema::IngestDecision),
+    ("fixtures/invalid/ingest-evidence-missing-bundle-id.json", ContractSchema::IngestEvidence),
     // ── core-exports ──────────────────────────────────────────────────────────
     ("fixtures/invalid/exports-source-ref-blank-subject.json", ContractSchema::ExportsSourceRef),
     ("fixtures/invalid/exports-tabular-dataset-row-not-object.json", ContractSchema::ExportsTabularDataset),
@@ -143,6 +155,18 @@ const LAYER3_INVALID_FIXTURES: &[(&str, ContractSchema)] = &[
     ("fixtures/invalid/org-unit-inverted-dates.json", ContractSchema::OrgUnit),
     ("fixtures/invalid/org-delegation-self.json", ContractSchema::Delegation),
     ("fixtures/invalid/rh-person-assignment-inverted-dates.json", ContractSchema::PersonAssignment),
+    (
+        "fixtures/invalid/ingest-evidence-accepted-missing-document-ref.json",
+        ContractSchema::IngestEvidence,
+    ),
+    (
+        "fixtures/invalid/ingest-evidence-inverted-timestamps.json",
+        ContractSchema::IngestEvidence,
+    ),
+    (
+        "fixtures/invalid/ingest-evidence-verified-hash-mismatch.json",
+        ContractSchema::IngestEvidence,
+    ),
 ];
 
 // ── Scenario fixtures — por invariante ───────────────────────────────────────

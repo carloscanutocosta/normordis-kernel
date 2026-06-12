@@ -5,6 +5,56 @@ Formato: [Keep a Changelog](https://keepachangelog.com/); versionamento: [Semant
 
 ---
 
+## [0.9.0] — 2026-06-12
+
+### Adicionado — core-ingest completo
+
+**Schemas novos:**
+- `schemas/core/ingest/ingest-bundle.schema.json` — `IngestBundle` com `raw` em base64 (RFC 4648), `content_type` com pattern MIME, `declared_hash` com pattern `sha256:[0-9a-f]{64}`
+- `schemas/core/ingest/ingest-decision.schema.json` — enum `accepted | rejected`
+- `schemas/core/ingest/ingest-evidence.schema.json` — evidência completa com `$ref` para todos os sub-schemas
+- `schemas/core/ingest/hash-evidence.schema.json` — `HashEvidence` (algorithm, declared_hash, actual_hash, verified)
+- `schemas/core/ingest/scan-evidence.schema.json` — `ScanEvidence` (adapter, verdict, reason?)
+- `schemas/core/ingest/validation-evidence.schema.json` — `ValidationEvidence` (content_type, valid, reason?)
+- `schemas/core/ingest/audit-evidence.schema.json` — `AuditEvidence` (required, emitted, action, event_id?)
+
+**Regras adicionadas:**
+- INGEST-R09 — `content_type` obrigatório e não vazio
+- INGEST-R10 — hash calculado sobre bytes raw antes de qualquer parsing
+- INGEST-R11 — XXE prevention obrigatória para XML (DL 49/2024, Lei 36/2011)
+- INGEST-R12 — XSD quando `schema_id` declarado (SAF-T PT, CIUS-PT)
+- INGEST-R13 — `document_ref` obrigatório em `accepted` (camada 3)
+
+**Fixtures novas (válidas):**
+- `ingest-bundle-pdf.json`, `ingest-bundle-xml.json` — `IngestBundle`
+- `ingest-decision-accepted.json`, `ingest-decision-rejected.json` — `IngestDecision`
+- `ingest-evidence-accepted.json`, `ingest-evidence-rejected.json` — `IngestEvidence`
+
+**Fixtures novas (inválidas):**
+- `ingest-bundle-missing-raw.json`, `ingest-bundle-empty-content-type.json`, `ingest-bundle-invalid-hash-prefix.json` — camada 1
+- `ingest-decision-unknown.json`, `ingest-evidence-missing-bundle-id.json` — camada 1
+- `ingest-evidence-accepted-missing-document-ref.json` — camada 3 (INGEST-R13)
+
+**Regras adicionadas (gap-closing — 2026-06-12):**
+- INGEST-R14 — `processed_at ≥ received_at` (invariante temporal de evidência)
+- INGEST-R15 — `hash.verified=true` implica `declared_hash == actual_hash` e não vazio
+- INGEST-R16 — `declared_hash` vazio implica `verified=false` (corolário de R15)
+- Secção de `source.kind` canónicos: `cius-pt-invoice`, `saft-pt`, `iap-pi-message`, `pdf-official`, `pdf-contract`
+- `audit-evidence.action` com pattern `^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$` (alinhado com `core-audit`)
+
+**Fixtures adicionadas (gap-closing):**
+- `ingest-bundle-saft-pt.json` (válida) — `kind=saft-pt`, SAF-T PT v1.04_01
+- `ingest-evidence-inverted-timestamps.json` (camada 3) — INGEST-R14
+- `ingest-evidence-verified-hash-mismatch.json` (camada 3) — INGEST-R15
+
+### Alterado
+
+- `core-ingest/types.rs`: `IngestBundle.raw: Vec<u8>` passa a serializar como base64 standard via `#[serde(with = "base64_bytes")]`
+- `core-ingest/service.rs`: `validate_ingest_evidence()` cobre agora INGEST-R14 e R15
+- `rules/core-ingest.md`: revisão de R01–R08, adição de R09–R16; kinds canónicos documentados
+
+---
+
 ## [0.8.0] — 2026-06-06
 
 ### Adicionado — preparação para autonomização (Modelo C)

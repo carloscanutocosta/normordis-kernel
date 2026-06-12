@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://normordis.local/spec/schemas/core/ingest/audit-evidence.schema.json",
+  "title": "AuditEvidence",
+  "description": "Evidência da emissão do evento de audit via core-audit (INGEST-R08).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["required", "emitted", "action"],
+  "properties": {
+    "required": {
+      "type": "boolean",
+      "description": "true quando a política exige audit desta operação de ingestão."
+    },
+    "emitted": {
+      "type": "boolean",
+      "description": "true quando o evento foi construído pelo caminho canónico de core-audit."
+    },
+    "action": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$",
+      "description": "Tipo do evento de audit emitido. Segue o pattern de event_type de core-audit (ex.: 'ingest.accepted', 'ingest.rejected')."
+    },
+    "event_id": {
+      "type": "string",
+      "format": "uuid",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+      "description": "UUID v4 do AuditEvent emitido para core-audit."
+    }
+  }
+}

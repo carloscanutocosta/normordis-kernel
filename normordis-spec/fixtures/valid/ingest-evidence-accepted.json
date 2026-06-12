@@ -1,0 +1,34 @@
+{
+  "bundle_id": "bnd:xml:cius-pt:2026-002",
+  "correlation_id": "corr:ingest:2026-06-12:001",
+  "decision": "accepted",
+  "received_at": "2026-06-12T10:05:00Z",
+  "processed_at": "2026-06-12T10:05:01Z",
+  "source": {
+    "kind": "cius-pt-invoice",
+    "subject_id": "inv-2026-00042",
+    "version": "2.1"
+  },
+  "content_type": "application/xml",
+  "hash": {
+    "algorithm": "SHA-256",
+    "declared_hash": "sha256:c3ab8ff13720e8ad9047dd39466b3c8974e592c2fa383d4a3960714caef0c4f2",
+    "actual_hash": "sha256:c3ab8ff13720e8ad9047dd39466b3c8974e592c2fa383d4a3960714caef0c4f2",
+    "verified": true
+  },
+  "scan": {
+    "adapter": "deterministic",
+    "verdict": "clean"
+  },
+  "validation": {
+    "content_type": "application/xml",
+    "valid": true
+  },
+  "document_ref": "doc:c3ab8ff13720",
+  "audit": {
+    "required": true,
+    "emitted": true,
+    "action": "ingest.accepted",
+    "event_id": "f47ac10b-58cc-4372-a567-0e02b2c3d479"
+  }
+}

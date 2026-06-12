@@ -1,0 +1,33 @@
+{
+  "bundle_id": "bnd:pdf:2026-bad",
+  "correlation_id": "corr:ingest:2026-06-12:002",
+  "decision": "rejected",
+  "received_at": "2026-06-12T10:10:00Z",
+  "processed_at": "2026-06-12T10:10:00Z",
+  "source": {
+    "kind": "pdf-official",
+    "subject_id": "despacho-2026-bad",
+    "version": "1.0"
+  },
+  "content_type": "application/pdf",
+  "hash": {
+    "algorithm": "SHA-256",
+    "declared_hash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "actual_hash": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "verified": false
+  },
+  "scan": {
+    "adapter": "not_run",
+    "verdict": "not_run"
+  },
+  "validation": {
+    "content_type": "application/pdf",
+    "valid": false
+  },
+  "audit": {
+    "required": true,
+    "emitted": true,
+    "action": "ingest.rejected",
+    "event_id": "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11"
+  }
+}
