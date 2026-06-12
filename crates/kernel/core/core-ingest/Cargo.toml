@@ -4,16 +4,16 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 authors.workspace = true
-description = "Ingestão auditável de bundles exportados (core-ingest)"
+description = "Ingestão auditável de dados externos — binários (PDF, imagens) e XML estruturado (SAF-T, CIUS-PT, iAP)"
 
 [dependencies]
 serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true
 chrono.workspace = true
+base64.workspace = true
 
 core-audit      = { path = "../core-audit" }
-core-exports    = { path = "../core-exports" }
 core-validation = { path = "../core-validation" }
 support-errors  = { path = "../../support/support-errors" }
 
@@ -21,7 +21,6 @@ support-errors  = { path = "../../support/support-errors" }
 test-helpers = []
 
 [dev-dependencies]
-core-documental = { path = "../core-documental" }
-core-ingest     = { path = ".", features = ["test-helpers"] }
+core-ingest = { path = ".", features = ["test-helpers"] }
 [lints]
 workspace = true

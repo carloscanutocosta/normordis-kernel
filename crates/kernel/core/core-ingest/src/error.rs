@@ -7,7 +7,8 @@ pub const INVALID_REQUEST: &str = "MINI.INGEST.INVALID_REQUEST";
 pub const HASH_MISMATCH: &str = "MINI.INGEST.HASH_MISMATCH";
 pub const SCAN_FAILED: &str = "MINI.INGEST.SCAN_FAILED";
 pub const SCAN_REJECTED: &str = "MINI.INGEST.SCAN_REJECTED";
-pub const ROUTE_UNAVAILABLE: &str = "MINI.INGEST.ROUTE_UNAVAILABLE";
+pub const CONTENT_VALIDATION_FAILED: &str = "MINI.INGEST.CONTENT_VALIDATION_FAILED";
+pub const STORE_FAILED: &str = "MINI.INGEST.STORE_FAILED";
 pub const OVERSIZED: &str = "MINI.INGEST.OVERSIZED";
 pub const MARSHAL_FAILED: &str = "MINI.INGEST.MARSHAL_FAILED";
 pub const AUDIT_ERROR: &str = "MINI.INGEST.AUDIT_ERROR";
@@ -29,8 +30,13 @@ pub enum IngestError {
     #[error("bundle rejeitado pelo scan: adapter={adapter}, verdict={verdict}")]
     ScanRejected { adapter: String, verdict: String },
 
-    #[error("route/storage indisponível")]
-    RouteUnavailable,
+    /// Validação de conteúdo falhou — inclui XXE detection em XML, estrutura inválida
+    /// em PDF, ou schema XSD não conforme.
+    #[error("validação de conteúdo falhou ({content_type}): {reason}")]
+    ContentValidationFailed { content_type: String, reason: String },
+
+    #[error("falha ao guardar bundle: {0}")]
+    StoreFailed(String),
 
     #[error("bundle excede limite: limite={limit_bytes}B, tamanho={actual_bytes}B")]
     Oversized {
@@ -53,16 +59,17 @@ impl IngestError {
             Self::HashMismatch { .. } => HASH_MISMATCH,
             Self::ScanFailed => SCAN_FAILED,
             Self::ScanRejected { .. } => SCAN_REJECTED,
-            Self::RouteUnavailable => ROUTE_UNAVAILABLE,
+            Self::ContentValidationFailed { .. } => CONTENT_VALIDATION_FAILED,
+            Self::StoreFailed(_) => STORE_FAILED,
             Self::Oversized { .. } => OVERSIZED,
             Self::MarshalFailed(_) => MARSHAL_FAILED,
             Self::AuditError(_) => AUDIT_ERROR,
         }
     }
 
-    /// Erros retryable são os que resultam de falhas transitórias de infra.
+    /// Erros retryable resultam de falhas transitórias de infra.
     pub fn is_retryable(&self) -> bool {
-        matches!(self, Self::ScanFailed | Self::RouteUnavailable)
+        matches!(self, Self::ScanFailed | Self::StoreFailed(_))
     }
 
     pub fn to_mini_error(&self) -> MiniError {

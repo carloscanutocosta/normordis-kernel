@@ -2,153 +2,123 @@ use chrono::{DateTime, Utc};
 use serde_json::json;
 
 use core_audit::{AuditActor, AuditEvent, AuditOutcome, AuditTarget};
-use core_exports::{canonical_bytes, validate_export_snapshot};
 use core_validation::sha256_bytes;
 
 use crate::error::IngestError;
 use crate::types::{
-    AuditEvidence, HashEvidence, IngestConfig, IngestEvidence, IngestOutcome, IngestRequest,
-    Outcome, RouteEvidence, RouteInput, ScanEvidence, ScanInput, ValidationEvidence,
-    DECISION_ACCEPTED, DECISION_REJECTED,
+    AuditEvidence, HashEvidence, IngestBundle, IngestConfig, IngestDecision, IngestEvidence,
+    IngestOutcome, Outcome, ScanEvidence, ScanInput, ValidationEvidence,
 };
 
 const HASH_PREFIX: &str = "sha256:";
 const DEFAULT_ACTOR: &str = "core-ingest";
-const EXPORT_CONTRACT: &str = "core-exports/export_snapshot";
 
 // ── API pública ────────────────────────────────────────────────────────────────
 
-/// Processa um `IngestRequest` pelo pipeline validate→hash→scan→route→audit.
+/// Processa um `IngestBundle` pelo pipeline hash→size→scan→validate→store→audit.
 ///
+/// O hash é calculado sobre `bundle.raw` antes de qualquer parsing.
 /// Retorna `IngestOutcome::Accepted` ou `IngestOutcome::Rejected`.
 /// Em ambos os casos o `Outcome` interior contém a evidence completa e o audit event.
-pub fn process_export_snapshot(
-    req: &IngestRequest,
+pub fn process_bundle(
+    bundle: &IngestBundle,
     correlation_id: &str,
     cfg: &IngestConfig,
 ) -> IngestOutcome {
     let now = cfg.now.map(|f| f()).unwrap_or_else(Utc::now);
     let actor = effective_actor(&cfg.actor);
 
+    // ── 1. correlation_id ──────────────────────────────────────────────────────
     if correlation_id.trim().is_empty() {
         return fallback_rejection(
-            req,
+            bundle,
             "",
             now,
             actor,
-            IngestError::MissingField {
-                field: "correlation_id".into(),
-            },
+            IngestError::MissingField { field: "correlation_id".into() },
         );
     }
 
+    // ── 2. source.kind allowlist ───────────────────────────────────────────────
     if let Some(allowed) = &cfg.allowed_source_kinds {
-        if !allowed.iter().any(|k| k == &req.source.kind) {
+        if !allowed.iter().any(|k| k == &bundle.source.kind) {
             return reject(
-                req,
+                bundle,
                 correlation_id,
                 now,
                 RejectionSpec::default(),
                 actor,
                 IngestError::InvalidRequest {
-                    message: format!(
-                        "source.kind '{}' not allowed in this pipeline",
-                        req.source.kind
-                    ),
+                    message: format!("source.kind '{}' não permitido", bundle.source.kind),
                 },
             );
         }
     }
 
-    if let Err(e) = validate_ingest_request(req) {
-        return reject(req, correlation_id, now, RejectionSpec::default(), actor, e);
+    // ── 3. campos obrigatórios do bundle ───────────────────────────────────────
+    if let Err(e) = validate_ingest_bundle(bundle) {
+        return reject(bundle, correlation_id, now, RejectionSpec::default(), actor, e);
     }
 
-    if let Err(e) = validate_export_snapshot(&req.bundle) {
-        return reject(
-            req,
-            correlation_id,
-            now,
-            RejectionSpec {
-                expected_hash: req.expected_hash.clone(),
-                ..Default::default()
-            },
-            actor,
-            IngestError::InvalidRequest {
-                message: format!("bundle inválido para ingest: {e}"),
-            },
-        );
-    }
-
-    let payload = match canonical_bytes(&req.bundle) {
-        Ok(p) => p,
-        Err(e) => {
-            return fallback_rejection(
-                req,
+    // ── 4. size check ──────────────────────────────────────────────────────────
+    if let Some(limit) = cfg.max_bundle_bytes {
+        if bundle.raw.len() > limit {
+            return reject(
+                bundle,
                 correlation_id,
                 now,
+                RejectionSpec::default(),
                 actor,
-                IngestError::MarshalFailed(e.to_string()),
+                IngestError::Oversized { limit_bytes: limit, actual_bytes: bundle.raw.len() },
             );
         }
+    }
+
+    // ── 5. hash sobre bytes raw ────────────────────────────────────────────────
+    let actual_hash = format!("{}{}", HASH_PREFIX, sha256_bytes(&bundle.raw));
+    let (declared_hash_str, hash_verified) = match &bundle.declared_hash {
+        Some(declared) => {
+            if &actual_hash != declared {
+                return reject(
+                    bundle,
+                    correlation_id,
+                    now,
+                    RejectionSpec {
+                        declared_hash: declared.clone(),
+                        actual_hash: actual_hash.clone(),
+                        // verified=false: os hashes foram comparados mas não coincidem (INGEST-R15)
+                        hash_verified: false,
+                        ..Default::default()
+                    },
+                    actor,
+                    IngestError::HashMismatch {
+                        expected: declared.clone(),
+                        actual: actual_hash,
+                    },
+                );
+            }
+            (declared.clone(), true)
+        }
+        None => (String::new(), false),
     };
 
-    if let Some(limit) = cfg.max_bundle_bytes {
-        if payload.len() > limit {
-            return reject(
-                req,
-                correlation_id,
-                now,
-                RejectionSpec {
-                    expected_hash: req.expected_hash.clone(),
-                    ..Default::default()
-                },
-                actor,
-                IngestError::Oversized {
-                    limit_bytes: limit,
-                    actual_bytes: payload.len(),
-                },
-            );
-        }
-    }
-
-    let actual_hash = format!("{}{}", HASH_PREFIX, sha256_bytes(&payload));
-    if actual_hash != req.expected_hash {
-        return reject(
-            req,
-            correlation_id,
-            now,
-            RejectionSpec {
-                expected_hash: req.expected_hash.clone(),
-                actual_hash: actual_hash.clone(),
-                hash_verified: true,
-                ..Default::default()
-            },
-            actor,
-            IngestError::HashMismatch {
-                expected: req.expected_hash.clone(),
-                actual: actual_hash,
-            },
-        );
-    }
-
+    // ── 6. scan antimalware ────────────────────────────────────────────────────
     let scanner = match cfg.scanner.as_ref() {
         Some(s) => s,
         None => {
             return reject(
-                req,
+                bundle,
                 correlation_id,
                 now,
                 RejectionSpec {
-                    expected_hash: req.expected_hash.clone(),
+                    declared_hash: declared_hash_str.clone(),
                     actual_hash: actual_hash.clone(),
                     scan: ScanEvidence {
                         adapter: "not_configured".into(),
                         verdict: "error".into(),
                         reason: Some("scanner unavailable".into()),
                     },
-                    hash_verified: true,
-                    ..Default::default()
+                    hash_verified,
                 },
                 actor,
                 IngestError::ScanFailed,
@@ -158,28 +128,27 @@ pub fn process_export_snapshot(
 
     let scan_adapter_id = scanner.adapter_id().to_owned();
     let scan_result = match scanner.scan(&ScanInput {
-        request_id: req.request_id.clone(),
+        bundle_id: bundle.bundle_id.clone(),
         correlation_id: correlation_id.to_owned(),
         bundle_hash: actual_hash.clone(),
-        bundle: req.bundle.clone(),
-        payload,
+        content_type: bundle.content_type.clone(),
+        raw: bundle.raw.clone(),
     }) {
         Ok(r) => r,
         Err(_) => {
             return reject(
-                req,
+                bundle,
                 correlation_id,
                 now,
                 RejectionSpec {
-                    expected_hash: req.expected_hash.clone(),
+                    declared_hash: declared_hash_str.clone(),
                     actual_hash: actual_hash.clone(),
                     scan: ScanEvidence {
                         adapter: scan_adapter_id.clone(),
                         verdict: "error".into(),
                         reason: Some("scan failure".into()),
                     },
-                    hash_verified: true,
-                    ..Default::default()
+                    hash_verified,
                 },
                 actor,
                 IngestError::ScanFailed,
@@ -192,19 +161,18 @@ pub fn process_export_snapshot(
 
     if scan_verdict != "clean" {
         return reject(
-            req,
+            bundle,
             correlation_id,
             now,
             RejectionSpec {
-                expected_hash: req.expected_hash.clone(),
+                declared_hash: declared_hash_str.clone(),
                 actual_hash: actual_hash.clone(),
                 scan: ScanEvidence {
                     adapter: scan_adapter.into(),
                     verdict: scan_verdict.into(),
-                    reason: scan_result.reason.clone(),
+                    reason: scan_result.reason,
                 },
-                hash_verified: true,
-                ..Default::default()
+                hash_verified,
             },
             actor,
             IngestError::ScanRejected {
@@ -214,138 +182,181 @@ pub fn process_export_snapshot(
         );
     }
 
-    let router = match cfg.router.as_ref() {
-        Some(r) => r,
+    // ── 7. validação de conteúdo (opcional) ───────────────────────────────────
+    let validation = if let Some(validator) = cfg.content_validator.as_ref() {
+        match validator.validate(&bundle.raw, &bundle.content_type) {
+            Ok(()) => ValidationEvidence {
+                content_type: bundle.content_type.clone(),
+                valid: true,
+                reason: None,
+            },
+            Err(e) => {
+                return reject(
+                    bundle,
+                    correlation_id,
+                    now,
+                    RejectionSpec {
+                        declared_hash: declared_hash_str.clone(),
+                        actual_hash: actual_hash.clone(),
+                        scan: ScanEvidence {
+                            adapter: scan_adapter.into(),
+                            verdict: scan_verdict.into(),
+                            reason: scan_result.reason,
+                        },
+                        hash_verified,
+                    },
+                    actor,
+                    e,
+                );
+            }
+        }
+    } else {
+        ValidationEvidence {
+            content_type: bundle.content_type.clone(),
+            valid: true,
+            reason: None,
+        }
+    };
+
+    // ── 8. armazenamento via IngestStoragePort ─────────────────────────────────
+    let storage = match cfg.storage.as_ref() {
+        Some(s) => s,
         None => {
             return reject(
-                req,
+                bundle,
                 correlation_id,
                 now,
                 RejectionSpec {
-                    expected_hash: req.expected_hash.clone(),
+                    declared_hash: declared_hash_str.clone(),
                     actual_hash: actual_hash.clone(),
                     scan: ScanEvidence {
                         adapter: scan_adapter.into(),
                         verdict: scan_verdict.into(),
-                        reason: None,
+                        reason: scan_result.reason,
                     },
-                    hash_verified: true,
-                    ..Default::default()
+                    hash_verified,
                 },
                 actor,
-                IngestError::RouteUnavailable,
+                IngestError::StoreFailed("storage not configured".into()),
             );
         }
     };
 
-    let mut evidence = base_evidence(
-        req,
-        correlation_id,
-        now,
-        &req.expected_hash,
-        &actual_hash,
-        true,
-    );
-    evidence.decision = DECISION_ACCEPTED.into();
-    evidence.scan = ScanEvidence {
-        adapter: scan_adapter.into(),
-        verdict: scan_verdict.into(),
-        reason: scan_result.reason,
-    };
-    evidence.validation = ValidationEvidence {
-        contract: EXPORT_CONTRACT.into(),
-        valid: true,
-    };
-
-    let routed = match router.route(&RouteInput {
-        request_id: req.request_id.clone(),
-        correlation_id: correlation_id.to_owned(),
-        bundle_hash: actual_hash.clone(),
-        bundle: req.bundle.clone(),
-        evidence: evidence.clone(),
-    }) {
+    let document_ref = match storage.store(bundle, &actual_hash) {
         Ok(r) => r,
-        Err(_) => {
-            evidence.decision = DECISION_REJECTED.into();
-            evidence.audit.action = "ingest.rejected".into();
-            return finalize(evidence, actor, Some(IngestError::RouteUnavailable));
+        Err(e) => {
+            return reject(
+                bundle,
+                correlation_id,
+                now,
+                RejectionSpec {
+                    declared_hash: declared_hash_str.clone(),
+                    actual_hash: actual_hash.clone(),
+                    scan: ScanEvidence {
+                        adapter: scan_adapter.into(),
+                        verdict: scan_verdict.into(),
+                        reason: scan_result.reason,
+                    },
+                    hash_verified,
+                },
+                actor,
+                e,
+            );
         }
     };
 
-    evidence.route = crate::types::RouteEvidence {
-        routed: true,
-        target: Some(routed.target),
-        route_ref: Some(routed.route_ref),
-    };
-    evidence.audit = AuditEvidence {
-        required: true,
-        emitted: false,
-        action: "ingest.accepted".into(),
-        event_id: None,
+    // ── 9. evidence aceite + audit ─────────────────────────────────────────────
+    let evidence = IngestEvidence {
+        bundle_id: bundle.bundle_id.clone(),
+        correlation_id: correlation_id.to_owned(),
+        decision: IngestDecision::Accepted,
+        received_at: bundle.received_at,
+        processed_at: now,
+        source: bundle.source.clone(),
+        content_type: bundle.content_type.clone(),
+        hash: HashEvidence {
+            algorithm: "SHA-256".into(),
+            declared_hash: declared_hash_str,
+            actual_hash,
+            verified: hash_verified,
+        },
+        scan: ScanEvidence {
+            adapter: scan_adapter.into(),
+            verdict: scan_verdict.into(),
+            reason: scan_result.reason,
+        },
+        validation,
+        document_ref: Some(document_ref),
+        audit: AuditEvidence {
+            required: true,
+            emitted: false,
+            action: "ingest.accepted".into(),
+            event_id: None,
+        },
+        meta: None,
     };
 
     finalize(evidence, actor, None)
 }
 
-/// Valida os campos obrigatórios de um `IngestRequest`.
-pub fn validate_ingest_request(req: &IngestRequest) -> Result<(), IngestError> {
-    if req.request_id.trim().is_empty() {
-        return Err(IngestError::MissingField {
-            field: "request_id".into(),
-        });
+/// Valida os campos obrigatórios de um `IngestBundle`.
+pub fn validate_ingest_bundle(bundle: &IngestBundle) -> Result<(), IngestError> {
+    if bundle.bundle_id.trim().is_empty() {
+        return Err(IngestError::MissingField { field: "bundle_id".into() });
     }
-    // received_at: DateTime<Utc> não tem zero-value semântico em Rust (não existe "ano 1"
-    // como no Go). Confiamos na serialização/construção do caller para garantir o campo.
-    if req.source.subject_id.trim().is_empty() || req.source.version.trim().is_empty() {
-        return Err(IngestError::MissingField {
-            field: "source.subject_id / source.version".into(),
-        });
+    if bundle.source.kind.trim().is_empty() {
+        return Err(IngestError::MissingField { field: "source.kind".into() });
     }
-    if req.expected_hash.trim().is_empty() {
-        return Err(IngestError::MissingField {
-            field: "expected_hash".into(),
-        });
+    if bundle.source.subject_id.trim().is_empty() {
+        return Err(IngestError::MissingField { field: "source.subject_id".into() });
     }
-    if req.bundle.source.subject_id != req.source.subject_id
-        || req.bundle.source.version != req.source.version
-    {
-        return Err(IngestError::InvalidRequest {
-            message: "source do pedido não corresponde ao bundle".into(),
-        });
+    if bundle.source.version.trim().is_empty() {
+        return Err(IngestError::MissingField { field: "source.version".into() });
+    }
+    if bundle.content_type.trim().is_empty() {
+        return Err(IngestError::MissingField { field: "content_type".into() });
+    }
+    if bundle.raw.is_empty() {
+        return Err(IngestError::MissingField { field: "raw".into() });
     }
     Ok(())
 }
 
 /// Valida a coerência interna de um `IngestEvidence`.
 pub fn validate_ingest_evidence(evidence: &IngestEvidence) -> Result<(), IngestError> {
-    if evidence.request_id.trim().is_empty() {
-        return Err(IngestError::MissingField {
-            field: "request_id".into(),
-        });
+    if evidence.bundle_id.trim().is_empty() {
+        return Err(IngestError::MissingField { field: "bundle_id".into() });
     }
     if evidence.correlation_id.trim().is_empty() {
-        return Err(IngestError::MissingField {
-            field: "correlation_id".into(),
-        });
+        return Err(IngestError::MissingField { field: "correlation_id".into() });
     }
-    if evidence.decision != DECISION_ACCEPTED && evidence.decision != DECISION_REJECTED {
-        return Err(IngestError::InvalidRequest {
-            message: format!("decision inválida: {}", evidence.decision),
-        });
-    }
-    if evidence.bundle_ref.trim().is_empty() {
-        return Err(IngestError::MissingField {
-            field: "bundle_ref".into(),
-        });
+    if evidence.content_type.trim().is_empty() {
+        return Err(IngestError::MissingField { field: "content_type".into() });
     }
     if evidence.audit.action.trim().is_empty() || !evidence.audit.required {
         return Err(IngestError::InvalidRequest {
             message: "audit evidence obrigatória".into(),
         });
     }
-    if evidence.decision == DECISION_ACCEPTED && !evidence.route.routed {
+    if evidence.decision == IngestDecision::Accepted && evidence.document_ref.is_none() {
         return Err(IngestError::InvalidRequest {
-            message: "route é obrigatória para accepted".into(),
+            message: "document_ref obrigatório para accepted".into(),
+        });
+    }
+    // INGEST-R14: invariante temporal
+    if evidence.processed_at < evidence.received_at {
+        return Err(IngestError::InvalidRequest {
+            message: "processed_at não pode ser anterior a received_at (INGEST-R14)".into(),
+        });
+    }
+    // INGEST-R15: verified=true implica declared_hash == actual_hash e ambos não vazios
+    if evidence.hash.verified
+        && (evidence.hash.declared_hash.is_empty()
+            || evidence.hash.declared_hash != evidence.hash.actual_hash)
+    {
+        return Err(IngestError::InvalidRequest {
+            message: "hash.verified=true implica declared_hash não vazio e igual a actual_hash (INGEST-R15)"
+                .into(),
         });
     }
     Ok(())
@@ -357,9 +368,7 @@ pub fn build_ingest_audit_event(
     actor: &str,
 ) -> Result<AuditEvent, IngestError> {
     if actor.trim().is_empty() {
-        return Err(IngestError::MissingField {
-            field: "actor".into(),
-        });
+        return Err(IngestError::MissingField { field: "actor".into() });
     }
     validate_ingest_evidence(evidence)?;
 
@@ -369,18 +378,19 @@ pub fn build_ingest_audit_event(
         &evidence.source.subject_id
     };
 
-    let audit_actor = AuditActor::new(actor).map_err(|e| IngestError::AuditError(e.to_string()))?;
+    let audit_actor =
+        AuditActor::new(actor).map_err(|e| IngestError::AuditError(e.to_string()))?;
     let audit_target = AuditTarget::new("ingest", subject_id)
         .map_err(|e| IngestError::AuditError(e.to_string()))?;
 
     let details = json!({
         "correlation_id": evidence.correlation_id,
-        "request_id":     evidence.request_id,
-        "decision":       evidence.decision,
-        "bundle_ref":     evidence.bundle_ref,
+        "bundle_id":      evidence.bundle_id,
+        "decision":       evidence.decision.to_string(),
+        "content_type":   evidence.content_type,
         "bundle_hash":    evidence.hash.actual_hash,
         "scan_verdict":   evidence.scan.verdict,
-        "route_target":   evidence.route.target,
+        "document_ref":   evidence.document_ref,
     });
 
     AuditEvent::new(
@@ -396,85 +406,100 @@ pub fn build_ingest_audit_event(
 
 // ── Internos ───────────────────────────────────────────────────────────────────
 
-/// Especificação do ponto de falha para construção de rejected outcomes.
-/// Usa `Default` para "nada correu ainda" (hashes vazios, scan not_run).
 struct RejectionSpec {
-    expected_hash: String,
+    declared_hash: String,
     actual_hash: String,
     scan: ScanEvidence,
     hash_verified: bool,
-    route: RouteEvidence,
 }
 
 impl Default for RejectionSpec {
     fn default() -> Self {
         Self {
-            expected_hash: String::new(),
+            declared_hash: String::new(),
             actual_hash: String::new(),
             scan: not_run_scan(),
             hash_verified: false,
-            route: RouteEvidence::default(),
         }
     }
 }
 
 fn reject(
-    req: &IngestRequest,
+    bundle: &IngestBundle,
     correlation_id: &str,
     processed_at: DateTime<Utc>,
     spec: RejectionSpec,
     actor: &str,
     error: IngestError,
 ) -> IngestOutcome {
-    let mut evidence = base_evidence(
-        req,
-        correlation_id,
-        processed_at,
-        &spec.expected_hash,
-        &spec.actual_hash,
-        spec.hash_verified,
-    );
-    evidence.scan = spec.scan;
-    evidence.validation.valid = spec.hash_verified;
-    evidence.route = spec.route;
-    finalize(evidence, actor, Some(error))
-}
-
-/// Usado quando não é possível construir evidence completa (ex.: correlation_id vazio).
-fn fallback_rejection(
-    req: &IngestRequest,
-    correlation_id: &str,
-    now: DateTime<Utc>,
-    actor: &str,
-    error: IngestError,
-) -> IngestOutcome {
     let evidence = IngestEvidence {
-        request_id: req.request_id.clone(),
+        bundle_id: bundle.bundle_id.clone(),
         correlation_id: correlation_id.to_owned(),
-        decision: DECISION_REJECTED.into(),
-        received_at: req.received_at,
-        processed_at: now,
-        source: req.source.clone(),
-        bundle_ref: req.bundle.snapshot_id.clone(),
+        decision: IngestDecision::Rejected,
+        received_at: bundle.received_at,
+        processed_at,
+        source: bundle.source.clone(),
+        content_type: bundle.content_type.clone(),
         hash: HashEvidence {
             algorithm: "SHA-256".into(),
-            expected_hash: String::new(),
-            actual_hash: String::new(),
-            verified: false,
+            declared_hash: spec.declared_hash,
+            actual_hash: spec.actual_hash,
+            verified: spec.hash_verified,
         },
-        scan: not_run_scan(),
+        scan: spec.scan,
         validation: ValidationEvidence {
-            contract: EXPORT_CONTRACT.into(),
+            content_type: bundle.content_type.clone(),
             valid: false,
+            reason: None,
         },
-        route: RouteEvidence::default(),
+        document_ref: None,
         audit: AuditEvidence {
             required: true,
             emitted: false,
             action: "ingest.rejected".into(),
             event_id: None,
         },
-        meta: Some(json!({ "slice": "config-bundle-first" })),
+        meta: None,
+    };
+    finalize(evidence, actor, Some(error))
+}
+
+/// Usado quando não é possível construir evidence completa (ex.: correlation_id vazio).
+fn fallback_rejection(
+    bundle: &IngestBundle,
+    correlation_id: &str,
+    now: DateTime<Utc>,
+    actor: &str,
+    error: IngestError,
+) -> IngestOutcome {
+    let evidence = IngestEvidence {
+        bundle_id: bundle.bundle_id.clone(),
+        correlation_id: correlation_id.to_owned(),
+        decision: IngestDecision::Rejected,
+        received_at: bundle.received_at,
+        processed_at: now,
+        source: bundle.source.clone(),
+        content_type: bundle.content_type.clone(),
+        hash: HashEvidence {
+            algorithm: "SHA-256".into(),
+            declared_hash: String::new(),
+            actual_hash: String::new(),
+            verified: false,
+        },
+        scan: not_run_scan(),
+        validation: ValidationEvidence {
+            content_type: bundle.content_type.clone(),
+            valid: false,
+            reason: None,
+        },
+        document_ref: None,
+        audit: AuditEvidence {
+            required: true,
+            emitted: false,
+            action: "ingest.rejected".into(),
+            event_id: None,
+        },
+        meta: None,
     };
     finalize(evidence, actor, Some(error))
 }
@@ -482,7 +507,7 @@ fn fallback_rejection(
 /// Finaliza o outcome: tenta construir o audit event pelo caminho canónico.
 ///
 /// `emitted = true` apenas quando o evento é construído via `build_ingest_audit_event`.
-/// Se a evidence for inválida (ex.: bundle_ref vazio num fallback), usa o evento de
+/// Se a evidence for inválida (ex.: correlation_id vazio num fallback), usa o evento de
 /// emergência e mantém `emitted = false`.
 fn finalize(
     mut evidence: IngestEvidence,
@@ -493,42 +518,26 @@ fn finalize(
         Ok(event) => {
             evidence.audit.emitted = true;
             evidence.audit.event_id = Some(event.event_id.clone());
-            let outcome = Outcome {
-                evidence,
-                audit_event: event,
-            };
+            let outcome = Outcome { evidence, audit_event: event };
             match error {
                 None => IngestOutcome::Accepted(outcome),
                 Some(e) => IngestOutcome::Rejected { outcome, error: e },
             }
         }
         Err(_) => {
-            // evidence inválida (ex.: bundle_ref vazio) — emitted fica false
             let event = emergency_audit_event(&evidence, actor);
             evidence.audit.event_id = Some(event.event_id.clone());
-            let outcome = Outcome {
-                evidence,
-                audit_event: event,
-            };
+            let outcome = Outcome { evidence, audit_event: event };
             let err = error.unwrap_or_else(|| {
                 IngestError::AuditError("audit event não pôde ser gerado".into())
             });
-            IngestOutcome::Rejected {
-                outcome,
-                error: err,
-            }
+            IngestOutcome::Rejected { outcome, error: err }
         }
     }
 }
 
-/// Audit event de emergência quando a evidence é inválida mas é necessário um evento.
-/// `emitted` não é marcado a `true` neste caso.
 fn emergency_audit_event(evidence: &IngestEvidence, actor: &str) -> AuditEvent {
-    let actor_id = if actor.trim().is_empty() {
-        DEFAULT_ACTOR
-    } else {
-        actor
-    };
+    let actor_id = if actor.trim().is_empty() { DEFAULT_ACTOR } else { actor };
     let subject = non_empty_str(&evidence.source.subject_id).unwrap_or("unknown");
     let action = non_empty_str(&evidence.audit.action).unwrap_or("ingest.rejected");
 
@@ -543,44 +552,6 @@ fn emergency_audit_event(evidence: &IngestEvidence, actor: &str) -> AuditEvent {
     .expect("emergency audit event is valid")
 }
 
-fn base_evidence(
-    req: &IngestRequest,
-    correlation_id: &str,
-    processed_at: DateTime<Utc>,
-    expected_hash: &str,
-    actual_hash: &str,
-    verified: bool,
-) -> IngestEvidence {
-    IngestEvidence {
-        request_id: req.request_id.clone(),
-        correlation_id: correlation_id.to_owned(),
-        decision: DECISION_REJECTED.into(),
-        received_at: req.received_at,
-        processed_at,
-        source: req.source.clone(),
-        bundle_ref: req.bundle.snapshot_id.clone(),
-        hash: HashEvidence {
-            algorithm: "SHA-256".into(),
-            expected_hash: expected_hash.to_owned(),
-            actual_hash: actual_hash.to_owned(),
-            verified,
-        },
-        scan: not_run_scan(),
-        validation: ValidationEvidence {
-            contract: EXPORT_CONTRACT.into(),
-            valid: false,
-        },
-        route: RouteEvidence::default(),
-        audit: AuditEvidence {
-            required: true,
-            emitted: false,
-            action: "ingest.rejected".into(),
-            event_id: None,
-        },
-        meta: Some(json!({ "slice": "config-bundle-first" })),
-    }
-}
-
 fn not_run_scan() -> ScanEvidence {
     ScanEvidence {
         adapter: "not_run".into(),
@@ -590,17 +561,9 @@ fn not_run_scan() -> ScanEvidence {
 }
 
 fn effective_actor(actor: &str) -> &str {
-    if actor.trim().is_empty() {
-        DEFAULT_ACTOR
-    } else {
-        actor
-    }
+    if actor.trim().is_empty() { DEFAULT_ACTOR } else { actor }
 }
 
 fn non_empty_str(s: &str) -> Option<&str> {
-    if s.is_empty() {
-        None
-    } else {
-        Some(s)
-    }
+    if s.is_empty() { None } else { Some(s) }
 }

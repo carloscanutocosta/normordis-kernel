@@ -2,7 +2,11 @@ use std::collections::HashMap;
 use std::sync::Mutex;
 
 use crate::error::IngestError;
-use crate::types::{RouteInput, RouteResult, Router, ScanAdapter, ScanInput, ScanResult};
+use crate::types::{
+    ContentValidator, IngestBundle, IngestStoragePort, ScanAdapter, ScanInput, ScanResult,
+};
+
+// ── ScanAdapter de teste ───────────────────────────────────────────────────────
 
 /// Scanner determinístico para testes: rejeita hashes específicos, aceita os restantes.
 pub struct DeterministicScanner {
@@ -22,11 +26,7 @@ impl Default for DeterministicScanner {
 
 impl ScanAdapter for DeterministicScanner {
     fn scan(&self, input: &ScanInput) -> Result<ScanResult, IngestError> {
-        let adapter = if self.adapter_name.is_empty() {
-            "deterministic"
-        } else {
-            &self.adapter_name
-        };
+        let adapter = non_empty_or(&self.adapter_name, "deterministic");
         if let Some(reason) = self.rejected_hashes.get(&input.bundle_hash) {
             return Ok(ScanResult {
                 adapter: adapter.into(),
@@ -42,54 +42,70 @@ impl ScanAdapter for DeterministicScanner {
     }
 
     fn adapter_id(&self) -> &str {
-        if self.adapter_name.is_empty() {
-            "deterministic"
-        } else {
-            &self.adapter_name
-        }
+        non_empty_or(&self.adapter_name, "deterministic")
     }
 }
 
-/// Router em memória para testes: preserva a rota por hash do bundle.
-pub struct MemoryRouter {
-    target: String,
-    records: Mutex<HashMap<String, RouteResult>>,
-}
+// ── ContentValidator de teste ─────────────────────────────────────────────────
 
-impl MemoryRouter {
-    pub fn new(target: impl Into<String>) -> Self {
-        let t = target.into();
-        let target = if t.is_empty() {
-            "ingest/config-bundle".into()
-        } else {
-            t
-        };
-        Self {
-            target,
-            records: Mutex::new(HashMap::new()),
-        }
+/// Validador de conteúdo que aceita sempre — para uso em testes.
+pub struct PassthroughContentValidator;
+
+impl ContentValidator for PassthroughContentValidator {
+    fn validate(&self, _raw: &[u8], _content_type: &str) -> Result<(), IngestError> {
+        Ok(())
     }
 }
 
-impl Router for MemoryRouter {
-    fn route(&self, input: &RouteInput) -> Result<RouteResult, IngestError> {
-        let mut records = self.records.lock().expect("MemoryRouter mutex poisoned");
+/// Validador que rejeita qualquer conteúdo com `content_type` indicado — para testes de rejeição.
+pub struct RejectingContentValidator {
+    pub rejected_content_types: Vec<String>,
+    pub reason: String,
+}
 
-        if let Some(existing) = records.get(&input.bundle_hash) {
+impl ContentValidator for RejectingContentValidator {
+    fn validate(&self, _raw: &[u8], content_type: &str) -> Result<(), IngestError> {
+        if self.rejected_content_types.iter().any(|ct| ct == content_type) {
+            return Err(IngestError::ContentValidationFailed {
+                content_type: content_type.into(),
+                reason: self.reason.clone(),
+            });
+        }
+        Ok(())
+    }
+}
+
+// ── IngestStoragePort de teste ────────────────────────────────────────────────
+
+/// Storage em memória para testes — preserva document_ref por bundle_id (idempotente).
+pub struct MemoryStoragePort {
+    records: Mutex<HashMap<String, String>>,
+}
+
+impl Default for MemoryStoragePort {
+    fn default() -> Self {
+        Self { records: Mutex::new(HashMap::new()) }
+    }
+}
+
+impl IngestStoragePort for MemoryStoragePort {
+    fn store(&self, bundle: &IngestBundle, verified_hash: &str) -> Result<String, IngestError> {
+        let mut records = self.records.lock().expect("MemoryStoragePort mutex poisoned");
+        if let Some(existing) = records.get(&bundle.bundle_id) {
             return Ok(existing.clone());
         }
-
-        // "sha256:HEXHEX..." → 12 chars a partir do índice 7 (após "sha256:")
-        let hash_slug = input
-            .bundle_hash
+        // slug dos primeiros 12 chars do hex após "sha256:"
+        let hash_slug = verified_hash
             .get(7..19)
-            .unwrap_or_else(|| &input.bundle_hash[..input.bundle_hash.len().min(12)]);
-
-        let result = RouteResult {
-            target: self.target.clone(),
-            route_ref: format!("route:{hash_slug}"),
-        };
-        records.insert(input.bundle_hash.clone(), result.clone());
-        Ok(result)
+            .unwrap_or_else(|| &verified_hash[..verified_hash.len().min(12)]);
+        let doc_ref = format!("doc:{}", hash_slug);
+        records.insert(bundle.bundle_id.clone(), doc_ref.clone());
+        Ok(doc_ref)
     }
+}
+
+// ── Auxiliares ────────────────────────────────────────────────────────────────
+
+fn non_empty_or<'a>(s: &'a str, fallback: &'a str) -> &'a str {
+    if s.is_empty() { fallback } else { s }
 }

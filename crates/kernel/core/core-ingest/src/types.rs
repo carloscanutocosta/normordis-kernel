@@ -1,37 +1,85 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use std::fmt;
 
 use core_audit::AuditEvent;
-use core_exports::ExportSnapshot;
 
 use crate::error::IngestError;
 
-pub const DECISION_ACCEPTED: &str = "accepted";
-pub const DECISION_REJECTED: &str = "rejected";
+mod base64_bytes {
+    use base64::{engine::general_purpose::STANDARD, Engine as _};
+    use serde::{Deserialize, Deserializer, Serializer};
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct IngestSource {
-    pub kind: String,
-    pub subject_id: String,
-    pub version: String,
+    pub fn serialize<S: Serializer>(bytes: &[u8], ser: S) -> Result<S::Ok, S::Error> {
+        ser.serialize_str(&STANDARD.encode(bytes))
+    }
+
+    pub fn deserialize<'de, D: Deserializer<'de>>(de: D) -> Result<Vec<u8>, D::Error> {
+        let s = String::deserialize(de)?;
+        STANDARD.decode(s).map_err(serde::de::Error::custom)
+    }
 }
 
+// ── Tipos de fronteira ─────────────────────────────────────────────────────────
+
+/// Tipo de fronteira real: representa dados externos tal como chegaram.
+///
+/// O hash é calculado sobre `raw` antes de qualquer parsing — esta ordem é obrigatória
+/// para segurança e auditabilidade. `declared_hash` é o hash que o remetente declarou;
+/// quando `None`, o pipeline calcula e regista mas não verifica.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct IngestRequest {
-    pub request_id: String,
+pub struct IngestBundle {
+    pub bundle_id: String,
     pub received_at: DateTime<Utc>,
     pub source: IngestSource,
-    pub expected_hash: String,
-    pub bundle: ExportSnapshot,
+    /// Bytes raw tal como chegaram — não parsados. Serializado como base64 standard (RFC 4648).
+    #[serde(with = "base64_bytes")]
+    pub raw: Vec<u8>,
+    /// MIME type declarado pelo remetente (ex.: "application/pdf", "application/xml").
+    pub content_type: String,
+    /// Hash SHA-256 declarado pelo remetente, no formato "sha256:<hex>".
+    /// Se presente, o pipeline verifica; se ausente, apenas regista.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub declared_hash: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub meta: Option<Value>,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct IngestSource {
+    /// Tipo semântico do bundle (ex.: "cius-pt-invoice", "saft-pt", "pdf-official").
+    pub kind: String,
+    /// Identificador do sujeito (entidade, processo, documento).
+    pub subject_id: String,
+    /// Versão declarada pelo remetente.
+    pub version: String,
+}
+
+// ── Decisão ────────────────────────────────────────────────────────────────────
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum IngestDecision {
+    Accepted,
+    Rejected,
+}
+
+impl fmt::Display for IngestDecision {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Accepted => write!(f, "accepted"),
+            Self::Rejected => write!(f, "rejected"),
+        }
+    }
+}
+
+// ── Sub-tipos de evidência ────────────────────────────────────────────────────
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HashEvidence {
     pub algorithm: String,
-    pub expected_hash: String,
+    pub declared_hash: String,
     pub actual_hash: String,
     pub verified: bool,
 }
@@ -46,17 +94,10 @@ pub struct ScanEvidence {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ValidationEvidence {
-    pub contract: String,
+    pub content_type: String,
     pub valid: bool,
-}
-
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
-pub struct RouteEvidence {
-    pub routed: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub target: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub route_ref: Option<String>,
+    pub reason: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -68,87 +109,42 @@ pub struct AuditEvidence {
     pub event_id: Option<String>,
 }
 
+// ── Evidência completa ────────────────────────────────────────────────────────
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct IngestEvidence {
-    pub request_id: String,
+    pub bundle_id: String,
     pub correlation_id: String,
-    pub decision: String,
+    pub decision: IngestDecision,
     pub received_at: DateTime<Utc>,
     pub processed_at: DateTime<Utc>,
     pub source: IngestSource,
-    pub bundle_ref: String,
+    pub content_type: String,
     pub hash: HashEvidence,
     pub scan: ScanEvidence,
     pub validation: ValidationEvidence,
-    pub route: RouteEvidence,
+    /// Referência ao documento armazenado em core-documental. Presente apenas em `Accepted`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub document_ref: Option<String>,
     pub audit: AuditEvidence,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub meta: Option<Value>,
 }
 
-#[derive(Debug, Clone)]
-pub struct ScanInput {
-    pub request_id: String,
-    pub correlation_id: String,
-    pub bundle_hash: String,
-    pub bundle: ExportSnapshot,
-    pub payload: Vec<u8>,
-}
+// ── Outcome ────────────────────────────────────────────────────────────────────
 
-/// Resultado de um scan. `reason` é `Some` apenas quando o verdict não é "clean".
-#[derive(Debug, Clone)]
-pub struct ScanResult {
-    pub adapter: String,
-    pub verdict: String,
-    pub reason: Option<String>,
-}
-
-pub trait ScanAdapter: Send + Sync {
-    fn scan(&self, input: &ScanInput) -> Result<ScanResult, IngestError>;
-    fn adapter_id(&self) -> &str;
-}
-
-#[derive(Debug, Clone)]
-pub struct RouteInput {
-    pub request_id: String,
-    pub correlation_id: String,
-    pub bundle_hash: String,
-    pub bundle: ExportSnapshot,
-    pub evidence: IngestEvidence,
-}
-
-#[derive(Debug, Clone)]
-pub struct RouteResult {
-    pub target: String,
-    pub route_ref: String,
-}
-
-pub trait Router: Send + Sync {
-    fn route(&self, input: &RouteInput) -> Result<RouteResult, IngestError>;
-}
-
-pub struct IngestConfig {
-    pub scanner: Option<Box<dyn ScanAdapter>>,
-    pub router: Option<Box<dyn Router>>,
-    pub max_bundle_bytes: Option<usize>,
-    pub actor: String,
-    pub now: Option<fn() -> DateTime<Utc>>,
-    /// Allowed `source.kind` values. `None` accepts any kind (no restriction).
-    pub allowed_source_kinds: Option<Vec<String>>,
-}
-
-/// Evidence + audit event de um ingest concluído (aceite ou rejeitado).
+/// Evidence + audit event de um ingest concluído.
 #[derive(Debug, Clone)]
 pub struct Outcome {
     pub evidence: IngestEvidence,
     pub audit_event: AuditEvent,
 }
 
-/// Resultado de `process_export_snapshot`, com o estado encoded no tipo.
+/// Resultado de `process_bundle`, com o estado encoded no tipo.
 ///
-/// - `Accepted(Outcome)` — bundle aceite e encaminhado; `outcome.evidence.decision == "accepted"`.
-/// - `Rejected { outcome, error }` — bundle rejeitado; `outcome.evidence` descreve o ponto
-///   de falha, `error` é o erro canonical com `code()` e `is_retryable()`.
+/// - `Accepted(Outcome)` — bundle aceite e guardado; `evidence.decision == Accepted`.
+/// - `Rejected { outcome, error }` — bundle rejeitado; `evidence` descreve o ponto
+///   de falha, `error` tem `code()` e `is_retryable()`.
 #[derive(Debug)]
 pub enum IngestOutcome {
     Accepted(Outcome),
@@ -182,8 +178,6 @@ impl IngestOutcome {
         }
     }
 
-    /// Extrai o `Outcome` em caso de sucesso; entra em pânico com `msg` em caso de rejeição.
-    /// Útil em testes.
     pub fn expect_accepted(self, msg: &str) -> Outcome {
         match self {
             Self::Accepted(o) => o,
@@ -191,12 +185,62 @@ impl IngestOutcome {
         }
     }
 
-    /// Extrai `(Outcome, IngestError)` em caso de rejeição; entra em pânico em caso de sucesso.
-    /// Útil em testes.
     pub fn expect_rejected(self, msg: &str) -> (Outcome, IngestError) {
         match self {
             Self::Rejected { outcome, error } => (outcome, error),
             Self::Accepted(_) => panic!("{msg}: esperado rejected, foi accepted"),
         }
     }
+}
+
+// ── Traits de extensão ────────────────────────────────────────────────────────
+
+#[derive(Debug, Clone)]
+pub struct ScanInput {
+    pub bundle_id: String,
+    pub correlation_id: String,
+    pub bundle_hash: String,
+    pub content_type: String,
+    pub raw: Vec<u8>,
+}
+
+#[derive(Debug, Clone)]
+pub struct ScanResult {
+    pub adapter: String,
+    pub verdict: String,
+    pub reason: Option<String>,
+}
+
+pub trait ScanAdapter: Send + Sync {
+    fn scan(&self, input: &ScanInput) -> Result<ScanResult, IngestError>;
+    fn adapter_id(&self) -> &str;
+}
+
+/// Valida o conteúdo de um bundle com base no seu MIME type.
+///
+/// Para XML: deve implementar XXE prevention antes de qualquer parsing e pode
+/// validar contra XSD quando `schema_id` estiver declarado na source.
+/// Para PDF: pode verificar magic bytes e estrutura básica.
+pub trait ContentValidator: Send + Sync {
+    fn validate(&self, raw: &[u8], content_type: &str) -> Result<(), IngestError>;
+}
+
+/// Port de armazenamento — core-ingest define a interface; a infra implementa com core-documental.
+///
+/// Retorna um `document_ref` opaco que identifica o documento armazenado.
+pub trait IngestStoragePort: Send + Sync {
+    fn store(&self, bundle: &IngestBundle, verified_hash: &str) -> Result<String, IngestError>;
+}
+
+// ── Configuração ──────────────────────────────────────────────────────────────
+
+pub struct IngestConfig {
+    pub scanner: Option<Box<dyn ScanAdapter>>,
+    pub content_validator: Option<Box<dyn ContentValidator>>,
+    pub storage: Option<Box<dyn IngestStoragePort>>,
+    pub max_bundle_bytes: Option<usize>,
+    pub actor: String,
+    pub now: Option<fn() -> DateTime<Utc>>,
+    /// Allowed `source.kind` values. `None` accepts any kind.
+    pub allowed_source_kinds: Option<Vec<String>>,
 }
