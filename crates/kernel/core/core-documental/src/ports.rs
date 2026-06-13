@@ -2,47 +2,119 @@
 //!
 //! Cada trait define o contrato que os adapters de infra devem implementar.
 //! Nenhum port conhece SQLite, filesystem ou outro backend concreto.
+//!
+//! # Atomicidade
+//!
+//! Todos os métodos de escrita aceitam um `&DocumentEvent` que deve ser
+//! persistido na mesma transacção que a operação principal. Os adapters
+//! DEVEM garantir esta atomicidade — documento e evento nunca podem divergir.
 
 use crate::{
     AttachmentId, DocumentAttachment, DocumentCustody, DocumentEvent, DocumentId, DocumentRelation,
-    DocumentStatus, DocumentTemplate, DocumentalError, NdfRecord, NdfRecordId, TemplateId,
+    DocumentStatus, DocumentTemplate, DocumentTypeCode, DocumentalError, EventFilter, NdfRecord,
+    NdfRecordId, TemplateId, ValidationCode,
 };
 
+/// Port de custódia documental — intake, lookup e transições de estado.
+///
+/// Todos os métodos de escrita são atómicos: o adapter persiste o documento
+/// e o evento correspondente numa única transacção.
 pub trait DocumentCustodyRepository {
+    // ── Intake ────────────────────────────────────────────────────────────────
+
+    /// Persiste o documento em custódia e o evento `CustodyAccepted` atomicamente.
+    fn accept(&self, doc: &DocumentCustody, event: &DocumentEvent) -> Result<(), DocumentalError>;
+
+    // ── Lookup ────────────────────────────────────────────────────────────────
+
     fn get(&self, id: &DocumentId) -> Result<Option<DocumentCustody>, DocumentalError>;
-    fn create(&self, doc: &DocumentCustody) -> Result<(), DocumentalError>;
-    fn update_status(&self, id: &DocumentId, status: DocumentStatus)
-        -> Result<(), DocumentalError>;
-    fn assign_number(&self, id: &DocumentId, number: &str) -> Result<(), DocumentalError>;
-    fn update_payload(
+
+    /// Lookup por código de validação público (ex: leitura de QR code em fiscalização).
+    fn lookup_by_validation_code(
+        &self,
+        code: &ValidationCode,
+    ) -> Result<Option<DocumentCustody>, DocumentalError>;
+
+    fn lookup_by_document_number(
+        &self,
+        number: &str,
+    ) -> Result<Option<DocumentCustody>, DocumentalError>;
+
+    fn list_by_type(
+        &self,
+        document_type: &DocumentTypeCode,
+        limit: usize,
+        offset: usize,
+    ) -> Result<Vec<DocumentCustody>, DocumentalError>;
+
+    fn list_by_status(
+        &self,
+        status: &DocumentStatus,
+        limit: usize,
+        offset: usize,
+    ) -> Result<Vec<DocumentCustody>, DocumentalError>;
+
+    fn count_by_status(&self, status: &DocumentStatus) -> Result<u64, DocumentalError>;
+
+    // ── Transições custodiais atómicas ────────────────────────────────────────
+
+    /// Transição de estado + evento `StatusChanged` numa transacção.
+    fn transition_status(
         &self,
         id: &DocumentId,
-        payload_json: &serde_json::Value,
+        status: DocumentStatus,
+        event: &DocumentEvent,
     ) -> Result<(), DocumentalError>;
-    fn set_authority(
+
+    /// Atribuição de número + evento `NumberAssigned` numa transacção.
+    /// O adapter deve falhar com `NumberAlreadyAssigned` se já existir número.
+    fn assign_number(
         &self,
         id: &DocumentId,
-        authority: &crate::AuthorityContext,
+        number: &str,
+        event: &DocumentEvent,
     ) -> Result<(), DocumentalError>;
-    fn add_relation(&self, relation: &DocumentRelation) -> Result<(), DocumentalError>;
+
+    /// Substituição atómica: transição para `Superseded` + relação `Supersedes`.
+    ///
+    /// Persiste atomicamente: alteração de estado, relação inter-documental,
+    /// evento `StatusChanged` e evento `RelationAdded`.
+    fn supersede(
+        &self,
+        id: &DocumentId,
+        relation: &DocumentRelation,
+        status_event: &DocumentEvent,
+        relation_event: &DocumentEvent,
+    ) -> Result<(), DocumentalError>;
+
+    // ── Relações ──────────────────────────────────────────────────────────────
+
+    /// Regista relação + evento `RelationAdded` atomicamente.
+    fn add_relation(
+        &self,
+        relation: &DocumentRelation,
+        event: &DocumentEvent,
+    ) -> Result<(), DocumentalError>;
+
     fn list_relations(&self, id: &DocumentId) -> Result<Vec<DocumentRelation>, DocumentalError>;
 }
 
+/// Port de templates NDT — write-once, sem activação (templates chegam já Active).
+///
+/// `store` falha com `ActiveTemplateExists` se já existir template Active
+/// para o mesmo `document_type`.
 pub trait TemplateRepository {
     fn get(&self, id: &TemplateId) -> Result<Option<DocumentTemplate>, DocumentalError>;
     fn get_active_for_type(
         &self,
-        document_type: &str,
+        document_type: &DocumentTypeCode,
     ) -> Result<Option<DocumentTemplate>, DocumentalError>;
     fn list_versions_for_type(
         &self,
-        document_type: &str,
+        document_type: &DocumentTypeCode,
     ) -> Result<Vec<DocumentTemplate>, DocumentalError>;
-    /// Write-once para templates: não há update — versões novas criam novo registo.
-    fn create_version(&self, template: &DocumentTemplate) -> Result<(), DocumentalError>;
-    /// Activa um template `Draft`. Falha se o template não existir ou não for `Draft`.
-    /// Antes de chamar, o chamador deve verificar `template.activate()`.
-    fn activate(&self, id: &TemplateId) -> Result<(), DocumentalError>;
+    /// Write-once — não há update de conteúdo.
+    fn store(&self, template: &DocumentTemplate) -> Result<(), DocumentalError>;
     fn deprecate(&self, id: &TemplateId) -> Result<(), DocumentalError>;
 }
 
@@ -63,6 +135,7 @@ pub trait NdfArchive {
 /// Log de eventos append-only.
 ///
 /// Implementações DEVEM proibir UPDATE ou DELETE nos eventos persistidos.
+/// `filter` permite pesquisa por tipo, intervalo de tempo e paginação.
 pub trait DocumentEventLog {
     fn append(&self, event: &DocumentEvent) -> Result<(), DocumentalError>;
     fn read_chain(&self, document_id: &DocumentId) -> Result<Vec<DocumentEvent>, DocumentalError>;
@@ -70,6 +143,12 @@ pub trait DocumentEventLog {
         &self,
         document_id: &DocumentId,
     ) -> Result<Option<DocumentEvent>, DocumentalError>;
+    /// Pesquisa filtrada com paginação.
+    fn filter(
+        &self,
+        document_id: &DocumentId,
+        filter: &EventFilter,
+    ) -> Result<Vec<DocumentEvent>, DocumentalError>;
 }
 
 /// Guarda de documentos binários — anexos e documentos entrados.
@@ -77,12 +156,12 @@ pub trait DocumentEventLog {
 /// O conteúdo é endereçado pelo hash SHA-256 (content_hash = nome do ficheiro).
 /// Implementações DEVEM verificar `sha256(content) == attachment.content_hash`
 /// antes de persistir, devolvendo `ContentHashMismatch` se não coincidir.
-///
-/// A deduplicação de conteúdo (mesmo hash → mesma blob) é decisão de implementação;
-/// o port garante apenas a semântica de store/retrieve por `AttachmentId`.
 pub trait AttachmentStore {
-    fn store(&self, attachment: &DocumentAttachment, content: &[u8])
-        -> Result<(), DocumentalError>;
+    fn store(
+        &self,
+        attachment: &DocumentAttachment,
+        content: &[u8],
+    ) -> Result<(), DocumentalError>;
     fn retrieve_content(&self, id: &AttachmentId) -> Result<Option<Vec<u8>>, DocumentalError>;
     fn get_metadata(
         &self,
@@ -92,7 +171,5 @@ pub trait AttachmentStore {
         &self,
         document_id: &DocumentId,
     ) -> Result<Vec<DocumentAttachment>, DocumentalError>;
-    /// Remove o anexo. Se o conteúdo não tiver outras referências, apaga-o também.
-    /// Retorna `true` se o conteúdo foi de facto eliminado do armazenamento.
     fn delete_if_unreferenced(&self, id: &AttachmentId) -> Result<bool, DocumentalError>;
 }

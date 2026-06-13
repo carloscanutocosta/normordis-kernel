@@ -14,22 +14,18 @@ pub enum DocumentalError {
     AttachmentNotFound(String),
     #[error("transição de estado inválida: {0} → {1}")]
     InvalidStatusTransition(String, String),
-    #[error("documento já finalizado — não pode ser modificado")]
-    DocumentFinalized,
+    #[error("documento imutável após entrada em custódia")]
+    DocumentImmutable,
     #[error("número já atribuído")]
     NumberAlreadyAssigned,
     #[error("número inválido: campo vazio")]
     EmptyDocumentNumber,
-    #[error("número de documento obrigatório para finalização")]
-    MissingDocumentNumber,
-    #[error("contexto de autoridade em falta para finalização")]
+    #[error("contexto de autoridade em falta")]
     MissingAuthorityContext,
     #[error("template activo já existe para este tipo: {0}")]
     ActiveTemplateExists(String),
     #[error("template imutável após activação")]
     TemplateImmutable,
-    #[error("template não pode ser activado: estado actual não é 'draft'")]
-    TemplateNotActivatable,
     #[error("registo NDF write-once: já existe registo com id {0}")]
     NdfRecordAlreadyExists(String),
     #[error("hash do NDF não coincide com o registado")]

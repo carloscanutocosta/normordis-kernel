@@ -4,7 +4,7 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
-use crate::{AuthorityContext, DocumentId, DocumentalError};
+use crate::{AuthoritySnapshot, DocumentId, DocumentalError};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(transparent)]
@@ -29,9 +29,6 @@ impl NdfRecordId {
 /// Uma vez escrito, o registo não pode ser modificado. O `ndf_hash` é verificado
 /// para garantir integridade. O `template_hash` permite reconstruir o documento
 /// exactamente como foi emitido, mesmo que o template evolua.
-///
-/// O hash é calculado externamente (infra/service layer) e verificado
-/// pelo domínio via `verify_integrity`.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct NdfRecord {
     pub id: NdfRecordId,
@@ -40,7 +37,7 @@ pub struct NdfRecord {
     pub ndf_hash: String,
     pub template_hash: String,
     pub rendered_at: DateTime<Utc>,
-    pub rendered_by: AuthorityContext,
+    pub rendered_by: AuthoritySnapshot,
 }
 
 impl NdfRecord {
@@ -58,8 +55,6 @@ impl NdfRecord {
         Ok(())
     }
 
-    /// Verifica que o hash pré-computado coincide com o hash registado.
-    /// O cálculo SHA-256 é responsabilidade do chamador (infra/service layer).
     pub fn verify_integrity(&self, computed_hash: &str) -> Result<(), DocumentalError> {
         if computed_hash != self.ndf_hash {
             return Err(DocumentalError::NdfHashMismatch);

@@ -16,5 +16,6 @@ support-versioning = { path = "../../support/support-versioning" }
 
 [dev-dependencies]
 tempfile.workspace = true
+core-documental = { path = "../../core/core-documental" }
 [lints]
 workspace = true

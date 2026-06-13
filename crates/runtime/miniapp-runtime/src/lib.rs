@@ -7,13 +7,13 @@
 use chrono::{DateTime, Utc};
 use core_audit::{AuditActor, AuditEvent, AuditOutcome, AuditStore, AuditTarget};
 use core_documental::{
-    DocumentCustody, DocumentEvent, DocumentEventId, DocumentEventType, DocumentId, DocumentStatus,
-    EventActor, TemplateId,
+    authority_from_user_context, DocumentContent, DocumentCustody, DocumentEvent, DocumentEventId,
+    DocumentEventType, DocumentId, DocumentOrigin, DocumentTypeCode, EntryChannel, EventActor,
+    IntakeSpec, RetentionPolicy, TemplateId, ValidationCode,
 };
-use core_org::{OrgPositionId, OrgUnit};
-use core_rh::{AuthorMetadata, UserContext, UserId};
+use core_org::OrgUnit;
+use core_rh::{AuthorMetadata, UserContext};
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
 use thiserror::Error;
 
 #[derive(Debug, Clone)]
@@ -25,16 +25,16 @@ pub struct MiniAppContext {
 
 /// Pedido de criação de um documento custodiado.
 ///
-/// `document_type`, `template_id` e `template_version` substituem o antigo
-/// `DocumentDefinition` — os metadados de template ficam no pedido, não
-/// num agregado separado.
+/// `entry_channel` identifica o canal de entrada (ex: "miniapp", "portal", "balcao").
+/// `content_json` é o conteúdo JSON já serializado — `None` para documentos sem corpo.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CreateDocumentRequest {
     pub document_id: String,
     pub document_type: String,
-    pub template_id: String,
-    pub template_version: String,
-    pub payload_json: Value,
+    pub template_id: Option<String>,
+    pub template_version: Option<String>,
+    pub content_json: Option<String>,
+    pub entry_channel: String,
 }
 
 #[derive(Debug, Error)]
@@ -60,10 +60,10 @@ impl MiniAppContext {
     }
 }
 
-/// Constrói um novo `DocumentCustody` em estado `Draft`.
+/// Constrói um novo `DocumentCustody` via factory `accept()`.
 ///
-/// Substitui o par `(DocumentDefinition, create_document_instance)` do runtime anterior.
-/// O template é referenciado por `request.template_id` e `request.template_version`.
+/// Gera automaticamente um `ValidationCode` e assume origem `Normordis`.
+/// Requer que `context.user_context.org_position` esteja preenchido.
 pub fn create_document_instance(
     context: &MiniAppContext,
     request: CreateDocumentRequest,
@@ -72,23 +72,42 @@ pub fn create_document_instance(
     context.validate()?;
     let id = DocumentId::new(request.document_id)
         .map_err(|e| RuntimeError::DocumentError(e.to_string()))?;
-    let template_id = TemplateId::new(request.template_id)
+    let document_type = DocumentTypeCode::new(request.document_type)
         .map_err(|e| RuntimeError::DocumentError(e.to_string()))?;
-    Ok(DocumentCustody {
+    let template_id = request
+        .template_id
+        .map(TemplateId::new)
+        .transpose()
+        .map_err(|e| RuntimeError::DocumentError(e.to_string()))?;
+    let content = request
+        .content_json
+        .map(DocumentContent::new)
+        .transpose()
+        .map_err(|e| RuntimeError::DocumentError(e.to_string()))?;
+    let entry_channel = EntryChannel::new(request.entry_channel)
+        .map_err(|e| RuntimeError::DocumentError(e.to_string()))?;
+    let authority = authority_from_user_context(&context.user_context, now)
+        .map_err(|e| RuntimeError::DocumentError(e.to_string()))?;
+
+    let spec = IntakeSpec {
         id,
-        document_type: request.document_type,
+        document_type,
+        validation_code: ValidationCode::generate(),
+        origin: DocumentOrigin::Normordis,
+        entry_channel,
+        authority,
+        content,
         template_id,
         template_version: request.template_version,
-        status: DocumentStatus::Draft,
-        payload_json: request.payload_json,
-        authority_context: None,
-        document_number: None,
-        created_at: now,
-        updated_at: now,
-    })
+        retention_policy: RetentionPolicy::permanent(),
+        received_at: now,
+        custodied_at: now,
+    };
+
+    DocumentCustody::accept(spec).map_err(|e| RuntimeError::DocumentError(e.to_string()))
 }
 
-/// Constrói o evento `Created` para o primeiro evento da cadeia documental.
+/// Constrói o evento `CustodyAccepted` inaugural da cadeia documental.
 ///
 /// `previous_hash` é sempre `None` — este é o evento inaugural do documento.
 /// Requer que `context.user_context.org_position` esteja preenchido.
@@ -103,20 +122,16 @@ pub fn create_document_created_event(
         .as_ref()
         .ok_or(RuntimeError::MissingPosition)?;
 
-    let user_id = UserId::new(context.user_context.current_user.user_id.clone())
-        .map_err(|e| RuntimeError::DocumentError(e.to_string()))?;
-    let position_id = OrgPositionId::new(pos.position_id.clone())
-        .map_err(|e| RuntimeError::DocumentError(e.to_string()))?;
-    let event_id = DocumentEventId::new(format!("evt-created-{}", document.id.as_str()))
+    let event_id = DocumentEventId::new(format!("evt-accepted-{}", document.id.as_str()))
         .map_err(|e| RuntimeError::DocumentError(e.to_string()))?;
 
     Ok(DocumentEvent {
         id: event_id,
         document_id: document.id.clone(),
-        event_type: DocumentEventType::Created,
+        event_type: DocumentEventType::CustodyAccepted,
         actor: EventActor::Operator {
-            user_id,
-            position_id,
+            user_id: context.user_context.current_user.user_id.clone(),
+            position_id: pos.position_id.clone(),
         },
         occurred_at: at,
         previous_hash: None,
@@ -148,7 +163,7 @@ pub fn record_document_created<R: AuditStore>(
         None,
         Some(serde_json::json!({
             "app": context.app_name,
-            "template_id": document.template_id.as_str(),
+            "template_id": document.template_id.as_ref().map(|t| t.as_str()).unwrap_or(""),
             "org_unit": context.org_config.service_code.clone()
                 .unwrap_or_else(|| context.org_config.short_name.clone())
         })),

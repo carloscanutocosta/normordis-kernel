@@ -6,7 +6,6 @@ use miniapp_runtime::{
     create_document_created_event, create_document_instance, record_document_created,
     CreateDocumentRequest, MiniAppContext,
 };
-use serde_json::json;
 
 // ── Fake AuditStore ───────────────────────────────────────────────────────────
 
@@ -203,51 +202,61 @@ fn sample_request() -> CreateDocumentRequest {
     CreateDocumentRequest {
         document_id: "doc-001".into(),
         document_type: "requerimento".into(),
-        template_id: "tpl-req-v1".into(),
-        template_version: "v1".into(),
-        payload_json: json!({ "assunto": "certidão" }),
+        template_id: Some("tpl-req-v1".into()),
+        template_version: Some("v1".into()),
+        content_json: Some(r#"{"assunto":"certidão"}"#.into()),
+        entry_channel: "miniapp".into(),
     }
 }
 
 // ── Testes ────────────────────────────────────────────────────────────────────
 
 #[test]
-fn create_document_instance_starts_in_draft() {
-    let ctx = context_sem_posicao();
+fn create_document_instance_starts_active() {
+    use core_documental::{DocumentStatus, DocumentTypeCode};
+    let ctx = context_com_posicao();
     let doc = create_document_instance(&ctx, sample_request(), Utc::now()).unwrap();
-    use core_documental::DocumentStatus;
-    assert_eq!(doc.status, DocumentStatus::Draft);
-    assert_eq!(doc.template_id.as_str(), "tpl-req-v1");
-    assert_eq!(doc.document_type, "requerimento");
-    assert!(doc.authority_context.is_none());
+    assert_eq!(doc.status, DocumentStatus::Active);
+    assert_eq!(doc.template_id.as_ref().unwrap().as_str(), "tpl-req-v1");
+    assert_eq!(doc.document_type, DocumentTypeCode::new("requerimento").unwrap());
     assert!(doc.document_number.is_none());
+    assert!(!doc.validation_code.as_str().is_empty());
+}
+
+#[test]
+fn create_document_instance_sem_posicao_rejeita() {
+    use miniapp_runtime::RuntimeError;
+    let ctx = context_sem_posicao();
+    let result = create_document_instance(&ctx, sample_request(), Utc::now());
+    assert!(matches!(result, Err(RuntimeError::DocumentError(_))));
 }
 
 #[test]
 fn create_document_created_event_ok() {
+    use core_documental::DocumentEventType;
     let ctx = context_com_posicao();
     let doc = create_document_instance(&ctx, sample_request(), Utc::now()).unwrap();
     let evt = create_document_created_event(&doc, &ctx, Utc::now()).unwrap();
-    use core_documental::DocumentEventType;
-    assert_eq!(evt.event_type, DocumentEventType::Created);
+    assert_eq!(evt.event_type, DocumentEventType::CustodyAccepted);
     assert!(evt.previous_hash.is_none());
     assert_eq!(evt.document_id.as_str(), "doc-001");
 }
 
 #[test]
 fn create_document_created_event_sem_posicao_rejeita() {
-    let ctx = context_sem_posicao();
-    let doc = create_document_instance(&ctx, sample_request(), Utc::now()).unwrap();
+    let ctx_com = context_com_posicao();
+    let doc = create_document_instance(&ctx_com, sample_request(), Utc::now()).unwrap();
+    let ctx_sem = context_sem_posicao();
     use miniapp_runtime::RuntimeError;
     assert!(matches!(
-        create_document_created_event(&doc, &ctx, Utc::now()),
+        create_document_created_event(&doc, &ctx_sem, Utc::now()),
         Err(RuntimeError::MissingPosition)
     ));
 }
 
 #[test]
 fn records_audit_event() {
-    let ctx = context_sem_posicao();
+    let ctx = context_com_posicao();
     let doc = create_document_instance(&ctx, sample_request(), Utc::now()).unwrap();
     let recorder = RecordingAuditStore::default();
     record_document_created(&recorder, &ctx, &doc, Utc::now()).unwrap();

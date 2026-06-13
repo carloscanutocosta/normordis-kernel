@@ -788,8 +788,8 @@ name = "core-documental"
 version = "0.3.0"
 dependencies = [
  "chrono",
- "core-org",
  "core-rh",
+ "rand 0.8.6",
  "serde",
  "serde_json",
  "thiserror",
@@ -1155,8 +1155,6 @@ dependencies = [
  "adapter-sqlite",
  "chrono",
  "core-documental",
- "core-org",
- "core-rh",
  "hex",
  "rusqlite",
  "serde_json",
@@ -2536,12 +2534,8 @@ version = "0.3.0"
 dependencies = [
  "adapter-scanner",
  "chrono",
- "core-documental",
- "core-exports",
  "core-ingest",
- "core-validation",
  "serde_json",
- "thiserror",
 ]
 
 [[package]]
@@ -5024,6 +5018,7 @@ version = "0.3.0"
 dependencies = [
  "adapter-sqlite",
  "core-config",
+ "core-documental",
  "documental-sqlite",
  "files",
  "rh-sqlite",

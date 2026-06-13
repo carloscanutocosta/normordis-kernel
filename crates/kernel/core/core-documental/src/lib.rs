@@ -1,8 +1,8 @@
 //! Domínio de custódia documental institucional do Mini-Kernel RS.
 //!
-//! Cobre o ciclo de vida completo de documentos institucionais: criação, edição,
-//! aprovação, finalização, arquivo e anulação. Exporta tipos, invariantes e ports
-//! de persistência. Não conhece SQLite, filesystem, Tauri ou UI.
+//! O core-documental é o custodiante institucional dos documentos NORMORDIS.
+//! Guarda, prova e rastreia documentos já finalizados ao longo do seu ciclo
+//! de vida custodial. Não produz, não renderiza, não exporta.
 
 #[cfg(test)]
 mod tests;
@@ -15,6 +15,7 @@ pub mod error;
 pub mod events;
 pub mod package;
 pub mod ports;
+pub mod service;
 pub mod template;
 
 // ── archive ───────────────────────────────────────────────────────────────────
@@ -24,17 +25,22 @@ pub use archive::{NdfRecord, NdfRecordId};
 pub use attachment::{AttachmentId, AttachmentKind, DocumentAttachment};
 
 // ── authority ─────────────────────────────────────────────────────────────────
-pub use authority::AuthorityContext;
+pub use authority::AuthoritySnapshot;
 
 // ── custody ───────────────────────────────────────────────────────────────────
-pub use custody::{DocumentCustody, DocumentId, DocumentRelation, DocumentStatus, RelationType};
+pub use custody::{
+    DocumentContent, DocumentCustody, DocumentId, DocumentOrigin, DocumentRelation, DocumentStatus,
+    DocumentTypeCode, EntryChannel, IntakeSpec, RelationType, RetentionClass, RetentionPolicy,
+    ValidationCode,
+};
 
 // ── error ─────────────────────────────────────────────────────────────────────
 pub use error::DocumentalError;
 
 // ── events ────────────────────────────────────────────────────────────────────
 pub use events::{
-    verify_event_chain, DocumentEvent, DocumentEventId, DocumentEventType, EventActor,
+    verify_event_chain, AccessPurpose, DocumentEvent, DocumentEventId, DocumentEventType,
+    EventActor, EventFilter,
 };
 
 // ── package ───────────────────────────────────────────────────────────────────
@@ -46,6 +52,9 @@ pub use package::{
 pub use ports::{
     AttachmentStore, DocumentCustodyRepository, DocumentEventLog, NdfArchive, TemplateRepository,
 };
+
+// ── service ───────────────────────────────────────────────────────────────────
+pub use service::{authority_from_user_context, DocumentCustodyService};
 
 // ── template ──────────────────────────────────────────────────────────────────
 pub use template::{DocumentTemplate, TemplateId, TemplateStatus};
