@@ -231,7 +231,7 @@ fn create_document_instance_sem_posicao_rejeita() {
     use miniapp_runtime::RuntimeError;
     let ctx = context_sem_posicao();
     let result = create_document_instance(&ctx, sample_request(), Utc::now());
-    assert!(matches!(result, Err(RuntimeError::DocumentError(_))));
+    assert!(matches!(result, Err(RuntimeError::MissingPosition)));
 }
 
 #[test]

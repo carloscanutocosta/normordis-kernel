@@ -20,8 +20,6 @@ pub enum DocumentalError {
     NumberAlreadyAssigned,
     #[error("número inválido: campo vazio")]
     EmptyDocumentNumber,
-    #[error("contexto de autoridade em falta")]
-    MissingAuthorityContext,
     #[error("template activo já existe para este tipo: {0}")]
     ActiveTemplateExists(String),
     #[error("template imutável após activação")]
@@ -42,4 +40,6 @@ pub enum DocumentalError {
     OperationFailed(String),
     #[error("pacote documental inválido: {0}")]
     InvalidPackage(String),
+    #[error("anexo demasiado grande: {size_bytes} bytes (máximo: {max_bytes})")]
+    AttachmentTooLarge { size_bytes: usize, max_bytes: usize },
 }

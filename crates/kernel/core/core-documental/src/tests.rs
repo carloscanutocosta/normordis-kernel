@@ -10,8 +10,8 @@ use crate::{
     attachment::{AttachmentId, AttachmentKind, DocumentAttachment},
     authority::AuthoritySnapshot,
     custody::{
-        DocumentContent, DocumentCustody, DocumentId, DocumentOrigin, DocumentStatus,
-        DocumentTypeCode, EntryChannel, IntakeSpec, RetentionClass, RetentionPolicy,
+        AuthoritySource, DocumentContent, DocumentCustody, DocumentId, DocumentOrigin,
+        DocumentStatus, DocumentTypeCode, EntryChannel, IntakeSpec, RetentionClass, RetentionPolicy,
         ValidationCode,
     },
     error::DocumentalError,
@@ -21,14 +21,7 @@ use crate::{
     package::{
         validate_document_package, Artefact, DocumentPackage, EngineRef, HashResult, TemplateRef,
     },
-    service::authority_from_user_context,
     template::{DocumentTemplate, TemplateId, TemplateStatus},
-};
-
-use core_rh::{
-    identity::{resolve_current_user, UserContext, UserIdentity},
-    org::OrgPositionRef,
-    UserRole,
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -54,7 +47,7 @@ fn sample_custody() -> DocumentCustody {
         template_version: Some("v1".into()),
         origin: DocumentOrigin::Normordis,
         entry_channel: EntryChannel::new("core-ingest/normordis").unwrap(),
-        authority: sample_authority(),
+        authority: AuthoritySource::User(sample_authority()),
         content: Some(DocumentContent::new(r#"{"assunto":"Teste"}"#).unwrap()),
         status: DocumentStatus::Active,
         retention_policy: RetentionPolicy::permanent(),
@@ -111,6 +104,7 @@ fn sample_package() -> DocumentPackage {
 }
 
 fn make_event(id: &str, prev: Option<&str>) -> DocumentEvent {
+    use chrono::TimeZone;
     DocumentEvent {
         id: DocumentEventId::new(id).unwrap(),
         document_id: DocumentId::new("doc-001").unwrap(),
@@ -119,7 +113,7 @@ fn make_event(id: &str, prev: Option<&str>) -> DocumentEvent {
             user_id: "user-1".into(),
             position_id: "pos-1".into(),
         },
-        occurred_at: Utc::now(),
+        occurred_at: Utc.with_ymd_and_hms(2026, 1, 1, 0, 0, 0).unwrap(),
         previous_hash: prev.map(str::to_string),
         data_json: None,
     }
@@ -349,7 +343,7 @@ fn custody_accept_factory_constroi_active() {
         validation_code: ValidationCode::new("NORD-K7P9-4Q2M-8X").unwrap(),
         origin: DocumentOrigin::Normordis,
         entry_channel: EntryChannel::new("ingest").unwrap(),
-        authority: sample_authority(),
+        authority: AuthoritySource::User(sample_authority()),
         content: None,
         template_id: None,
         template_version: None,
@@ -371,7 +365,7 @@ fn custody_accept_factory_rejeita_validation_code_invalido() {
         validation_code: ValidationCode("INVALIDO".into()), // bypass new() propositadamente
         origin: DocumentOrigin::Normordis,
         entry_channel: EntryChannel::new("ingest").unwrap(),
-        authority: sample_authority(),
+        authority: AuthoritySource::User(sample_authority()),
         content: None,
         template_id: None,
         template_version: None,
@@ -846,60 +840,6 @@ fn attachment_storage_filename_e_content_hash() {
         stored_by: sample_authority(),
     };
     assert_eq!(att.storage_filename(), "sha256:deadbeef");
-}
-
-// ── AuthoritySnapshot::from_user_context ─────────────────────────────────────
-
-fn sample_identity() -> UserIdentity {
-    UserIdentity {
-        user_id: "joao.silva".into(),
-        username: "joao.silva".into(),
-        display_name: "João Silva".into(),
-        email: None,
-        role: UserRole::Utilizador,
-    }
-}
-
-fn context_with_position() -> UserContext {
-    let pos = OrgPositionRef::new("pos-001", "unit-001", "comp-001", None).unwrap();
-    resolve_current_user(sample_identity())
-        .unwrap()
-        .with_position(pos)
-}
-
-fn context_without_position() -> UserContext {
-    resolve_current_user(sample_identity()).unwrap()
-}
-
-#[test]
-fn authority_from_user_context_com_posicao_ok() {
-    let ctx = context_with_position();
-    let snap = authority_from_user_context(&ctx, Utc::now()).unwrap();
-    assert_eq!(snap.user_id, "joao.silva");
-    assert_eq!(snap.position_id, "pos-001");
-    assert_eq!(snap.unit_id, "unit-001");
-    assert_eq!(snap.competency_id, "comp-001");
-    assert!(snap.delegation_id.is_none());
-}
-
-#[test]
-fn authority_from_user_context_sem_posicao_rejeita() {
-    let ctx = context_without_position();
-    assert!(matches!(
-        authority_from_user_context(&ctx, Utc::now()),
-        Err(DocumentalError::MissingAuthorityContext)
-    ));
-}
-
-#[test]
-fn authority_from_user_context_com_delegacao_ok() {
-    let pos =
-        OrgPositionRef::new("pos-001", "unit-001", "comp-001", Some("del-001".into())).unwrap();
-    let ctx = resolve_current_user(sample_identity())
-        .unwrap()
-        .with_position(pos);
-    let snap = authority_from_user_context(&ctx, Utc::now()).unwrap();
-    assert_eq!(snap.delegation_id.as_deref(), Some("del-001"));
 }
 
 // ── AuthoritySnapshot campos são primitivos ───────────────────────────────────

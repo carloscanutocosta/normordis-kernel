@@ -29,9 +29,9 @@ pub use authority::AuthoritySnapshot;
 
 // ── custody ───────────────────────────────────────────────────────────────────
 pub use custody::{
-    DocumentContent, DocumentCustody, DocumentId, DocumentOrigin, DocumentRelation, DocumentStatus,
-    DocumentTypeCode, EntryChannel, IntakeSpec, RelationType, RetentionClass, RetentionPolicy,
-    ValidationCode,
+    AuthoritySource, DocumentContent, DocumentCustody, DocumentId, DocumentOrigin,
+    DocumentRelation, DocumentStatus, DocumentTypeCode, EntryChannel, IntakeSpec, RelationType,
+    RetentionClass, RetentionPolicy, ValidationCode,
 };
 
 // ── error ─────────────────────────────────────────────────────────────────────
@@ -51,10 +51,11 @@ pub use package::{
 // ── ports ─────────────────────────────────────────────────────────────────────
 pub use ports::{
     AttachmentStore, DocumentCustodyRepository, DocumentEventLog, NdfArchive, TemplateRepository,
+    MAX_ATTACHMENT_BYTES,
 };
 
 // ── service ───────────────────────────────────────────────────────────────────
-pub use service::{authority_from_user_context, DocumentCustodyService};
+pub use service::DocumentCustodyService;
 
 // ── template ──────────────────────────────────────────────────────────────────
 pub use template::{DocumentTemplate, TemplateId, TemplateStatus};

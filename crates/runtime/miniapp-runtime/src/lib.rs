@@ -7,9 +7,9 @@
 use chrono::{DateTime, Utc};
 use core_audit::{AuditActor, AuditEvent, AuditOutcome, AuditStore, AuditTarget};
 use core_documental::{
-    authority_from_user_context, DocumentContent, DocumentCustody, DocumentEvent, DocumentEventId,
-    DocumentEventType, DocumentId, DocumentOrigin, DocumentTypeCode, EntryChannel, EventActor,
-    IntakeSpec, RetentionPolicy, TemplateId, ValidationCode,
+    AuthoritySnapshot, AuthoritySource, DocumentContent, DocumentCustody, DocumentEvent,
+    DocumentEventId, DocumentEventType, DocumentId, DocumentOrigin, DocumentTypeCode, EntryChannel,
+    EventActor, IntakeSpec, RetentionPolicy, TemplateId, ValidationCode,
 };
 use core_org::OrgUnit;
 use core_rh::{AuthorMetadata, UserContext};
@@ -60,6 +60,28 @@ impl MiniAppContext {
     }
 }
 
+/// ACL: constrói `AuthoritySnapshot` a partir do `UserContext` de core-rh.
+///
+/// Pertence à camada de aplicação (miniapp-runtime) — não ao domínio.
+/// Falha com `MissingPosition` se o utilizador não tiver posição orgânica activa.
+fn authority_from_user_context(
+    ctx: &UserContext,
+    captured_at: DateTime<Utc>,
+) -> Result<AuthoritySnapshot, RuntimeError> {
+    let pos = ctx
+        .org_position
+        .as_ref()
+        .ok_or(RuntimeError::MissingPosition)?;
+    Ok(AuthoritySnapshot {
+        user_id: ctx.current_user.user_id.clone(),
+        position_id: pos.position_id.clone(),
+        unit_id: pos.unit_id.clone(),
+        competency_id: pos.competency_id.clone(),
+        delegation_id: pos.delegation_id.clone(),
+        captured_at,
+    })
+}
+
 /// Constrói um novo `DocumentCustody` via factory `accept()`.
 ///
 /// Gera automaticamente um `ValidationCode` e assume origem `Normordis`.
@@ -86,8 +108,7 @@ pub fn create_document_instance(
         .map_err(|e| RuntimeError::DocumentError(e.to_string()))?;
     let entry_channel = EntryChannel::new(request.entry_channel)
         .map_err(|e| RuntimeError::DocumentError(e.to_string()))?;
-    let authority = authority_from_user_context(&context.user_context, now)
-        .map_err(|e| RuntimeError::DocumentError(e.to_string()))?;
+    let authority = AuthoritySource::User(authority_from_user_context(&context.user_context, now)?);
 
     let spec = IntakeSpec {
         id,

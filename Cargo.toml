@@ -8,6 +8,7 @@ members = [
   "crates/kernel/core/core-rh",
   "crates/kernel/core/core-org",
   "crates/kernel/core/core-security",
+  "crates/kernel/core/core-doc-types",
   "crates/kernel/core/core-documental",
   "crates/kernel/core/core-exports",
   "crates/kernel/core/core-ingest",

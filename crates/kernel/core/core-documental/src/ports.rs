@@ -151,6 +151,13 @@ pub trait DocumentEventLog {
     ) -> Result<Vec<DocumentEvent>, DocumentalError>;
 }
 
+/// Tamanho máximo de um anexo em bytes (50 MiB).
+///
+/// Adapters DEVEM rejeitar chamadas a `store` que excedam este limite com
+/// `DocumentalError::AttachmentTooLarge`. O limite está no domínio para garantir
+/// consistência independentemente do adapter usado.
+pub const MAX_ATTACHMENT_BYTES: usize = 50 * 1024 * 1024;
+
 /// Guarda de documentos binários — anexos e documentos entrados.
 ///
 /// O conteúdo é endereçado pelo hash SHA-256 (content_hash = nome do ficheiro).
@@ -169,4 +176,35 @@ pub trait AttachmentStore {
         document_id: &DocumentId,
     ) -> Result<Vec<DocumentAttachment>, DocumentalError>;
     fn delete_if_unreferenced(&self, id: &AttachmentId) -> Result<bool, DocumentalError>;
+
+    /// Lê o ficheiro em `path` e delega para `store`.
+    ///
+    /// Método de conveniência — evita que cada chamador gerencie leitura de ficheiro.
+    /// Falha com `AttachmentTooLarge` se o ficheiro exceder `MAX_ATTACHMENT_BYTES`
+    /// (verificação antecipada, antes de carregar tudo em memória).
+    fn store_from_path(
+        &self,
+        attachment: &DocumentAttachment,
+        path: &std::path::Path,
+    ) -> Result<(), DocumentalError> {
+        use std::io::Read;
+        let metadata = std::fs::metadata(path).map_err(|e| {
+            DocumentalError::OperationFailed(format!("erro ao ler metadados do ficheiro: {e}"))
+        })?;
+        let size = metadata.len() as usize;
+        if size > MAX_ATTACHMENT_BYTES {
+            return Err(DocumentalError::AttachmentTooLarge {
+                size_bytes: size,
+                max_bytes: MAX_ATTACHMENT_BYTES,
+            });
+        }
+        let mut file = std::fs::File::open(path).map_err(|e| {
+            DocumentalError::OperationFailed(format!("erro ao abrir ficheiro: {e}"))
+        })?;
+        let mut content = Vec::with_capacity(size);
+        file.read_to_end(&mut content).map_err(|e| {
+            DocumentalError::OperationFailed(format!("erro ao ler ficheiro: {e}"))
+        })?;
+        self.store(attachment, &content)
+    }
 }

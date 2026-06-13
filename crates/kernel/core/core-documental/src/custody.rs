@@ -207,10 +207,22 @@ impl RetentionPolicy {
         }
     }
 
-    /// Cria política temporária com `expires_at = custodied_at + years`.
+    /// Cria política temporária com `expires_at = custodied_at + years` (calendário real).
+    ///
+    /// Usa aritmética de datas exacta (lida com anos bissextos).
+    /// Em caso de data inválida resultante (improvável), recua para 366 dias × years.
     pub fn temporary(years: u32, custodied_at: DateTime<Utc>) -> Self {
-        use chrono::Duration;
-        let expires_at = custodied_at + Duration::days(years as i64 * 365);
+        use chrono::{Datelike, Duration, NaiveDate};
+        let base = custodied_at.date_naive();
+        let expires_date = NaiveDate::from_ymd_opt(
+            base.year() + years as i32,
+            base.month(),
+            base.day(),
+        )
+        .unwrap_or_else(|| base + Duration::days(years as i64 * 366));
+        let expires_at = expires_date
+            .and_time(custodied_at.time())
+            .and_utc();
         Self {
             class: RetentionClass::Temporary { years },
             expires_at: Some(expires_at),
@@ -477,6 +489,43 @@ impl DocumentRelation {
     }
 }
 
+// ── AuthoritySource ───────────────────────────────────────────────────────────
+
+/// Proveniência da autoridade que aceitou o documento em custódia.
+///
+/// `User` — intake manual por utilizador com posição orgânica activa.
+/// `System` — intake automatizado (lotes, migrações, integrações) onde não existe
+/// posição orgânica, mas a identidade e a justificação ficam registadas.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case", tag = "kind")]
+pub enum AuthoritySource {
+    /// Utilizador humano com snapshot de autoridade orgânica.
+    User(AuthoritySnapshot),
+    /// Processo de sistema — sem posição orgânica; justificação obrigatória.
+    System {
+        system_id: String,
+        justification: String,
+    },
+}
+
+impl AuthoritySource {
+    /// Devolve o snapshot se a autoridade for do tipo `User`.
+    pub fn as_user(&self) -> Option<&AuthoritySnapshot> {
+        match self {
+            Self::User(s) => Some(s),
+            Self::System { .. } => None,
+        }
+    }
+
+    /// Identificador do actor — user_id para utilizadores, system_id para sistema.
+    pub fn actor_id(&self) -> &str {
+        match self {
+            Self::User(s) => &s.user_id,
+            Self::System { system_id, .. } => system_id,
+        }
+    }
+}
+
 // ── IntakeSpec ────────────────────────────────────────────────────────────────
 
 /// Especificação de intake — todos os parâmetros necessários para aceitar um documento em custódia.
@@ -490,7 +539,7 @@ pub struct IntakeSpec {
     pub validation_code: ValidationCode,
     pub origin: DocumentOrigin,
     pub entry_channel: EntryChannel,
-    pub authority: AuthoritySnapshot,
+    pub authority: AuthoritySource,
     pub content: Option<DocumentContent>,
     pub template_id: Option<TemplateId>,
     pub template_version: Option<String>,
@@ -518,8 +567,8 @@ pub struct DocumentCustody {
     pub template_version: Option<String>,
     pub origin: DocumentOrigin,
     pub entry_channel: EntryChannel,
-    /// Snapshot de autoridade de quem aceitou a custódia — imutável.
-    pub authority: AuthoritySnapshot,
+    /// Autoridade que aceitou a custódia — imutável após intake.
+    pub authority: AuthoritySource,
     /// Conteúdo estruturado imutável em JSON opaco.
     pub content: Option<DocumentContent>,
     pub status: DocumentStatus,
@@ -535,6 +584,14 @@ impl DocumentCustody {
     /// Usar sempre este método para novos documentos. Struct literal directo só deve
     /// ser usado por adapters ao reconstituir documentos a partir da base de dados.
     pub fn accept(spec: IntakeSpec) -> Result<Self, DocumentalError> {
+        if let AuthoritySource::System { system_id, justification } = &spec.authority {
+            if system_id.trim().is_empty() {
+                return Err(DocumentalError::EmptyField("authority.system_id".into()));
+            }
+            if justification.trim().is_empty() {
+                return Err(DocumentalError::EmptyField("authority.justification".into()));
+            }
+        }
         let doc = Self {
             id: spec.id,
             document_type: spec.document_type,

@@ -19,37 +19,10 @@ use serde_json::json;
 
 use crate::{
     ports::{DocumentCustodyRepository, DocumentEventLog},
-    AccessPurpose, AuthoritySnapshot, DocumentCustody, DocumentEvent, DocumentEventId,
-    DocumentEventType, DocumentId, DocumentRelation, DocumentStatus, DocumentalError, EventActor,
-    RelationType,
+    AccessPurpose, AuthoritySnapshot, AuthoritySource, DocumentCustody, DocumentEvent,
+    DocumentEventId, DocumentEventType, DocumentId, DocumentRelation, DocumentStatus,
+    DocumentalError, EventActor, RelationType,
 };
-
-// ── ACL — fronteira com core-rh ───────────────────────────────────────────────
-
-/// ACL: constrói `AuthoritySnapshot` a partir do `UserContext` de core-rh.
-///
-/// Única função no bounded context que cruza a fronteira para core-rh.
-/// O resultado é um valor puro de core-documental — sem tipos externos.
-///
-/// Falha com `MissingAuthorityContext` se o utilizador não tiver posição activa.
-pub fn authority_from_user_context(
-    ctx: &core_rh::UserContext,
-    captured_at: DateTime<Utc>,
-) -> Result<AuthoritySnapshot, DocumentalError> {
-    let pos = ctx
-        .org_position
-        .as_ref()
-        .ok_or(DocumentalError::MissingAuthorityContext)?;
-
-    Ok(AuthoritySnapshot {
-        user_id: ctx.current_user.user_id.clone(),
-        position_id: pos.position_id.clone(),
-        unit_id: pos.unit_id.clone(),
-        competency_id: pos.competency_id.clone(),
-        delegation_id: pos.delegation_id.clone(),
-        captured_at,
-    })
-}
 
 /// Serviço de aplicação para custódia documental.
 ///
@@ -89,11 +62,18 @@ where
         occurred_at: DateTime<Utc>,
     ) -> Result<(), DocumentalError> {
         doc.validate()?;
+        let actor = match &doc.authority {
+            AuthoritySource::User(snapshot) => EventActor::Authority(snapshot.clone()),
+            AuthoritySource::System { system_id, justification } => EventActor::Operator {
+                user_id: system_id.clone(),
+                position_id: justification.clone(),
+            },
+        };
         let event = DocumentEvent {
             id: event_id,
             document_id: doc.id.clone(),
             event_type: DocumentEventType::CustodyAccepted,
-            actor: EventActor::Authority(doc.authority.clone()),
+            actor,
             occurred_at,
             previous_hash: None,
             data_json: Some(json!({

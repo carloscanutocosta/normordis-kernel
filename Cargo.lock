@@ -784,11 +784,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "core-doc-types"
+version = "0.3.0"
+dependencies = [
+ "chrono",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "core-documental"
 version = "0.3.0"
 dependencies = [
  "chrono",
- "core-rh",
+ "core-doc-types",
  "rand 0.8.6",
  "serde",
  "serde_json",

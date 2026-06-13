@@ -13,6 +13,7 @@ thiserror.workspace = true
 chrono.workspace = true
 rand.workspace = true
 
-core-rh = { path = "../core-rh" }
+core-doc-types = { path = "../core-doc-types" }
+
 [lints]
 workspace = true

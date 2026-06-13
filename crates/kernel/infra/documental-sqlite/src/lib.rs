@@ -34,7 +34,8 @@ use support_errors::MiniError;
 use thiserror::Error;
 
 use core_documental::{
-    AttachmentId, AttachmentKind, AttachmentStore, AuthoritySnapshot, DocumentAttachment,
+    AttachmentId, AttachmentKind, AttachmentStore, AuthoritySnapshot, AuthoritySource,
+    DocumentAttachment,
     DocumentCustody, DocumentCustodyRepository, DocumentEvent, DocumentEventId, DocumentEventLog,
     DocumentEventType, DocumentId, DocumentOrigin, DocumentRelation, DocumentStatus,
     DocumentTemplate, DocumentTypeCode, DocumentalError, EntryChannel, EventActor, EventFilter,
@@ -341,7 +342,7 @@ struct RawCustodyRow {
 }
 
 fn raw_to_custody(r: RawCustodyRow) -> Result<DocumentCustody, DocumentalError> {
-    let authority: AuthoritySnapshot = serde_json::from_str(&r.authority_json).map_err(json_err)?;
+    let authority: AuthoritySource = serde_json::from_str(&r.authority_json).map_err(json_err)?;
     let content = r
         .content
         .map(core_documental::DocumentContent::new)
@@ -1186,6 +1187,12 @@ impl AttachmentStore for DocumentalSqliteStore {
         content: &[u8],
     ) -> Result<(), DocumentalError> {
         attachment.validate()?;
+        if content.len() > core_documental::ports::MAX_ATTACHMENT_BYTES {
+            return Err(DocumentalError::AttachmentTooLarge {
+                size_bytes: content.len(),
+                max_bytes: core_documental::ports::MAX_ATTACHMENT_BYTES,
+            });
+        }
         let computed = format!("sha256:{}", sha256_hex(content));
         if computed != attachment.content_hash {
             return Err(DocumentalError::ContentHashMismatch);
@@ -1425,7 +1432,7 @@ mod tests {
             template_version: None,
             origin: DocumentOrigin::Normordis,
             entry_channel: EntryChannel::new("ingest").unwrap(),
-            authority: sample_authority(),
+            authority: AuthoritySource::User(sample_authority()),
             content: Some(DocumentContent::new(r#"{"assunto":"Teste"}"#).unwrap()),
             status: DocumentStatus::Active,
             retention_policy: RetentionPolicy::permanent(),
