@@ -64,9 +64,9 @@ where
         doc.validate()?;
         let actor = match &doc.authority {
             AuthoritySource::User(snapshot) => EventActor::Authority(snapshot.clone()),
-            AuthoritySource::System { system_id, justification } => EventActor::Operator {
-                user_id: system_id.clone(),
-                position_id: justification.clone(),
+            AuthoritySource::System { system_id, justification } => EventActor::System {
+                system_id: system_id.clone(),
+                justification: justification.clone(),
             },
         };
         let event = DocumentEvent {

@@ -159,6 +159,8 @@ impl DocumentContent {
         if text.trim().is_empty() {
             return Err(DocumentalError::EmptyField("content".into()));
         }
+        serde_json::from_str::<serde_json::Value>(&text)
+            .map_err(|e| DocumentalError::InvalidContent(e.to_string()))?;
         Ok(Self(text))
     }
 
@@ -620,6 +622,14 @@ impl DocumentCustody {
         self.validation_code.validate()?;
         if self.entry_channel.0.trim().is_empty() {
             return Err(DocumentalError::EmptyField("entry_channel".into()));
+        }
+        if let AuthoritySource::System { system_id, justification } = &self.authority {
+            if system_id.trim().is_empty() {
+                return Err(DocumentalError::EmptyField("authority.system_id".into()));
+            }
+            if justification.trim().is_empty() {
+                return Err(DocumentalError::EmptyField("authority.justification".into()));
+            }
         }
         Ok(())
     }

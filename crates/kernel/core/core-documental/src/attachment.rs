@@ -3,7 +3,7 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
-use crate::{AuthoritySnapshot, DocumentId, DocumentalError};
+use crate::{AuthoritySource, DocumentId, DocumentalError};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(transparent)]
@@ -64,7 +64,7 @@ impl TryFrom<&str> for AttachmentKind {
 /// O conteúdo é endereçado pelo hash SHA-256 (`content_hash`), que é também
 /// o nome do ficheiro em armazenamento. Garante deduplicação implícita e
 /// imutabilidade: o mesmo conteúdo tem sempre o mesmo identificador.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct DocumentAttachment {
     pub id: AttachmentId,
     pub document_id: DocumentId,
@@ -75,7 +75,8 @@ pub struct DocumentAttachment {
     pub size_bytes: u64,
     pub description: Option<String>,
     pub stored_at: DateTime<Utc>,
-    pub stored_by: AuthoritySnapshot,
+    /// Quem armazenou o anexo — utilizador humano ou processo de sistema.
+    pub stored_by: AuthoritySource,
 }
 
 impl DocumentAttachment {

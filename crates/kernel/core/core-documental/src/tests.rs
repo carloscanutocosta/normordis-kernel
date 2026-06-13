@@ -189,6 +189,26 @@ fn document_content_rejeita_vazio() {
     ));
 }
 
+#[test]
+fn document_content_rejeita_json_invalido() {
+    assert!(matches!(
+        DocumentContent::new("não sou json"),
+        Err(DocumentalError::InvalidContent(_))
+    ));
+    assert!(matches!(
+        DocumentContent::new("{chave sem aspas}"),
+        Err(DocumentalError::InvalidContent(_))
+    ));
+}
+
+#[test]
+fn document_content_aceita_json_primitivo() {
+    assert!(DocumentContent::new("42").is_ok());
+    assert!(DocumentContent::new("true").is_ok());
+    assert!(DocumentContent::new(r#""texto""#).is_ok());
+    assert!(DocumentContent::new("[]").is_ok());
+}
+
 // ── ValidationCode ────────────────────────────────────────────────────────────
 
 #[test]
@@ -794,7 +814,7 @@ fn ndf_verify_integrity_ok() {
         ndf_hash: "sha256:xyz".into(),
         template_hash: "sha256:tpl".into(),
         rendered_at: Utc::now(),
-        rendered_by: sample_authority(),
+        rendered_by: AuthoritySource::User(sample_authority()),
     };
     assert!(rec.verify_integrity("sha256:xyz").is_ok());
     assert!(matches!(
@@ -817,7 +837,7 @@ fn attachment_validate_size_zero_rejeita() {
         size_bytes: 0,
         description: None,
         stored_at: Utc::now(),
-        stored_by: sample_authority(),
+        stored_by: AuthoritySource::User(sample_authority()),
     };
     assert!(matches!(
         att.validate(),
@@ -837,7 +857,7 @@ fn attachment_storage_filename_e_content_hash() {
         size_bytes: 512,
         description: None,
         stored_at: Utc::now(),
-        stored_by: sample_authority(),
+        stored_by: AuthoritySource::User(sample_authority()),
     };
     assert_eq!(att.storage_filename(), "sha256:deadbeef");
 }
@@ -876,4 +896,89 @@ fn event_actor_operator_usa_strings() {
 fn event_actor_authority_usa_authority_snapshot() {
     let actor = EventActor::Authority(sample_authority());
     assert!(matches!(actor, EventActor::Authority(_)));
+}
+
+#[test]
+fn event_actor_system_usa_strings() {
+    let actor = EventActor::System {
+        system_id: "ingest-batch".into(),
+        justification: "migração lote 2026-01".into(),
+    };
+    if let EventActor::System { system_id, justification } = actor {
+        assert_eq!(system_id, "ingest-batch");
+        assert_eq!(justification, "migração lote 2026-01");
+    } else {
+        panic!("variant errado");
+    }
+}
+
+// ── DocumentCustody::validate — invariantes de authority ─────────────────────
+
+#[test]
+fn custody_validate_system_authority_com_campos_preenchidos_ok() {
+    let mut doc = sample_custody();
+    doc.authority = AuthoritySource::System {
+        system_id: "ingest-svc".into(),
+        justification: "importação automática".into(),
+    };
+    assert!(doc.validate().is_ok());
+}
+
+#[test]
+fn custody_validate_system_authority_rejeita_system_id_vazio() {
+    let mut doc = sample_custody();
+    doc.authority = AuthoritySource::System {
+        system_id: "  ".into(),
+        justification: "importação automática".into(),
+    };
+    assert!(matches!(doc.validate(), Err(DocumentalError::EmptyField(_))));
+}
+
+#[test]
+fn custody_validate_system_authority_rejeita_justification_vazia() {
+    let mut doc = sample_custody();
+    doc.authority = AuthoritySource::System {
+        system_id: "ingest-svc".into(),
+        justification: String::new(),
+    };
+    assert!(matches!(doc.validate(), Err(DocumentalError::EmptyField(_))));
+}
+
+// ── AuthoritySource em stored_by / rendered_by ────────────────────────────────
+
+#[test]
+fn authority_source_system_valido_em_stored_by() {
+    let att = DocumentAttachment {
+        id: AttachmentId::new("att-sys-001").unwrap(),
+        document_id: DocumentId::new("doc-001").unwrap(),
+        kind: AttachmentKind::Incoming,
+        original_filename: "lote.pdf".into(),
+        content_type: "application/pdf".into(),
+        content_hash: "sha256:abc".into(),
+        size_bytes: 1024,
+        description: None,
+        stored_at: Utc::now(),
+        stored_by: AuthoritySource::System {
+            system_id: "scanner-batch".into(),
+            justification: "lote de digitalização nocturna".into(),
+        },
+    };
+    assert!(att.validate().is_ok());
+}
+
+#[test]
+fn authority_source_system_valido_em_rendered_by() {
+    let rec = NdfRecord {
+        id: NdfRecordId::new("ndf-sys-001").unwrap(),
+        document_id: DocumentId::new("doc-001").unwrap(),
+        ndf_json: r#"{"doc":"ndf"}"#.into(),
+        ndf_hash: "sha256:xyz".into(),
+        template_hash: "sha256:tpl".into(),
+        rendered_at: Utc::now(),
+        rendered_by: AuthoritySource::System {
+            system_id: "render-typst".into(),
+            justification: "renderização automática por pipeline".into(),
+        },
+    };
+    assert!(rec.verify_integrity("sha256:xyz").is_ok());
 }

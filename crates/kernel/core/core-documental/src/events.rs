@@ -148,19 +148,26 @@ impl TryFrom<&str> for DocumentEventType {
 /// Actor de um evento documental.
 ///
 /// Todos os campos são primitivos — não há dependência de tipos de outros
-/// bounded contexts. `Operator` é para processos de sistema; `Authority` é
-/// obrigatório em actos com relevância jurídica formal.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+/// bounded contexts.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case", tag = "kind")]
 pub enum EventActor {
-    /// Actor operacional — processo de sistema sem autoridade jurídica formal.
-    /// `user_id` e `position_id` são identificadores em formato primitivo.
+    /// Actor operacional humano sem snapshot de autoridade jurídica completo.
+    /// Usado em operações de runtime (ex: acesso, numeração) onde position_id
+    /// é suficiente mas o snapshot completo não está disponível.
     Operator {
         user_id: String,
         position_id: String,
     },
-    /// Actor com snapshot de autoridade jurídica — obrigatório para actos formais.
+    /// Actor com snapshot completo de autoridade jurídica orgânica.
+    /// Obrigatório em actos com relevância legal formal (intake, arquivo, revogação).
     Authority(AuthoritySnapshot),
+    /// Processo de sistema autónomo — sem posição orgânica humana.
+    /// `justification` é obrigatória e auditável; identifica o motivo do acto.
+    System {
+        system_id: String,
+        justification: String,
+    },
 }
 
 // ── EventFilter ───────────────────────────────────────────────────────────────

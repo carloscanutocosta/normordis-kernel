@@ -1106,7 +1106,7 @@ impl NdfArchive for DocumentalSqliteStore {
         .map_err(db_err)?
         .map(
             |(id, doc_id, ndf_json, ndf_hash, tpl_hash, rendered_at, by_json)| {
-                let rendered_by: AuthoritySnapshot =
+                let rendered_by: AuthoritySource =
                     serde_json::from_str(&by_json).map_err(json_err)?;
                 Ok(NdfRecord {
                     id: NdfRecordId::new(id)?,
@@ -1149,7 +1149,7 @@ impl NdfArchive for DocumentalSqliteStore {
         for row in rows {
             let (id, doc_id, ndf_json, ndf_hash, tpl_hash, rendered_at, by_json) =
                 row.map_err(db_err)?;
-            let rendered_by: AuthoritySnapshot =
+            let rendered_by: AuthoritySource =
                 serde_json::from_str(&by_json).map_err(json_err)?;
             records.push(NdfRecord {
                 id: NdfRecordId::new(id)?,
@@ -1277,7 +1277,7 @@ impl AttachmentStore for DocumentalSqliteStore {
         .map_err(db_err)?
         .map(
             |(att_id, doc_id, hash, kind, fname, ctype, desc, stored_at, by_json)| {
-                let stored_by: AuthoritySnapshot =
+                let stored_by: AuthoritySource =
                     serde_json::from_str(&by_json).map_err(json_err)?;
                 let kind = AttachmentKind::from_str(&kind).ok_or_else(|| {
                     DocumentalError::OperationFailed(format!("kind desconhecido: {kind}"))
@@ -1341,7 +1341,7 @@ impl AttachmentStore for DocumentalSqliteStore {
         for row in rows {
             let (att_id, doc_id, hash, kind_str, fname, ctype, desc, stored_at, by_json, size) =
                 row.map_err(db_err)?;
-            let stored_by: AuthoritySnapshot = serde_json::from_str(&by_json).map_err(json_err)?;
+            let stored_by: AuthoritySource = serde_json::from_str(&by_json).map_err(json_err)?;
             let kind = AttachmentKind::from_str(&kind_str).ok_or_else(|| {
                 DocumentalError::OperationFailed(format!("kind desconhecido: {kind_str}"))
             })?;
@@ -1742,7 +1742,7 @@ mod tests {
             ndf_hash: "sha256:abc".into(),
             template_hash: "sha256:tpl".into(),
             rendered_at: Utc::now(),
-            rendered_by: sample_authority(),
+            rendered_by: AuthoritySource::User(sample_authority()),
         };
         store.write_once(&rec).unwrap();
 
@@ -1772,7 +1772,7 @@ mod tests {
             size_bytes: content.len() as u64,
             description: None,
             stored_at: Utc::now(),
-            stored_by: sample_authority(),
+            stored_by: AuthoritySource::User(sample_authority()),
         };
         AttachmentStore::store(&store, &att, content).unwrap();
 
@@ -1798,7 +1798,7 @@ mod tests {
             size_bytes: 5,
             description: None,
             stored_at: Utc::now(),
-            stored_by: sample_authority(),
+            stored_by: AuthoritySource::User(sample_authority()),
         };
         assert!(matches!(
             AttachmentStore::store(&store, &att, b"hello"),

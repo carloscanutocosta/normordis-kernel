@@ -42,4 +42,6 @@ pub enum DocumentalError {
     InvalidPackage(String),
     #[error("anexo demasiado grande: {size_bytes} bytes (máximo: {max_bytes})")]
     AttachmentTooLarge { size_bytes: usize, max_bytes: usize },
+    #[error("conteúdo JSON inválido: {0}")]
+    InvalidContent(String),
 }

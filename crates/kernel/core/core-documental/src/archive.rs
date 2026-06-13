@@ -4,7 +4,7 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
-use crate::{AuthoritySnapshot, DocumentId, DocumentalError};
+use crate::{AuthoritySource, DocumentId, DocumentalError};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(transparent)]
@@ -29,7 +29,7 @@ impl NdfRecordId {
 /// Uma vez escrito, o registo não pode ser modificado. O `ndf_hash` é verificado
 /// para garantir integridade. O `template_hash` permite reconstruir o documento
 /// exactamente como foi emitido, mesmo que o template evolua.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct NdfRecord {
     pub id: NdfRecordId,
     pub document_id: DocumentId,
@@ -37,7 +37,8 @@ pub struct NdfRecord {
     pub ndf_hash: String,
     pub template_hash: String,
     pub rendered_at: DateTime<Utc>,
-    pub rendered_by: AuthoritySnapshot,
+    /// Quem renderizou o NDF — utilizador humano ou serviço de renderização.
+    pub rendered_by: AuthoritySource,
 }
 
 impl NdfRecord {
