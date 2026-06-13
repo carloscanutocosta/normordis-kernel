@@ -33,7 +33,10 @@ pub enum IngestError {
     /// Validação de conteúdo falhou — inclui XXE detection em XML, estrutura inválida
     /// em PDF, ou schema XSD não conforme.
     #[error("validação de conteúdo falhou ({content_type}): {reason}")]
-    ContentValidationFailed { content_type: String, reason: String },
+    ContentValidationFailed {
+        content_type: String,
+        reason: String,
+    },
 
     #[error("falha ao guardar bundle: {0}")]
     StoreFailed(String),

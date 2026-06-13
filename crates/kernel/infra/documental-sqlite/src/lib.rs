@@ -23,7 +23,9 @@
 
 use std::sync::Mutex;
 
-use adapter_sqlite::{open_relational_connection, run_relational_migrations, SqliteRelationalConfig};
+use adapter_sqlite::{
+    open_relational_connection, run_relational_migrations, SqliteRelationalConfig,
+};
 use chrono::{DateTime, Utc};
 use hex::encode as hex_encode;
 use rusqlite::{params, Connection, OptionalExtension};
@@ -36,8 +38,8 @@ use core_documental::{
     DocumentCustody, DocumentCustodyRepository, DocumentEvent, DocumentEventId, DocumentEventLog,
     DocumentEventType, DocumentId, DocumentOrigin, DocumentRelation, DocumentStatus,
     DocumentTemplate, DocumentTypeCode, DocumentalError, EntryChannel, EventActor, EventFilter,
-    NdfArchive, NdfRecord, NdfRecordId, RelationType, RetentionClass, RetentionPolicy,
-    TemplateId, TemplateRepository, TemplateStatus, ValidationCode,
+    NdfArchive, NdfRecord, NdfRecordId, RelationType, RetentionClass, RetentionPolicy, TemplateId,
+    TemplateRepository, TemplateStatus, ValidationCode,
 };
 
 // ── Migrations ────────────────────────────────────────────────────────────────
@@ -190,7 +192,8 @@ pub struct DocumentalSqliteStore {
 
 impl std::fmt::Debug for DocumentalSqliteStore {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("DocumentalSqliteStore").finish_non_exhaustive()
+        f.debug_struct("DocumentalSqliteStore")
+            .finish_non_exhaustive()
     }
 }
 
@@ -198,19 +201,25 @@ impl DocumentalSqliteStore {
     pub fn new(config: SqliteRelationalConfig) -> Result<Self, DocumentalSqliteError> {
         let conn = open_relational_connection(&config)?;
         run_relational_migrations(&conn, DOCUMENTAL_MIGRATIONS)?;
-        Ok(Self { conn: Mutex::new(conn) })
+        Ok(Self {
+            conn: Mutex::new(conn),
+        })
     }
 
     pub fn open(config: &SqliteRelationalConfig) -> Result<Self, DocumentalSqliteError> {
         let conn = open_relational_connection(config)?;
         run_relational_migrations(&conn, DOCUMENTAL_MIGRATIONS)?;
-        Ok(Self { conn: Mutex::new(conn) })
+        Ok(Self {
+            conn: Mutex::new(conn),
+        })
     }
 
     pub fn in_memory() -> Result<Self, DocumentalSqliteError> {
         let conn = Connection::open_in_memory()?;
         run_relational_migrations(&conn, DOCUMENTAL_MIGRATIONS)?;
-        Ok(Self { conn: Mutex::new(conn) })
+        Ok(Self {
+            conn: Mutex::new(conn),
+        })
     }
 }
 
@@ -250,12 +259,19 @@ fn retention_class_to_str(rc: &RetentionClass) -> &'static str {
     rc.as_str()
 }
 
-fn retention_from_row(class: &str, years: Option<i64>, expires_at: Option<&str>) -> RetentionPolicy {
+fn retention_from_row(
+    class: &str,
+    years: Option<i64>,
+    expires_at: Option<&str>,
+) -> RetentionPolicy {
     match class {
         "temporary" => {
             let y = years.unwrap_or(0) as u32;
             let e = expires_at.and_then(|s| str_to_dt(s).ok());
-            RetentionPolicy { class: RetentionClass::Temporary { years: y }, expires_at: e }
+            RetentionPolicy {
+                class: RetentionClass::Temporary { years: y },
+                expires_at: e,
+            }
         }
         _ => RetentionPolicy::permanent(),
     }
@@ -277,8 +293,9 @@ fn relation_type_from_str(s: &str) -> Result<RelationType, DocumentalError> {
 }
 
 fn event_type_from_str(s: &str) -> Result<DocumentEventType, DocumentalError> {
-    DocumentEventType::from_str(s)
-        .ok_or_else(|| DocumentalError::OperationFailed(format!("tipo de evento desconhecido: {s}")))
+    DocumentEventType::from_str(s).ok_or_else(|| {
+        DocumentalError::OperationFailed(format!("tipo de evento desconhecido: {s}"))
+    })
 }
 
 // ── Row mapping ───────────────────────────────────────────────────────────────
@@ -324,16 +341,12 @@ struct RawCustodyRow {
 }
 
 fn raw_to_custody(r: RawCustodyRow) -> Result<DocumentCustody, DocumentalError> {
-    let authority: AuthoritySnapshot =
-        serde_json::from_str(&r.authority_json).map_err(json_err)?;
+    let authority: AuthoritySnapshot = serde_json::from_str(&r.authority_json).map_err(json_err)?;
     let content = r
         .content
         .map(core_documental::DocumentContent::new)
         .transpose()?;
-    let template_id = r
-        .template_id
-        .map(TemplateId::new)
-        .transpose()?;
+    let template_id = r.template_id.map(TemplateId::new).transpose()?;
     let retention = retention_from_row(
         &r.retention_class,
         r.retention_years,
@@ -528,9 +541,7 @@ impl DocumentCustodyRepository for DocumentalSqliteStore {
     ) -> Result<Option<DocumentCustody>, DocumentalError> {
         let conn = self.conn.lock().map_err(lock_err)?;
         conn.query_row(
-            &format!(
-                "SELECT {CUSTODY_COLS} FROM document_custodies WHERE validation_code = ?1"
-            ),
+            &format!("SELECT {CUSTODY_COLS} FROM document_custodies WHERE validation_code = ?1"),
             params![code.as_str()],
             map_custody_row,
         )
@@ -546,9 +557,7 @@ impl DocumentCustodyRepository for DocumentalSqliteStore {
     ) -> Result<Option<DocumentCustody>, DocumentalError> {
         let conn = self.conn.lock().map_err(lock_err)?;
         conn.query_row(
-            &format!(
-                "SELECT {CUSTODY_COLS} FROM document_custodies WHERE document_number = ?1"
-            ),
+            &format!("SELECT {CUSTODY_COLS} FROM document_custodies WHERE document_number = ?1"),
             params![number],
             map_custody_row,
         )
@@ -572,7 +581,10 @@ impl DocumentCustodyRepository for DocumentalSqliteStore {
             ))
             .map_err(db_err)?;
         let rows = stmt
-            .query_map(params![document_type.as_str(), limit as i64, offset as i64], map_custody_row)
+            .query_map(
+                params![document_type.as_str(), limit as i64, offset as i64],
+                map_custody_row,
+            )
             .map_err(db_err)?;
         let mut docs = Vec::new();
         for row in rows {
@@ -595,7 +607,10 @@ impl DocumentCustodyRepository for DocumentalSqliteStore {
             ))
             .map_err(db_err)?;
         let rows = stmt
-            .query_map(params![status.as_str(), limit as i64, offset as i64], map_custody_row)
+            .query_map(
+                params![status.as_str(), limit as i64, offset as i64],
+                map_custody_row,
+            )
             .map_err(db_err)?;
         let mut docs = Vec::new();
         for row in rows {
@@ -901,8 +916,9 @@ struct RawTemplateRow {
 }
 
 fn template_status_from_str(s: &str) -> Result<TemplateStatus, DocumentalError> {
-    TemplateStatus::from_str(s)
-        .ok_or_else(|| DocumentalError::OperationFailed(format!("estado de template desconhecido: {s}")))
+    TemplateStatus::from_str(s).ok_or_else(|| {
+        DocumentalError::OperationFailed(format!("estado de template desconhecido: {s}"))
+    })
 }
 
 fn raw_to_template(r: RawTemplateRow) -> Result<DocumentTemplate, DocumentalError> {
@@ -965,7 +981,9 @@ impl TemplateRepository for DocumentalSqliteStore {
                  WHERE document_type = ?1 ORDER BY created_at DESC"
             ))
             .map_err(db_err)?;
-        let rows = stmt.query_map(params![document_type.as_str()], map_template_row).map_err(db_err)?;
+        let rows = stmt
+            .query_map(params![document_type.as_str()], map_template_row)
+            .map_err(db_err)?;
         let mut templates = Vec::new();
         for row in rows {
             templates.push(raw_to_template(row.map_err(db_err)?)?);
@@ -1045,7 +1063,9 @@ impl NdfArchive for DocumentalSqliteStore {
             .map_err(db_err)?
             .unwrap_or(false);
         if exists {
-            return Err(DocumentalError::NdfRecordAlreadyExists(record.id.as_str().into()));
+            return Err(DocumentalError::NdfRecordAlreadyExists(
+                record.id.as_str().into(),
+            ));
         }
         let rendered_by_json = serde_json::to_string(&record.rendered_by).map_err(json_err)?;
         conn.execute(
@@ -1083,19 +1103,21 @@ impl NdfArchive for DocumentalSqliteStore {
         )
         .optional()
         .map_err(db_err)?
-        .map(|(id, doc_id, ndf_json, ndf_hash, tpl_hash, rendered_at, by_json)| {
-            let rendered_by: AuthoritySnapshot =
-                serde_json::from_str(&by_json).map_err(json_err)?;
-            Ok(NdfRecord {
-                id: NdfRecordId::new(id)?,
-                document_id: DocumentId::new(doc_id)?,
-                ndf_json,
-                ndf_hash,
-                template_hash: tpl_hash,
-                rendered_at: str_to_dt(&rendered_at)?,
-                rendered_by,
-            })
-        })
+        .map(
+            |(id, doc_id, ndf_json, ndf_hash, tpl_hash, rendered_at, by_json)| {
+                let rendered_by: AuthoritySnapshot =
+                    serde_json::from_str(&by_json).map_err(json_err)?;
+                Ok(NdfRecord {
+                    id: NdfRecordId::new(id)?,
+                    document_id: DocumentId::new(doc_id)?,
+                    ndf_json,
+                    ndf_hash,
+                    template_hash: tpl_hash,
+                    rendered_at: str_to_dt(&rendered_at)?,
+                    rendered_by,
+                })
+            },
+        )
         .transpose()
     }
 
@@ -1177,8 +1199,7 @@ impl AttachmentStore for DocumentalSqliteStore {
                 params![attachment.content_hash, content, content.len() as i64],
             )
             .map_err(db_err)?;
-            let stored_by_json =
-                serde_json::to_string(&attachment.stored_by).map_err(json_err)?;
+            let stored_by_json = serde_json::to_string(&attachment.stored_by).map_err(json_err)?;
             conn.execute(
                 "INSERT INTO document_attachments \
                  (attachment_id, document_id, content_hash, kind, original_filename, \
@@ -1221,7 +1242,10 @@ impl AttachmentStore for DocumentalSqliteStore {
         .map_err(db_err)
     }
 
-    fn get_metadata(&self, id: &AttachmentId) -> Result<Option<DocumentAttachment>, DocumentalError> {
+    fn get_metadata(
+        &self,
+        id: &AttachmentId,
+    ) -> Result<Option<DocumentAttachment>, DocumentalError> {
         let conn = self.conn.lock().map_err(lock_err)?;
         conn.query_row(
             "SELECT attachment_id, document_id, content_hash, kind, original_filename, \
@@ -1244,31 +1268,34 @@ impl AttachmentStore for DocumentalSqliteStore {
         )
         .optional()
         .map_err(db_err)?
-        .map(|(att_id, doc_id, hash, kind, fname, ctype, desc, stored_at, by_json)| {
-            let stored_by: AuthoritySnapshot =
-                serde_json::from_str(&by_json).map_err(json_err)?;
-            let kind = AttachmentKind::from_str(&kind)
-                .ok_or_else(|| DocumentalError::OperationFailed(format!("kind desconhecido: {kind}")))?;
-            let size: i64 = conn
-                .query_row(
-                    "SELECT size_bytes FROM attachment_blobs WHERE content_hash = ?1",
-                    params![hash],
-                    |r| r.get(0),
-                )
-                .map_err(db_err)?;
-            Ok(DocumentAttachment {
-                id: AttachmentId::new(att_id)?,
-                document_id: DocumentId::new(doc_id)?,
-                kind,
-                original_filename: fname,
-                content_type: ctype,
-                content_hash: hash,
-                size_bytes: size as u64,
-                description: desc,
-                stored_at: str_to_dt(&stored_at)?,
-                stored_by,
-            })
-        })
+        .map(
+            |(att_id, doc_id, hash, kind, fname, ctype, desc, stored_at, by_json)| {
+                let stored_by: AuthoritySnapshot =
+                    serde_json::from_str(&by_json).map_err(json_err)?;
+                let kind = AttachmentKind::from_str(&kind).ok_or_else(|| {
+                    DocumentalError::OperationFailed(format!("kind desconhecido: {kind}"))
+                })?;
+                let size: i64 = conn
+                    .query_row(
+                        "SELECT size_bytes FROM attachment_blobs WHERE content_hash = ?1",
+                        params![hash],
+                        |r| r.get(0),
+                    )
+                    .map_err(db_err)?;
+                Ok(DocumentAttachment {
+                    id: AttachmentId::new(att_id)?,
+                    document_id: DocumentId::new(doc_id)?,
+                    kind,
+                    original_filename: fname,
+                    content_type: ctype,
+                    content_hash: hash,
+                    size_bytes: size as u64,
+                    description: desc,
+                    stored_at: str_to_dt(&stored_at)?,
+                    stored_by,
+                })
+            },
+        )
         .transpose()
     }
 
@@ -1307,10 +1334,10 @@ impl AttachmentStore for DocumentalSqliteStore {
         for row in rows {
             let (att_id, doc_id, hash, kind_str, fname, ctype, desc, stored_at, by_json, size) =
                 row.map_err(db_err)?;
-            let stored_by: AuthoritySnapshot =
-                serde_json::from_str(&by_json).map_err(json_err)?;
-            let kind = AttachmentKind::from_str(&kind_str)
-                .ok_or_else(|| DocumentalError::OperationFailed(format!("kind desconhecido: {kind_str}")))?;
+            let stored_by: AuthoritySnapshot = serde_json::from_str(&by_json).map_err(json_err)?;
+            let kind = AttachmentKind::from_str(&kind_str).ok_or_else(|| {
+                DocumentalError::OperationFailed(format!("kind desconhecido: {kind_str}"))
+            })?;
             attachments.push(DocumentAttachment {
                 id: AttachmentId::new(att_id)?,
                 document_id: DocumentId::new(doc_id)?,
@@ -1368,12 +1395,13 @@ mod tests {
     use super::*;
     use chrono::Utc;
     use core_documental::{
-        AttachmentStore, DocumentCustodyRepository, DocumentEventLog, NdfArchive, TemplateRepository,
+        AttachmentStore, DocumentCustodyRepository, DocumentEventLog, NdfArchive,
+        TemplateRepository,
     };
     use core_documental::{
         DocumentContent, DocumentEventId, DocumentEventType, DocumentOrigin, DocumentStatus,
         DocumentTypeCode, EntryChannel, EventActor, EventFilter, NdfRecord, NdfRecordId,
-        RetentionPolicy, TemplateStatus, ValidationCode, TemplateId,
+        RetentionPolicy, TemplateId, TemplateStatus, ValidationCode,
     };
 
     fn sample_authority() -> AuthoritySnapshot {
@@ -1406,11 +1434,7 @@ mod tests {
         }
     }
 
-    fn sample_event(
-        event_id: &str,
-        document_id: &str,
-        prev: Option<&str>,
-    ) -> DocumentEvent {
+    fn sample_event(event_id: &str, document_id: &str, prev: Option<&str>) -> DocumentEvent {
         DocumentEvent {
             id: DocumentEventId::new(event_id).unwrap(),
             document_id: DocumentId::new(document_id).unwrap(),
@@ -1446,11 +1470,15 @@ mod tests {
         let ev = sample_event("ev-001", "doc-001", None);
         store.accept(&doc, &ev).unwrap();
 
-        let found = DocumentCustodyRepository::get(&store, &DocumentId::new("doc-001").unwrap()).unwrap().unwrap();
+        let found = DocumentCustodyRepository::get(&store, &DocumentId::new("doc-001").unwrap())
+            .unwrap()
+            .unwrap();
         assert_eq!(found.id.as_str(), "doc-001");
         assert_eq!(found.status, DocumentStatus::Active);
 
-        let events = store.read_chain(&DocumentId::new("doc-001").unwrap()).unwrap();
+        let events = store
+            .read_chain(&DocumentId::new("doc-001").unwrap())
+            .unwrap();
         assert_eq!(events.len(), 1);
         assert_eq!(events[0].id.as_str(), "ev-001");
     }
@@ -1476,14 +1504,13 @@ mod tests {
 
         let ev2 = sample_event("ev-003b", "doc-003", Some("hash-anterior"));
         store
-            .assign_number(
-                &DocumentId::new("doc-003").unwrap(),
-                "2026/001",
-                &ev2,
-            )
+            .assign_number(&DocumentId::new("doc-003").unwrap(), "2026/001", &ev2)
             .unwrap();
 
-        let found = store.lookup_by_document_number("2026/001").unwrap().unwrap();
+        let found = store
+            .lookup_by_document_number("2026/001")
+            .unwrap()
+            .unwrap();
         assert_eq!(found.id.as_str(), "doc-003");
         assert_eq!(found.document_number.as_deref(), Some("2026/001"));
     }
@@ -1511,10 +1538,16 @@ mod tests {
     fn list_by_type_e_status() {
         let store = DocumentalSqliteStore::in_memory().unwrap();
         store
-            .accept(&sample_doc("doc-t1"), &sample_event("ev-t1", "doc-t1", None))
+            .accept(
+                &sample_doc("doc-t1"),
+                &sample_event("ev-t1", "doc-t1", None),
+            )
             .unwrap();
         store
-            .accept(&sample_doc("doc-t2"), &sample_event("ev-t2", "doc-t2", None))
+            .accept(
+                &sample_doc("doc-t2"),
+                &sample_event("ev-t2", "doc-t2", None),
+            )
             .unwrap();
 
         let by_type = store
@@ -1522,7 +1555,9 @@ mod tests {
             .unwrap();
         assert_eq!(by_type.len(), 2);
 
-        let by_status = store.list_by_status(&DocumentStatus::Active, 10, 0).unwrap();
+        let by_status = store
+            .list_by_status(&DocumentStatus::Active, 10, 0)
+            .unwrap();
         assert_eq!(by_status.len(), 2);
 
         let count = store.count_by_status(&DocumentStatus::Active).unwrap();
@@ -1533,7 +1568,9 @@ mod tests {
     fn transition_status_atomico() {
         let store = DocumentalSqliteStore::in_memory().unwrap();
         let doc = sample_doc("doc-005");
-        store.accept(&doc, &sample_event("ev-005", "doc-005", None)).unwrap();
+        store
+            .accept(&doc, &sample_event("ev-005", "doc-005", None))
+            .unwrap();
 
         let ev_arc = sample_event("ev-005b", "doc-005", Some("h"));
         store
@@ -1544,18 +1581,26 @@ mod tests {
             )
             .unwrap();
 
-        let updated = DocumentCustodyRepository::get(&store, &DocumentId::new("doc-005").unwrap()).unwrap().unwrap();
+        let updated = DocumentCustodyRepository::get(&store, &DocumentId::new("doc-005").unwrap())
+            .unwrap()
+            .unwrap();
         assert_eq!(updated.status, DocumentStatus::Archived);
 
-        let events = store.read_chain(&DocumentId::new("doc-005").unwrap()).unwrap();
+        let events = store
+            .read_chain(&DocumentId::new("doc-005").unwrap())
+            .unwrap();
         assert_eq!(events.len(), 2);
     }
 
     #[test]
     fn supersede_atomico() {
         let store = DocumentalSqliteStore::in_memory().unwrap();
-        store.accept(&sample_doc("doc-A"), &sample_event("ev-A", "doc-A", None)).unwrap();
-        store.accept(&sample_doc("doc-B"), &sample_event("ev-B", "doc-B", None)).unwrap();
+        store
+            .accept(&sample_doc("doc-A"), &sample_event("ev-A", "doc-A", None))
+            .unwrap();
+        store
+            .accept(&sample_doc("doc-B"), &sample_event("ev-B", "doc-B", None))
+            .unwrap();
 
         let relation = core_documental::DocumentRelation {
             relation_type: core_documental::RelationType::Supersedes,
@@ -1576,26 +1621,45 @@ mod tests {
             previous_hash: Some("h".into()),
             data_json: None,
         };
-        store.supersede(&DocumentId::new("doc-A").unwrap(), &relation, &ev_status, &ev_rel).unwrap();
+        store
+            .supersede(
+                &DocumentId::new("doc-A").unwrap(),
+                &relation,
+                &ev_status,
+                &ev_rel,
+            )
+            .unwrap();
 
-        let doc_a = DocumentCustodyRepository::get(&store, &DocumentId::new("doc-A").unwrap()).unwrap().unwrap();
+        let doc_a = DocumentCustodyRepository::get(&store, &DocumentId::new("doc-A").unwrap())
+            .unwrap()
+            .unwrap();
         assert_eq!(doc_a.status, DocumentStatus::Superseded);
 
-        let relations = store.list_relations(&DocumentId::new("doc-A").unwrap()).unwrap();
+        let relations = store
+            .list_relations(&DocumentId::new("doc-A").unwrap())
+            .unwrap();
         assert_eq!(relations.len(), 1);
-        assert_eq!(relations[0].relation_type, core_documental::RelationType::Supersedes);
+        assert_eq!(
+            relations[0].relation_type,
+            core_documental::RelationType::Supersedes
+        );
     }
 
     #[test]
     fn event_filter_por_tipo() {
         let store = DocumentalSqliteStore::in_memory().unwrap();
-        store.accept(&sample_doc("doc-f"), &sample_event("ev-f1", "doc-f", None)).unwrap();
+        store
+            .accept(&sample_doc("doc-f"), &sample_event("ev-f1", "doc-f", None))
+            .unwrap();
 
         let ev_status = DocumentEvent {
             id: DocumentEventId::new("ev-f2").unwrap(),
             document_id: DocumentId::new("doc-f").unwrap(),
             event_type: DocumentEventType::StatusChanged,
-            actor: EventActor::Operator { user_id: "u".into(), position_id: "p".into() },
+            actor: EventActor::Operator {
+                user_id: "u".into(),
+                position_id: "p".into(),
+            },
             occurred_at: Utc::now(),
             previous_hash: Some("h".into()),
             data_json: None,
@@ -1606,7 +1670,9 @@ mod tests {
             event_type: Some(DocumentEventType::StatusChanged),
             ..EventFilter::default()
         };
-        let filtered = store.filter(&DocumentId::new("doc-f").unwrap(), &filter).unwrap();
+        let filtered = store
+            .filter(&DocumentId::new("doc-f").unwrap(), &filter)
+            .unwrap();
         assert_eq!(filtered.len(), 1);
         assert_eq!(filtered[0].event_type, DocumentEventType::StatusChanged);
     }
@@ -1644,7 +1710,9 @@ mod tests {
     fn template_deprecate() {
         let store = DocumentalSqliteStore::in_memory().unwrap();
         TemplateRepository::store(&store, &sample_template("tpl-dep", "despacho")).unwrap();
-        store.deprecate(&TemplateId::new("tpl-dep").unwrap()).unwrap();
+        store
+            .deprecate(&TemplateId::new("tpl-dep").unwrap())
+            .unwrap();
 
         let found = TemplateRepository::get(&store, &TemplateId::new("tpl-dep").unwrap())
             .unwrap()
@@ -1737,9 +1805,13 @@ mod tests {
         let ts = Utc::now();
         let mut doc = sample_doc("doc-ret");
         doc.retention_policy = RetentionPolicy::temporary(5, ts);
-        store.accept(&doc, &sample_event("ev-ret", "doc-ret", None)).unwrap();
+        store
+            .accept(&doc, &sample_event("ev-ret", "doc-ret", None))
+            .unwrap();
 
-        let found = DocumentCustodyRepository::get(&store, &DocumentId::new("doc-ret").unwrap()).unwrap().unwrap();
+        let found = DocumentCustodyRepository::get(&store, &DocumentId::new("doc-ret").unwrap())
+            .unwrap()
+            .unwrap();
         assert!(matches!(
             found.retention_policy.class,
             RetentionClass::Temporary { years: 5 }
@@ -1750,12 +1822,20 @@ mod tests {
     #[test]
     fn last_event_devolve_mais_recente() {
         let store = DocumentalSqliteStore::in_memory().unwrap();
-        store.accept(&sample_doc("doc-last"), &sample_event("ev-last1", "doc-last", None)).unwrap();
+        store
+            .accept(
+                &sample_doc("doc-last"),
+                &sample_event("ev-last1", "doc-last", None),
+            )
+            .unwrap();
         let ev2 = DocumentEvent {
             id: DocumentEventId::new("ev-last2").unwrap(),
             document_id: DocumentId::new("doc-last").unwrap(),
             event_type: DocumentEventType::NumberAssigned,
-            actor: EventActor::Operator { user_id: "u".into(), position_id: "p".into() },
+            actor: EventActor::Operator {
+                user_id: "u".into(),
+                position_id: "p".into(),
+            },
             occurred_at: Utc::now(),
             previous_hash: Some("h".into()),
             data_json: None,

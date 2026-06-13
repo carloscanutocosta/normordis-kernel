@@ -140,7 +140,9 @@ pub fn schema_path_for(schema: ContractSchema) -> &'static str {
         ContractSchema::SupportStorageKey => "schemas/support/storage-key.schema.json",
         ContractSchema::SupportEncryptedPayload => "schemas/support/encrypted-payload.schema.json",
         ContractSchema::SupportLogEvent => "schemas/support/log-event.schema.json",
-        ContractSchema::SupportWebAuthnChallenge => "schemas/support/webauthn-challenge.schema.json",
+        ContractSchema::SupportWebAuthnChallenge => {
+            "schemas/support/webauthn-challenge.schema.json"
+        }
         ContractSchema::SupportRenderRequest => "schemas/support/render-request.schema.json",
         ContractSchema::SupportBackupArchiveRef => "schemas/support/backup-archive-ref.schema.json",
         ContractSchema::SupportPublicError => "schemas/support/public-error.schema.json",
@@ -162,18 +164,14 @@ pub fn schema_path_for(schema: ContractSchema) -> &'static str {
         ContractSchema::UserIdentity => "schemas/core/rh/user-identity.schema.json",
         ContractSchema::PersonAssignment => "schemas/core/rh/person-assignment.schema.json",
         ContractSchema::UserProfile => "schemas/core/rh/user-profile.schema.json",
-        ContractSchema::ValidationReport => {
-            "schemas/core/validation/validation-report.schema.json"
-        }
+        ContractSchema::ValidationReport => "schemas/core/validation/validation-report.schema.json",
         ContractSchema::SecurityAuthLevel => "schemas/core/security/auth-level.schema.json",
         ContractSchema::SecurityClassification => {
             "schemas/core/security/resource-classification.schema.json"
         }
         ContractSchema::SecuritySodRule => "schemas/core/security/sod-rule.schema.json",
         ContractSchema::SecurityContext => "schemas/core/security/security-context.schema.json",
-        ContractSchema::ExportsTabularDataset => {
-            "schemas/core/exports/tabular-dataset.schema.json"
-        }
+        ContractSchema::ExportsTabularDataset => "schemas/core/exports/tabular-dataset.schema.json",
         ContractSchema::ExportsMaterializationRequest => {
             "schemas/core/exports/export-materialization-request.schema.json"
         }
@@ -273,8 +271,8 @@ pub fn assert_native_valid(path: &str, schema: ContractSchema) {
             v.validate().unwrap_or_else(|e| panic!("{path}: {e}"));
         }
         ContractSchema::RhRole => {
-            let v = serde_json::from_value::<Role>(instance)
-                .unwrap_or_else(|e| panic!("{path}: {e}"));
+            let v =
+                serde_json::from_value::<Role>(instance).unwrap_or_else(|e| panic!("{path}: {e}"));
             v.validate().unwrap_or_else(|e| panic!("{path}: {e}"));
         }
         ContractSchema::SecurityPolicy => {
@@ -297,8 +295,7 @@ pub fn assert_native_valid(path: &str, schema: ContractSchema) {
             assert!(!v.kind.trim().is_empty() && !v.subject_id.trim().is_empty());
         }
         ContractSchema::SupportMiniError => {
-            serde_json::from_value::<MiniError>(instance)
-                .unwrap_or_else(|e| panic!("{path}: {e}"));
+            serde_json::from_value::<MiniError>(instance).unwrap_or_else(|e| panic!("{path}: {e}"));
         }
         ContractSchema::SupportPublicError => {
             serde_json::from_value::<PublicError>(instance)
@@ -310,7 +307,9 @@ pub fn assert_native_valid(path: &str, schema: ContractSchema) {
             assert!(!v.as_str().trim().is_empty());
         }
         ContractSchema::SupportUtcTimestamp => {
-            let v = instance.as_str().unwrap_or_else(|| panic!("{path}: expected string"));
+            let v = instance
+                .as_str()
+                .unwrap_or_else(|| panic!("{path}: expected string"));
             assert!(v.ends_with('Z'), "{path}: deveria terminar em Z");
         }
         ContractSchema::SupportPostalCode => {
@@ -325,12 +324,18 @@ pub fn assert_native_valid(path: &str, schema: ContractSchema) {
             v.validate().unwrap_or_else(|e| panic!("{path}: {e}"));
         }
         ContractSchema::SupportNormalizationCase => {
-            let input = instance["input"].as_str().unwrap_or_else(|| panic!("{path}: missing input"));
-            let expected = instance["expected"].as_str().unwrap_or_else(|| panic!("{path}: missing expected"));
+            let input = instance["input"]
+                .as_str()
+                .unwrap_or_else(|| panic!("{path}: missing input"));
+            let expected = instance["expected"]
+                .as_str()
+                .unwrap_or_else(|| panic!("{path}: missing expected"));
             assert_eq!(support_normalization::normalize_for_lookup(input), expected);
         }
         ContractSchema::SupportStorageKey => {
-            let v = instance.as_str().unwrap_or_else(|| panic!("{path}: expected string"));
+            let v = instance
+                .as_str()
+                .unwrap_or_else(|| panic!("{path}: expected string"));
             StorageKey::new(v).unwrap_or_else(|e| panic!("{path}: {e}"));
         }
         ContractSchema::SupportEncryptedPayload => {
@@ -338,8 +343,7 @@ pub fn assert_native_valid(path: &str, schema: ContractSchema) {
                 .unwrap_or_else(|e| panic!("{path}: {e}"));
         }
         ContractSchema::SupportLogEvent => {
-            serde_json::from_value::<LogEvent>(instance)
-                .unwrap_or_else(|e| panic!("{path}: {e}"));
+            serde_json::from_value::<LogEvent>(instance).unwrap_or_else(|e| panic!("{path}: {e}"));
         }
         ContractSchema::SupportWebAuthnChallenge => {
             let v = serde_json::from_value::<WebAuthnChallenge>(instance)
@@ -403,16 +407,14 @@ pub fn assert_native_valid(path: &str, schema: ContractSchema) {
                 .unwrap_or_else(|e| panic!("{path}: {e}"));
         }
         ContractSchema::SecurityAuthLevel => {
-            serde_json::from_value::<AuthLevel>(instance)
-                .unwrap_or_else(|e| panic!("{path}: {e}"));
+            serde_json::from_value::<AuthLevel>(instance).unwrap_or_else(|e| panic!("{path}: {e}"));
         }
         ContractSchema::SecurityClassification => {
             serde_json::from_value::<ResourceClassification>(instance)
                 .unwrap_or_else(|e| panic!("{path}: {e}"));
         }
         ContractSchema::SecuritySodRule => {
-            serde_json::from_value::<SodRule>(instance)
-                .unwrap_or_else(|e| panic!("{path}: {e}"));
+            serde_json::from_value::<SodRule>(instance).unwrap_or_else(|e| panic!("{path}: {e}"));
         }
         ContractSchema::SecurityContext => {
             serde_json::from_value::<SecurityContext>(instance)
@@ -497,7 +499,9 @@ pub fn roundtrip_json(path: &str, schema: ContractSchema) -> Value {
         ContractSchema::SecuritySodRule => rt!(instance, SodRule),
         ContractSchema::SecurityContext => rt!(instance, SecurityContext),
         ContractSchema::ExportsTabularDataset => rt!(instance, TabularDataset),
-        ContractSchema::ExportsMaterializationRequest => rt!(instance, ExportMaterializationRequest),
+        ContractSchema::ExportsMaterializationRequest => {
+            rt!(instance, ExportMaterializationRequest)
+        }
         ContractSchema::IngestBundle => rt!(instance, IngestBundle),
         ContractSchema::IngestDecision => rt!(instance, IngestDecision),
         ContractSchema::IngestEvidence => rt!(instance, IngestEvidence),
@@ -513,27 +517,42 @@ pub fn assert_native_invalid(path: &str, schema: ContractSchema) {
         ContractSchema::ControlDefinition => {
             let v = serde_json::from_value::<ControlDefinition>(instance)
                 .unwrap_or_else(|e| panic!("{path} deveria desserializar: {e}"));
-            assert!(v.validate().is_err(), "{path} deveria falhar validação nativa");
+            assert!(
+                v.validate().is_err(),
+                "{path} deveria falhar validação nativa"
+            );
         }
         ContractSchema::OrgUnit => {
             let v = serde_json::from_value::<OrgUnit>(instance)
                 .unwrap_or_else(|e| panic!("{path} deveria desserializar: {e}"));
-            assert!(v.validate().is_err(), "{path} deveria falhar validação nativa");
+            assert!(
+                v.validate().is_err(),
+                "{path} deveria falhar validação nativa"
+            );
         }
         ContractSchema::Delegation => {
             let v = serde_json::from_value::<Delegation>(instance)
                 .unwrap_or_else(|e| panic!("{path} deveria desserializar: {e}"));
-            assert!(v.validate().is_err(), "{path} deveria falhar validação nativa");
+            assert!(
+                v.validate().is_err(),
+                "{path} deveria falhar validação nativa"
+            );
         }
         ContractSchema::PersonAssignment => {
             let v = serde_json::from_value::<PersonAssignment>(instance)
                 .unwrap_or_else(|e| panic!("{path} deveria desserializar: {e}"));
-            assert!(v.validate().is_err(), "{path} deveria falhar validação nativa");
+            assert!(
+                v.validate().is_err(),
+                "{path} deveria falhar validação nativa"
+            );
         }
         ContractSchema::IngestEvidence => {
             let v = serde_json::from_value::<IngestEvidence>(instance)
                 .unwrap_or_else(|e| panic!("{path} deveria desserializar: {e}"));
-            assert!(validate_ingest_evidence(&v).is_err(), "{path} deveria falhar validação nativa");
+            assert!(
+                validate_ingest_evidence(&v).is_err(),
+                "{path} deveria falhar validação nativa"
+            );
         }
         other => panic!("assert_native_invalid não implementado para {other:?}"),
     }
@@ -545,13 +564,17 @@ pub fn validate_scenario(path: &str, kind: ScenarioKind) -> Result<(), String> {
     let raw = load(path);
     match kind {
         ScenarioKind::AuditChain => {
-            let links = raw.as_array().ok_or_else(|| format!("{path}: expected array"))?;
+            let links = raw
+                .as_array()
+                .ok_or_else(|| format!("{path}: expected array"))?;
             validate_chain_scenario(links)
         }
         ScenarioKind::CtrlExecution => validate_ctrl_execution_scenario(path, &raw),
         ScenarioKind::OrgDelegation => validate_org_delegation_scenario(path, &raw),
         ScenarioKind::RhAssignmentOverlap => {
-            let assignments = raw.as_array().ok_or_else(|| format!("{path}: expected array"))?;
+            let assignments = raw
+                .as_array()
+                .ok_or_else(|| format!("{path}: expected array"))?;
             validate_rh_assignment_overlap_scenario(assignments)
         }
     }
@@ -575,15 +598,15 @@ fn validate_chain_scenario(links: &[Value]) -> Result<(), String> {
         let prev = w[0]["sequence"].as_u64().ok_or("sequence ausente")?;
         let curr = w[1]["sequence"].as_u64().ok_or("sequence ausente")?;
         if curr <= prev {
-            return Err(format!(
-                "CHAIN-R01: sequence {curr} não é maior que {prev}"
-            ));
+            return Err(format!("CHAIN-R01: sequence {curr} não é maior que {prev}"));
         }
     }
     // CHAIN-R02: previous_record_hash de cada elo == record_hash do anterior.
     for w in links.windows(2) {
         let prev_hash = w[0]["record_hash"].as_str().ok_or("record_hash ausente")?;
-        let curr_prev = w[1]["previous_record_hash"].as_str().ok_or("previous_record_hash ausente")?;
+        let curr_prev = w[1]["previous_record_hash"]
+            .as_str()
+            .ok_or("previous_record_hash ausente")?;
         if prev_hash != curr_prev {
             return Err(format!(
                 "CHAIN-R02: previous_record_hash={curr_prev} ≠ record_hash={prev_hash} do elo anterior"
@@ -613,9 +636,7 @@ fn validate_org_delegation_scenario(path: &str, scenario: &Value) -> Result<(), 
         .as_str()
         .ok_or_else(|| format!("{path}: from_position.status ausente"))?;
     if status == "extinct" {
-        return Err(
-            "ORG-R08: Delegation referencia OrgPosition com status=extinct".to_string(),
-        );
+        return Err("ORG-R08: Delegation referencia OrgPosition com status=extinct".to_string());
     }
     Ok(())
 }

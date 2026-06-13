@@ -157,11 +157,8 @@ pub trait DocumentEventLog {
 /// Implementações DEVEM verificar `sha256(content) == attachment.content_hash`
 /// antes de persistir, devolvendo `ContentHashMismatch` se não coincidir.
 pub trait AttachmentStore {
-    fn store(
-        &self,
-        attachment: &DocumentAttachment,
-        content: &[u8],
-    ) -> Result<(), DocumentalError>;
+    fn store(&self, attachment: &DocumentAttachment, content: &[u8])
+        -> Result<(), DocumentalError>;
     fn retrieve_content(&self, id: &AttachmentId) -> Result<Option<Vec<u8>>, DocumentalError>;
     fn get_metadata(
         &self,

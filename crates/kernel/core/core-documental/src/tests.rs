@@ -11,10 +11,13 @@ use crate::{
     authority::AuthoritySnapshot,
     custody::{
         DocumentContent, DocumentCustody, DocumentId, DocumentOrigin, DocumentStatus,
-        DocumentTypeCode, EntryChannel, IntakeSpec, RetentionClass, RetentionPolicy, ValidationCode,
+        DocumentTypeCode, EntryChannel, IntakeSpec, RetentionClass, RetentionPolicy,
+        ValidationCode,
     },
     error::DocumentalError,
-    events::{AccessPurpose, DocumentEvent, DocumentEventId, DocumentEventType, EventActor, EventFilter},
+    events::{
+        AccessPurpose, DocumentEvent, DocumentEventId, DocumentEventType, EventActor, EventFilter,
+    },
     package::{
         validate_document_package, Artefact, DocumentPackage, EngineRef, HashResult, TemplateRef,
     },
@@ -221,9 +224,17 @@ fn validation_code_rejeita_prefixo_errado() {
 #[test]
 fn validation_code_rejeita_caracteres_ambiguos_ilou() {
     // I, L, O, U são excluídos do alfabeto Crockford Base32
-    for code in ["NORD-IIII-4Q2M-8X", "NORD-K7P9-LLLL-8X", "NORD-K7P9-OOOO-8X", "NORD-K7P9-4Q2M-UU"] {
+    for code in [
+        "NORD-IIII-4Q2M-8X",
+        "NORD-K7P9-LLLL-8X",
+        "NORD-K7P9-OOOO-8X",
+        "NORD-K7P9-4Q2M-UU",
+    ] {
         assert!(
-            matches!(ValidationCode::new(code), Err(DocumentalError::InvalidIdentifier { .. })),
+            matches!(
+                ValidationCode::new(code),
+                Err(DocumentalError::InvalidIdentifier { .. })
+            ),
             "deveria rejeitar: {code}"
         );
     }
@@ -261,7 +272,11 @@ fn validation_code_normaliza_para_maiusculas() {
 fn validation_code_generate_produz_formato_valido() {
     for _ in 0..20 {
         let code = ValidationCode::generate();
-        assert!(ValidationCode::new(code.as_str()).is_ok(), "código inválido: {}", code.as_str());
+        assert!(
+            ValidationCode::new(code.as_str()).is_ok(),
+            "código inválido: {}",
+            code.as_str()
+        );
         let parts: Vec<&str> = code.as_str().split('-').collect();
         assert_eq!(parts.len(), 4);
         assert_eq!(parts[0], "NORD");
@@ -302,7 +317,10 @@ fn retention_temporary_tem_data_expiracao() {
     let policy = RetentionPolicy::temporary(10, ts);
     assert!(!policy.is_permanent());
     assert!(policy.expires_at.is_some());
-    assert!(matches!(policy.class, RetentionClass::Temporary { years: 10 }));
+    assert!(matches!(
+        policy.class,
+        RetentionClass::Temporary { years: 10 }
+    ));
 }
 
 #[test]
@@ -371,7 +389,10 @@ fn canonical_bytes_primeiro_evento_usa_genesis() {
     let ev = make_event("ev-genesis", None);
     let bytes = ev.canonical_bytes();
     let s = String::from_utf8(bytes).unwrap();
-    assert!(s.ends_with(":GENESIS"), "esperado sufixo GENESIS, obteve: {s}");
+    assert!(
+        s.ends_with(":GENESIS"),
+        "esperado sufixo GENESIS, obteve: {s}"
+    );
     assert!(s.starts_with("ev-genesis:"));
 }
 
@@ -380,7 +401,10 @@ fn canonical_bytes_evento_subsequente_usa_hash_anterior() {
     let ev = make_event("ev-2", Some("hash-do-ev-1"));
     let bytes = ev.canonical_bytes();
     let s = String::from_utf8(bytes).unwrap();
-    assert!(s.ends_with(":hash-do-ev-1"), "esperado sufixo do hash anterior, obteve: {s}");
+    assert!(
+        s.ends_with(":hash-do-ev-1"),
+        "esperado sufixo do hash anterior, obteve: {s}"
+    );
 }
 
 #[test]
@@ -401,7 +425,15 @@ fn canonical_bytes_diferentes_ids_diferentes_bytes() {
 
 #[test]
 fn document_origin_round_trip() {
-    for s in ["normordis", "email", "scanner", "upload", "api", "interop", "legacy"] {
+    for s in [
+        "normordis",
+        "email",
+        "scanner",
+        "upload",
+        "api",
+        "interop",
+        "legacy",
+    ] {
         let origin = DocumentOrigin::from_str(s).unwrap();
         assert_eq!(origin.as_str(), s);
     }
@@ -422,7 +454,14 @@ fn document_id_aceita_chave_segura() {
 
 #[test]
 fn document_id_rejeita_traversal_e_separadores() {
-    for unsafe_id in ["../etc/passwd", "..\\config", "docs/001", ".", "..", "doc..001"] {
+    for unsafe_id in [
+        "../etc/passwd",
+        "..\\config",
+        "docs/001",
+        ".",
+        "..",
+        "doc..001",
+    ] {
         assert!(matches!(
             DocumentId::new(unsafe_id),
             Err(DocumentalError::InvalidIdentifier { .. })
@@ -496,7 +535,10 @@ fn custody_validate_ok() {
 fn custody_validate_rejeita_document_type_vazio() {
     let mut doc = sample_custody();
     doc.document_type = DocumentTypeCode("  ".into());
-    assert!(matches!(doc.validate(), Err(DocumentalError::EmptyField(_))));
+    assert!(matches!(
+        doc.validate(),
+        Err(DocumentalError::EmptyField(_))
+    ));
 }
 
 #[test]
@@ -579,8 +621,12 @@ fn assign_number_fora_de_active_rejeita() {
 #[test]
 fn access_purpose_round_trip() {
     for s in [
-        "consultation", "inspection", "export",
-        "legal_proceeding", "audit", "internal_review",
+        "consultation",
+        "inspection",
+        "export",
+        "legal_proceeding",
+        "audit",
+        "internal_review",
     ] {
         let purpose = AccessPurpose::from_str(s).unwrap();
         assert_eq!(purpose.as_str(), s);
@@ -609,8 +655,12 @@ fn event_filter_default_sem_restricoes() {
 #[test]
 fn event_type_from_str_round_trip() {
     for s in [
-        "custody_accepted", "number_assigned", "accessed",
-        "relation_added", "attachment_added", "status_changed",
+        "custody_accepted",
+        "number_assigned",
+        "accessed",
+        "relation_added",
+        "attachment_added",
+        "status_changed",
     ] {
         let t = DocumentEventType::from_str(s).unwrap();
         assert_eq!(t.as_str(), s);
@@ -655,7 +705,10 @@ fn chain_segundo_evento_sem_previous_hash_rejeita() {
 
 #[test]
 fn chain_dois_eventos_validos() {
-    let events = vec![make_event("ev-1", None), make_event("ev-2", Some("hash-ev1"))];
+    let events = vec![
+        make_event("ev-1", None),
+        make_event("ev-2", Some("hash-ev1")),
+    ];
     assert!(crate::verify_event_chain(&events).is_ok());
 }
 
@@ -772,7 +825,10 @@ fn attachment_validate_size_zero_rejeita() {
         stored_at: Utc::now(),
         stored_by: sample_authority(),
     };
-    assert!(matches!(att.validate(), Err(DocumentalError::EmptyField(_))));
+    assert!(matches!(
+        att.validate(),
+        Err(DocumentalError::EmptyField(_))
+    ));
 }
 
 #[test]
@@ -806,7 +862,9 @@ fn sample_identity() -> UserIdentity {
 
 fn context_with_position() -> UserContext {
     let pos = OrgPositionRef::new("pos-001", "unit-001", "comp-001", None).unwrap();
-    resolve_current_user(sample_identity()).unwrap().with_position(pos)
+    resolve_current_user(sample_identity())
+        .unwrap()
+        .with_position(pos)
 }
 
 fn context_without_position() -> UserContext {
@@ -835,8 +893,11 @@ fn authority_from_user_context_sem_posicao_rejeita() {
 
 #[test]
 fn authority_from_user_context_com_delegacao_ok() {
-    let pos = OrgPositionRef::new("pos-001", "unit-001", "comp-001", Some("del-001".into())).unwrap();
-    let ctx = resolve_current_user(sample_identity()).unwrap().with_position(pos);
+    let pos =
+        OrgPositionRef::new("pos-001", "unit-001", "comp-001", Some("del-001".into())).unwrap();
+    let ctx = resolve_current_user(sample_identity())
+        .unwrap()
+        .with_position(pos);
     let snap = authority_from_user_context(&ctx, Utc::now()).unwrap();
     assert_eq!(snap.delegation_id.as_deref(), Some("del-001"));
 }
@@ -861,7 +922,11 @@ fn event_actor_operator_usa_strings() {
         user_id: "user-1".into(),
         position_id: "pos-1".into(),
     };
-    if let EventActor::Operator { user_id, position_id } = actor {
+    if let EventActor::Operator {
+        user_id,
+        position_id,
+    } = actor
+    {
         assert_eq!(user_id, "user-1");
         assert_eq!(position_id, "pos-1");
     }

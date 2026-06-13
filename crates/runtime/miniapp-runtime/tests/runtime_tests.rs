@@ -218,7 +218,10 @@ fn create_document_instance_starts_active() {
     let doc = create_document_instance(&ctx, sample_request(), Utc::now()).unwrap();
     assert_eq!(doc.status, DocumentStatus::Active);
     assert_eq!(doc.template_id.as_ref().unwrap().as_str(), "tpl-req-v1");
-    assert_eq!(doc.document_type, DocumentTypeCode::new("requerimento").unwrap());
+    assert_eq!(
+        doc.document_type,
+        DocumentTypeCode::new("requerimento").unwrap()
+    );
     assert!(doc.document_number.is_none());
     assert!(!doc.validation_code.as_str().is_empty());
 }

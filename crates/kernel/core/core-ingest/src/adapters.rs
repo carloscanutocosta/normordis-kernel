@@ -65,7 +65,11 @@ pub struct RejectingContentValidator {
 
 impl ContentValidator for RejectingContentValidator {
     fn validate(&self, _raw: &[u8], content_type: &str) -> Result<(), IngestError> {
-        if self.rejected_content_types.iter().any(|ct| ct == content_type) {
+        if self
+            .rejected_content_types
+            .iter()
+            .any(|ct| ct == content_type)
+        {
             return Err(IngestError::ContentValidationFailed {
                 content_type: content_type.into(),
                 reason: self.reason.clone(),
@@ -84,13 +88,18 @@ pub struct MemoryStoragePort {
 
 impl Default for MemoryStoragePort {
     fn default() -> Self {
-        Self { records: Mutex::new(HashMap::new()) }
+        Self {
+            records: Mutex::new(HashMap::new()),
+        }
     }
 }
 
 impl IngestStoragePort for MemoryStoragePort {
     fn store(&self, bundle: &IngestBundle, verified_hash: &str) -> Result<String, IngestError> {
-        let mut records = self.records.lock().expect("MemoryStoragePort mutex poisoned");
+        let mut records = self
+            .records
+            .lock()
+            .expect("MemoryStoragePort mutex poisoned");
         if let Some(existing) = records.get(&bundle.bundle_id) {
             return Ok(existing.clone());
         }
@@ -107,5 +116,9 @@ impl IngestStoragePort for MemoryStoragePort {
 // ── Auxiliares ────────────────────────────────────────────────────────────────
 
 fn non_empty_or<'a>(s: &'a str, fallback: &'a str) -> &'a str {
-    if s.is_empty() { fallback } else { s }
+    if s.is_empty() {
+        fallback
+    } else {
+        s
+    }
 }

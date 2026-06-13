@@ -101,7 +101,10 @@ fn aceita_bundle_valido() {
     assert_eq!(outcome.evidence.decision, IngestDecision::Accepted);
     assert!(outcome.evidence.document_ref.is_some());
     assert_eq!(outcome.audit_event.event_type, "ingest.accepted");
-    assert!(outcome.evidence.audit.emitted, "emitted deve ser true no caminho canónico");
+    assert!(
+        outcome.evidence.audit.emitted,
+        "emitted deve ser true no caminho canónico"
+    );
     assert!(outcome.evidence.audit.event_id.is_some());
     assert!(outcome.evidence.hash.verified);
 }
@@ -126,8 +129,14 @@ fn aceita_bundle_sem_declared_hash_nao_verifica_mas_regista() {
     let outcome = process_bundle(&bundle, "corr-no-hash", &default_cfg())
         .expect_accepted("bundle sem declared_hash deve ser aceite");
 
-    assert!(!outcome.evidence.hash.verified, "sem declared_hash não há verificação");
-    assert!(!outcome.evidence.hash.actual_hash.is_empty(), "hash deve ser calculado mesmo assim");
+    assert!(
+        !outcome.evidence.hash.verified,
+        "sem declared_hash não há verificação"
+    );
+    assert!(
+        !outcome.evidence.hash.actual_hash.is_empty(),
+        "hash deve ser calculado mesmo assim"
+    );
 }
 
 #[test]
@@ -171,7 +180,10 @@ fn rejeita_scan_rejeitado() {
     assert_eq!(err.code(), SCAN_REJECTED);
     assert_eq!(outcome.evidence.scan.adapter, "deterministic");
     assert_eq!(outcome.evidence.scan.verdict, "rejected");
-    assert_eq!(outcome.evidence.scan.reason.as_deref(), Some("malware-simulated"));
+    assert_eq!(
+        outcome.evidence.scan.reason.as_deref(),
+        Some("malware-simulated")
+    );
 }
 
 #[test]
@@ -450,42 +462,60 @@ fn rejected_tem_emitted_true_quando_evidence_valida() {
 fn valida_bundle_rejeita_bundle_id_vazio() {
     let mut b = sample_bundle();
     b.bundle_id = String::new();
-    assert_eq!(validate_ingest_bundle(&b).unwrap_err().code(), MISSING_FIELD);
+    assert_eq!(
+        validate_ingest_bundle(&b).unwrap_err().code(),
+        MISSING_FIELD
+    );
 }
 
 #[test]
 fn valida_bundle_rejeita_source_kind_vazio() {
     let mut b = sample_bundle();
     b.source.kind = String::new();
-    assert_eq!(validate_ingest_bundle(&b).unwrap_err().code(), MISSING_FIELD);
+    assert_eq!(
+        validate_ingest_bundle(&b).unwrap_err().code(),
+        MISSING_FIELD
+    );
 }
 
 #[test]
 fn valida_bundle_rejeita_subject_id_vazio() {
     let mut b = sample_bundle();
     b.source.subject_id = String::new();
-    assert_eq!(validate_ingest_bundle(&b).unwrap_err().code(), MISSING_FIELD);
+    assert_eq!(
+        validate_ingest_bundle(&b).unwrap_err().code(),
+        MISSING_FIELD
+    );
 }
 
 #[test]
 fn valida_bundle_rejeita_version_vazia() {
     let mut b = sample_bundle();
     b.source.version = String::new();
-    assert_eq!(validate_ingest_bundle(&b).unwrap_err().code(), MISSING_FIELD);
+    assert_eq!(
+        validate_ingest_bundle(&b).unwrap_err().code(),
+        MISSING_FIELD
+    );
 }
 
 #[test]
 fn valida_bundle_rejeita_content_type_vazio() {
     let mut b = sample_bundle();
     b.content_type = String::new();
-    assert_eq!(validate_ingest_bundle(&b).unwrap_err().code(), MISSING_FIELD);
+    assert_eq!(
+        validate_ingest_bundle(&b).unwrap_err().code(),
+        MISSING_FIELD
+    );
 }
 
 #[test]
 fn valida_bundle_rejeita_raw_vazio() {
     let mut b = sample_bundle();
     b.raw = vec![];
-    assert_eq!(validate_ingest_bundle(&b).unwrap_err().code(), MISSING_FIELD);
+    assert_eq!(
+        validate_ingest_bundle(&b).unwrap_err().code(),
+        MISSING_FIELD
+    );
 }
 
 #[test]
@@ -499,14 +529,20 @@ fn valida_bundle_aceita_bundle_valido() {
 fn valida_evidence_rejeita_bundle_id_vazio() {
     let mut ev = minimal_valid_evidence();
     ev.bundle_id = String::new();
-    assert_eq!(validate_ingest_evidence(&ev).unwrap_err().code(), MISSING_FIELD);
+    assert_eq!(
+        validate_ingest_evidence(&ev).unwrap_err().code(),
+        MISSING_FIELD
+    );
 }
 
 #[test]
 fn valida_evidence_rejeita_correlation_id_vazio() {
     let mut ev = minimal_valid_evidence();
     ev.correlation_id = String::new();
-    assert_eq!(validate_ingest_evidence(&ev).unwrap_err().code(), MISSING_FIELD);
+    assert_eq!(
+        validate_ingest_evidence(&ev).unwrap_err().code(),
+        MISSING_FIELD
+    );
 }
 
 #[test]
@@ -515,7 +551,10 @@ fn valida_evidence_rejeita_accepted_sem_document_ref() {
     ev.decision = IngestDecision::Accepted;
     ev.audit.action = "ingest.accepted".into();
     // document_ref = None por defeito
-    assert_eq!(validate_ingest_evidence(&ev).unwrap_err().code(), INVALID_REQUEST);
+    assert_eq!(
+        validate_ingest_evidence(&ev).unwrap_err().code(),
+        INVALID_REQUEST
+    );
 }
 
 #[test]
@@ -527,7 +566,10 @@ fn valida_evidence_aceita_evidence_valida() {
 fn valida_evidence_rejeita_timestamps_invertidos() {
     let mut ev = minimal_valid_evidence();
     ev.processed_at = ev.received_at - chrono::Duration::seconds(1);
-    assert_eq!(validate_ingest_evidence(&ev).unwrap_err().code(), INVALID_REQUEST);
+    assert_eq!(
+        validate_ingest_evidence(&ev).unwrap_err().code(),
+        INVALID_REQUEST
+    );
 }
 
 #[test]
@@ -535,7 +577,10 @@ fn valida_evidence_rejeita_verified_com_declared_hash_vazio() {
     let mut ev = minimal_valid_evidence();
     ev.hash.declared_hash = String::new();
     ev.hash.verified = true;
-    assert_eq!(validate_ingest_evidence(&ev).unwrap_err().code(), INVALID_REQUEST);
+    assert_eq!(
+        validate_ingest_evidence(&ev).unwrap_err().code(),
+        INVALID_REQUEST
+    );
 }
 
 #[test]
@@ -546,7 +591,10 @@ fn valida_evidence_rejeita_verified_com_hash_diferente() {
     ev.hash.actual_hash =
         "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb".into();
     ev.hash.verified = true;
-    assert_eq!(validate_ingest_evidence(&ev).unwrap_err().code(), INVALID_REQUEST);
+    assert_eq!(
+        validate_ingest_evidence(&ev).unwrap_err().code(),
+        INVALID_REQUEST
+    );
 }
 
 // ── Testes de build_ingest_audit_event ────────────────────────────────────────

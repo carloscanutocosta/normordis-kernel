@@ -5,8 +5,7 @@ pub mod types;
 
 #[cfg(any(test, feature = "test-helpers"))]
 pub use adapters::{
-    DeterministicScanner, MemoryStoragePort, PassthroughContentValidator,
-    RejectingContentValidator,
+    DeterministicScanner, MemoryStoragePort, PassthroughContentValidator, RejectingContentValidator,
 };
 pub use error::{
     IngestError, AUDIT_ERROR, CONTENT_VALIDATION_FAILED, HASH_MISMATCH, INGEST_COMPONENT,
@@ -40,6 +39,9 @@ mod dependency_tests {
     #[test]
     fn core_ingest_nao_depende_de_core_exports() {
         let m = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/Cargo.toml"));
-        assert!(!m.contains("core-exports"), "core-ingest não deve depender de core-exports");
+        assert!(
+            !m.contains("core-exports"),
+            "core-ingest não deve depender de core-exports"
+        );
     }
 }

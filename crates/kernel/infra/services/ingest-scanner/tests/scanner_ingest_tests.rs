@@ -90,7 +90,10 @@ fn always_clean_scanner_verdict_e_clean() {
 #[test]
 fn ingest_rejeita_correlation_id_vazio() {
     let result = ingest_scanned_document(&sample_req(), "", default_cfg());
-    assert!(result.error().is_some(), "pipeline deve rejeitar correlation_id vazio");
+    assert!(
+        result.error().is_some(),
+        "pipeline deve rejeitar correlation_id vazio"
+    );
 }
 
 #[test]

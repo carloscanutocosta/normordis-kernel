@@ -35,7 +35,9 @@ pub fn process_bundle(
             "",
             now,
             actor,
-            IngestError::MissingField { field: "correlation_id".into() },
+            IngestError::MissingField {
+                field: "correlation_id".into(),
+            },
         );
     }
 
@@ -57,7 +59,14 @@ pub fn process_bundle(
 
     // ── 3. campos obrigatórios do bundle ───────────────────────────────────────
     if let Err(e) = validate_ingest_bundle(bundle) {
-        return reject(bundle, correlation_id, now, RejectionSpec::default(), actor, e);
+        return reject(
+            bundle,
+            correlation_id,
+            now,
+            RejectionSpec::default(),
+            actor,
+            e,
+        );
     }
 
     // ── 4. size check ──────────────────────────────────────────────────────────
@@ -69,7 +78,10 @@ pub fn process_bundle(
                 now,
                 RejectionSpec::default(),
                 actor,
-                IngestError::Oversized { limit_bytes: limit, actual_bytes: bundle.raw.len() },
+                IngestError::Oversized {
+                    limit_bytes: limit,
+                    actual_bytes: bundle.raw.len(),
+                },
             );
         }
     }
@@ -302,22 +314,34 @@ pub fn process_bundle(
 /// Valida os campos obrigatórios de um `IngestBundle`.
 pub fn validate_ingest_bundle(bundle: &IngestBundle) -> Result<(), IngestError> {
     if bundle.bundle_id.trim().is_empty() {
-        return Err(IngestError::MissingField { field: "bundle_id".into() });
+        return Err(IngestError::MissingField {
+            field: "bundle_id".into(),
+        });
     }
     if bundle.source.kind.trim().is_empty() {
-        return Err(IngestError::MissingField { field: "source.kind".into() });
+        return Err(IngestError::MissingField {
+            field: "source.kind".into(),
+        });
     }
     if bundle.source.subject_id.trim().is_empty() {
-        return Err(IngestError::MissingField { field: "source.subject_id".into() });
+        return Err(IngestError::MissingField {
+            field: "source.subject_id".into(),
+        });
     }
     if bundle.source.version.trim().is_empty() {
-        return Err(IngestError::MissingField { field: "source.version".into() });
+        return Err(IngestError::MissingField {
+            field: "source.version".into(),
+        });
     }
     if bundle.content_type.trim().is_empty() {
-        return Err(IngestError::MissingField { field: "content_type".into() });
+        return Err(IngestError::MissingField {
+            field: "content_type".into(),
+        });
     }
     if bundle.raw.is_empty() {
-        return Err(IngestError::MissingField { field: "raw".into() });
+        return Err(IngestError::MissingField {
+            field: "raw".into(),
+        });
     }
     Ok(())
 }
@@ -325,13 +349,19 @@ pub fn validate_ingest_bundle(bundle: &IngestBundle) -> Result<(), IngestError> 
 /// Valida a coerência interna de um `IngestEvidence`.
 pub fn validate_ingest_evidence(evidence: &IngestEvidence) -> Result<(), IngestError> {
     if evidence.bundle_id.trim().is_empty() {
-        return Err(IngestError::MissingField { field: "bundle_id".into() });
+        return Err(IngestError::MissingField {
+            field: "bundle_id".into(),
+        });
     }
     if evidence.correlation_id.trim().is_empty() {
-        return Err(IngestError::MissingField { field: "correlation_id".into() });
+        return Err(IngestError::MissingField {
+            field: "correlation_id".into(),
+        });
     }
     if evidence.content_type.trim().is_empty() {
-        return Err(IngestError::MissingField { field: "content_type".into() });
+        return Err(IngestError::MissingField {
+            field: "content_type".into(),
+        });
     }
     if evidence.audit.action.trim().is_empty() || !evidence.audit.required {
         return Err(IngestError::InvalidRequest {
@@ -368,7 +398,9 @@ pub fn build_ingest_audit_event(
     actor: &str,
 ) -> Result<AuditEvent, IngestError> {
     if actor.trim().is_empty() {
-        return Err(IngestError::MissingField { field: "actor".into() });
+        return Err(IngestError::MissingField {
+            field: "actor".into(),
+        });
     }
     validate_ingest_evidence(evidence)?;
 
@@ -378,8 +410,7 @@ pub fn build_ingest_audit_event(
         &evidence.source.subject_id
     };
 
-    let audit_actor =
-        AuditActor::new(actor).map_err(|e| IngestError::AuditError(e.to_string()))?;
+    let audit_actor = AuditActor::new(actor).map_err(|e| IngestError::AuditError(e.to_string()))?;
     let audit_target = AuditTarget::new("ingest", subject_id)
         .map_err(|e| IngestError::AuditError(e.to_string()))?;
 
@@ -518,7 +549,10 @@ fn finalize(
         Ok(event) => {
             evidence.audit.emitted = true;
             evidence.audit.event_id = Some(event.event_id.clone());
-            let outcome = Outcome { evidence, audit_event: event };
+            let outcome = Outcome {
+                evidence,
+                audit_event: event,
+            };
             match error {
                 None => IngestOutcome::Accepted(outcome),
                 Some(e) => IngestOutcome::Rejected { outcome, error: e },
@@ -527,17 +561,27 @@ fn finalize(
         Err(_) => {
             let event = emergency_audit_event(&evidence, actor);
             evidence.audit.event_id = Some(event.event_id.clone());
-            let outcome = Outcome { evidence, audit_event: event };
+            let outcome = Outcome {
+                evidence,
+                audit_event: event,
+            };
             let err = error.unwrap_or_else(|| {
                 IngestError::AuditError("audit event não pôde ser gerado".into())
             });
-            IngestOutcome::Rejected { outcome, error: err }
+            IngestOutcome::Rejected {
+                outcome,
+                error: err,
+            }
         }
     }
 }
 
 fn emergency_audit_event(evidence: &IngestEvidence, actor: &str) -> AuditEvent {
-    let actor_id = if actor.trim().is_empty() { DEFAULT_ACTOR } else { actor };
+    let actor_id = if actor.trim().is_empty() {
+        DEFAULT_ACTOR
+    } else {
+        actor
+    };
     let subject = non_empty_str(&evidence.source.subject_id).unwrap_or("unknown");
     let action = non_empty_str(&evidence.audit.action).unwrap_or("ingest.rejected");
 
@@ -561,9 +605,17 @@ fn not_run_scan() -> ScanEvidence {
 }
 
 fn effective_actor(actor: &str) -> &str {
-    if actor.trim().is_empty() { DEFAULT_ACTOR } else { actor }
+    if actor.trim().is_empty() {
+        DEFAULT_ACTOR
+    } else {
+        actor
+    }
 }
 
 fn non_empty_str(s: &str) -> Option<&str> {
-    if s.is_empty() { None } else { Some(s) }
+    if s.is_empty() {
+        None
+    } else {
+        Some(s)
+    }
 }
