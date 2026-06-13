@@ -1,8 +1,8 @@
-//! Tipos partilhados do envelope documental canónico.
+//! Shared Kernel — tipos do envelope documental canónico.
 //!
 //! `DocumentPackage` e os seus tipos auxiliares são usados em toda a pipeline
-//! de produção/custódia/exportação. Extraídos para crate neutro para evitar
-//! que `core-documental` e `core-exports` dependam um do outro.
+//! de produção/custódia/exportação. Extraídos para crate de Shared Kernel neutro
+//! para evitar que `core-documental` e `core-exports` dependam um do outro.
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};

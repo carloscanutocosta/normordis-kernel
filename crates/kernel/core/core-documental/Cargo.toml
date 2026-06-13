@@ -13,7 +13,7 @@ thiserror.workspace = true
 chrono.workspace = true
 rand.workspace = true
 
-core-doc-types = { path = "../core-doc-types" }
+core-doc-types = { path = "../../shared/doc-types" }
 
 [lints]
 workspace = true

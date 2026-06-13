@@ -4,7 +4,7 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 authors.workspace = true
-description = "Tipos partilhados do envelope documental canónico (DocumentPackage e artefactos)"
+description = "Shared Kernel — tipos do envelope documental canónico (DocumentPackage e artefactos)"
 
 [dependencies]
 serde.workspace = true

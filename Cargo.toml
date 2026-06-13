@@ -1,6 +1,9 @@
 [workspace]
 resolver = "2"
 members = [
+  # ── Shared Kernel ────────────────────────────────────────────────────────────
+  "crates/kernel/shared/doc-types",
+
   # ── Core ────────────────────────────────────────────────────────────────────
   "crates/kernel/core/core-audit",
   "crates/kernel/core/core-config",
@@ -8,7 +11,6 @@ members = [
   "crates/kernel/core/core-rh",
   "crates/kernel/core/core-org",
   "crates/kernel/core/core-security",
-  "crates/kernel/core/core-doc-types",
   "crates/kernel/core/core-documental",
   "crates/kernel/core/core-exports",
   "crates/kernel/core/core-ingest",
