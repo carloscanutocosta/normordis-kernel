@@ -11,7 +11,7 @@ thiserror.workspace = true
 serde.workspace = true
 
 # HTTP bloqueante — usa SChannel (Windows) via native-tls; sem Tokio
-ureq          = { version = "2", features = ["native-tls"] }
+ureq          = { version = "3", features = ["native-tls"] }
 native-tls    = "0.2"
 # XML event-based para parse de respostas eSCL
 quick-xml     = "0.36"
