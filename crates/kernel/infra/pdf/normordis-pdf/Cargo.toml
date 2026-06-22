@@ -38,6 +38,6 @@ hyphenation = ["dep:hyphenation"]
 
 [dev-dependencies]
 tempfile.workspace = true
-lopdf = "0.39"
+lopdf = "0.41"
 [lints]
 workspace = true
