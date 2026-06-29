@@ -41,7 +41,7 @@ jobs:
           RUSTFLAGS: ""  # CodeQL instrumenta o binário; -D warnings interfere
 
       - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@2a00a6e621b3efd9d09658ee2b02c1bb4668b985  # v3.36.1
+        uses: github/codeql-action/analyze@d77b13a0df3134d64a457ea9003f600b09fa1c8a  # v3.36.1
         with:
           category: rust-sast
           # Resultados publicados no separador Security > Code scanning do repositório
