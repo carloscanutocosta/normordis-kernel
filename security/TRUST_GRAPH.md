@@ -53,7 +53,7 @@ build.artifact
 - `artifacts/trust/audit-report.json` — saída do `cargo audit`
 - `artifacts/trust/license-report.txt` — saída do `cargo deny`
 - `artifacts/trust/MANIFEST.sha256` — manifesto de integridade
-- `artifacts/trust/release-report.json` — relatório final do `release-gate.ps1`
+- `artifacts/trust/release-report.json` — relatório final do `release-gate`
 
 ## Relação com NORMORDIS
 

@@ -73,10 +73,7 @@ security/
   WINDOWS_SETUP.md       ← setup local Windows
   ADVISORIES.md          ← histórico de incidentes
   audits/                ← evidências de revisão externa
-scripts/security/
-  release-gate.ps1       ← portão operacional de release
-  audit-deps.*           ← cargo audit automatizado
-  check-licenses.*       ← cargo deny automatizado
-  generate-manifest.*    ← geração de manifesto SHA-256
-  verify-manifest.*      ← verificação de manifesto
+scripts/
+  bash/security/         ← portão e verificações operacionais Linux
+  powershell/security/   ← equivalentes PowerShell para Windows
 ```

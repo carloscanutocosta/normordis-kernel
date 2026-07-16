@@ -22,7 +22,7 @@ param(
 $ErrorActionPreference = "Stop"
 
 # ─── Caminhos ───────────────────────────────────────────────
-$RepoRoot  = (Resolve-Path (Join-Path $PSScriptRoot "..\..")).Path
+$RepoRoot  = (Resolve-Path (Join-Path $PSScriptRoot "..\..\..")).Path
 $Timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
 $ZipName   = "normordis-kernel-$Timestamp.zip"
 $ZipPath   = Join-Path $DestDir $ZipName

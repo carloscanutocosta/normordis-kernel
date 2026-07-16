@@ -2,7 +2,7 @@
 # https://embarkstudios.github.io/cargo-deny/
 #
 # Executar: cargo deny check
-# Ou via script: .\scripts\security\check-licenses.ps1
+# Ou via script: .\scripts\powershell\security\check-licenses.ps1
 
 [advisories]
 # RustSec advisory database

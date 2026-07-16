@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/usr/bin/env bash
 # ============================================================
 #  Verify Integrity Manifest — normordis-kernel
 #  Verifica MANIFEST.sha256 gerado por generate-manifest.sh.
@@ -9,10 +9,10 @@
 #    ./verify-manifest.sh artifacts/trust/MANIFEST.sha256
 #    TRUST_MANIFEST=artifacts/trust/MANIFEST.sha256 ./verify-manifest.sh
 # ============================================================
-set -eu
+set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 MANIFEST="${1:-${TRUST_MANIFEST:-artifacts/trust/MANIFEST.sha256}}"
 
 case "$MANIFEST" in

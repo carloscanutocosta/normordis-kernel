@@ -9,8 +9,8 @@ Windows 11 com PowerShell 7, sem assumir Linux, WSL ou ferramentas GNU.
 
 ## Âmbito
 
-Aplica-se à execução local dos scripts de segurança (`scripts/security/`),
-ao build release (`scripts/build-release.ps1`) e à geração de evidência
+Aplica-se à execução local dos scripts PowerShell (`scripts/powershell/security/`),
+ao build release (`scripts/powershell/build-release.ps1`) e à geração de evidência
 para revisão.
 
 ## Regras mínimas
@@ -18,7 +18,7 @@ para revisão.
 - PowerShell 7 como shell principal para todos os scripts de segurança.
 - Não assumir WSL para validações locais.
 - Não depender de utilitários GNU — usar `Get-FileHash` para SHA-256.
-- Scripts Bash (`.sh`) mantidos como compatibilidade para CI Linux.
+- Bash é o caminho operacional principal no Linux; PowerShell mantém compatibilidade Windows.
 - Caminhos relativos sempre à raiz do repositório.
 
 ---
@@ -48,7 +48,7 @@ Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned
 Em ambientes com política restrita, execução pontual:
 
 ```powershell
-pwsh -NonInteractive -ExecutionPolicy Bypass -File scripts/security/release-gate.ps1
+pwsh -NonInteractive -ExecutionPolicy Bypass -File scripts/powershell/security/release-gate.ps1
 ```
 
 ---
@@ -59,38 +59,38 @@ pwsh -NonInteractive -ExecutionPolicy Bypass -File scripts/security/release-gate
 
 ```powershell
 # A partir da raiz do repositório
-.\scripts\security\release-gate.ps1
+.\scripts\powershell\security\release-gate.ps1
 ```
 
 ### Passos individuais
 
 ```powershell
 # 1. Gerar manifesto de integridade
-.\scripts\security\generate-manifest.ps1
+.\scripts\powershell\security\generate-manifest.ps1
 
 # 2. Verificar manifesto existente
-.\scripts\security\verify-manifest.ps1
+.\scripts\powershell\security\verify-manifest.ps1
 
 # 3. Auditar dependências (RustSec)
-.\scripts\security\audit-deps.ps1 -UpdateDb
+.\scripts\powershell\security\audit-deps.ps1 -UpdateDb
 
 # 4. Verificar conformidade de licenças
-.\scripts\security\check-licenses.ps1
+.\scripts\powershell\security\check-licenses.ps1
 ```
 
 ### Build release completo
 
 ```powershell
-.\scripts\build-release.ps1
-.\scripts\build-release.ps1 -SkipTests   # iteração rápida
-.\scripts\build-release.ps1 -WithDocs    # gerar documentação HTML
+.\scripts\powershell\build-release.ps1
+.\scripts\powershell\build-release.ps1 -SkipTests   # iteração rápida
+.\scripts\powershell\build-release.ps1 -WithDocs    # gerar documentação HTML
 ```
 
 ### Backup do repositório
 
 ```powershell
-.\scripts\backup\full-repo-backup.ps1
-.\scripts\backup\full-repo-restore.ps1 -List
+.\scripts\powershell\backup\full-repo-backup.ps1
+.\scripts\powershell\backup\full-repo-restore.ps1 -List
 ```
 
 ---

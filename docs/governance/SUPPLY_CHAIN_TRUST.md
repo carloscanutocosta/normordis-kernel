@@ -28,7 +28,7 @@ Geração: `cargo cyclonedx --format json --all` — executado em CI em cada PR 
 
 O manifest SHA-256 regista hashes criptográficos dos ficheiros relevantes do repositório, excluindo `target/`, `.git/`, `artifacts/` e ficheiros gerados. Este manifest cria uma base simples para verificação posterior de integridade.
 
-Geração: `scripts/security/generate-manifest.ps1`  
+Geração: `scripts/bash/security/generate-manifest.sh`
 Verificação: `sha256sum -c MANIFEST.sha256`
 
 ## 6. Trust Graph
@@ -70,7 +70,7 @@ Ver: [security/RUNTIME_INTEGRITY.md](../../security/RUNTIME_INTEGRITY.md)
 | Dependências não usadas | `cargo machete` | `ci.yml` | **Bloqueia** |
 | SBOM | `cargo cyclonedx` | `ci.yml` + `release.yml` | Observacional — artefacto gerado |
 | SBOM attestation | `actions/attest-sbom` | `release.yml` | Release — Sigstore TLog |
-| Manifest SHA-256 | `generate-manifest.ps1` | `release.yml` | Release — integridade ficheiros |
+| Manifest SHA-256 | `generate-manifest.sh` | `release.yml` | Release — integridade ficheiros |
 | Provenance (SLSA L2) | `actions/attest-build-provenance` | `release.yml` | Release — Sigstore TLog |
 | Cosign keyless | `cosign sign-blob` (Sigstore) | `release.yml` | Release — bundle verificável offline |
 | SAST unsafe surface | `cargo geiger` | `ci.yml` | Observacional — relatório auditável |

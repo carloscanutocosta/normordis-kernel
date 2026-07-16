@@ -87,11 +87,11 @@ As vulnerabilidades confirmadas são corrigidas antes de qualquer divulgação p
 
 ## Modelo de Confiança em Release
 
-Cada release do `normordis-kernel` passa por um portão de segurança de 4 passos antes de ser promovida a `main`. O orquestrador é `scripts/security/release-gate.ps1`.
+Cada release do `normordis-kernel` passa por um portão de segurança de 4 passos antes de ser promovida a `main`. No Linux, o orquestrador é `scripts/bash/security/release-gate.sh`; o equivalente Windows está em `scripts/powershell/security/release-gate.ps1`.
 
 ### 1. Integridade do Código-Fonte
 
-`scripts/security/generate-manifest.ps1` / `generate-manifest.sh`
+`scripts/bash/security/generate-manifest.sh` / `scripts/powershell/security/generate-manifest.ps1`
 
 Gera `MANIFEST.sha256` e `MANIFEST.json` com hashes SHA-256 de todos os ficheiros fonte, excluindo artefactos reconstruíveis. O manifesto é gravado em `artifacts/trust/` e pode ser verificado de forma independente:
 
@@ -99,13 +99,13 @@ Gera `MANIFEST.sha256` e `MANIFEST.json` com hashes SHA-256 de todos os ficheiro
 # Linux / macOS
 sha256sum -c artifacts/trust/MANIFEST.sha256
 
-# PowerShell
-.\scripts\security\verify-manifest.ps1
+# PowerShell (Windows)
+.\scripts\powershell\security\verify-manifest.ps1
 ```
 
 ### 2. Auditoria de Dependências
 
-`scripts/security/audit-deps.ps1` / `audit-deps.sh`
+`scripts/bash/security/audit-deps.sh` / `scripts/powershell/security/audit-deps.ps1`
 
 Todas as dependências Rust são verificadas contra a [RustSec Advisory Database](https://rustsec.org/). A release é bloqueada se existir qualquer vulnerabilidade com CVE ou RUSTSEC atribuído.
 
@@ -117,7 +117,7 @@ O relatório JSON é gravado em `artifacts/trust/audit-report.json`.
 
 ### 3. Conformidade de Licenças
 
-`scripts/security/check-licenses.ps1` / `check-licenses.sh`
+`scripts/bash/security/check-licenses.sh` / `scripts/powershell/security/check-licenses.ps1`
 
 A política de licenças está definida em `deny.toml` na raiz do repositório. São **permitidas** licenças compatíveis com EUPL-1.2 (MIT, Apache-2.0, BSD-*, ISC, MPL-2.0). São **proibidas** GPL-2.0, GPL-3.0, AGPL-3.0 e LGPL-*.
 
@@ -127,13 +127,13 @@ cargo deny check licenses
 
 ### 4. Build Determinístico
 
-`scripts/build-release.ps1`
+`scripts/bash/build-release.sh` (ou `scripts/powershell/build-release.ps1` no Windows)
 
 A release é compilada com `cargo build --release --workspace` após `cargo fmt --check` e `cargo clippy -- -D warnings`, sem flags não documentadas ou patches não divulgados.
 
 ### Relatório Final
 
-O `release-gate.ps1` produz `artifacts/trust/release-report.json` com o git SHA do commit, timestamps, versão do compilador e resultado de cada passo. Este ficheiro acompanha qualquer distribuição de artefactos.
+O `release-gate` produz `artifacts/trust/release-report.json` com o git SHA do commit, timestamps, versão do compilador e resultado de cada passo. Este ficheiro acompanha qualquer distribuição de artefactos.
 
 ---
 

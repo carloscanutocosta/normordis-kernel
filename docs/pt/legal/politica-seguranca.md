@@ -159,7 +159,7 @@ Nenhuma alteração pode ser integrada sem passar todos os gates:
 
 ### 5.2 Gate de release (4 passos)
 
-Antes de qualquer promoção a `main`, o `scripts/security/release-gate.ps1` executa:
+Antes de qualquer promoção a `main`, o `scripts/bash/security/release-gate.sh` executa:
 
 1. **Integridade do código-fonte** — `MANIFEST.sha256` com hashes de todos os ficheiros fonte
 2. **Auditoria de dependências** — `cargo audit`; relatório gravado em `artifacts/trust/`

@@ -1,0 +1,12 @@
+[Unit]
+Description=Daily NORMORDIS normordis-kernel backup
+
+[Timer]
+OnCalendar=*-*-* 03:15:00
+RandomizedDelaySec=10m
+AccuracySec=1m
+Persistent=true
+Unit=normordis-kernel-backup.service
+
+[Install]
+WantedBy=timers.target

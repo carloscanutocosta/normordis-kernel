@@ -54,12 +54,12 @@ git checkout -b feature/nome-da-funcionalidade
 
 ### 4. Verificar antes do PR
 
-```powershell
+```bash
 # Formatação + clippy + testes
-.\scripts\build-release.ps1 -SkipBuild
+bash scripts/bash/build-release.sh
 
 # Portão de segurança (audit + licenças + manifesto)
-.\scripts\security\release-gate.ps1 -SkipBuild
+bash scripts/bash/security/release-gate.sh --skip-build
 ```
 
 O CI rejeita PRs com warnings de compilação (`-D warnings`), falhas de teste, vulnerabilidades RustSec ou violações de licença.

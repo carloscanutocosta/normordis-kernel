@@ -42,7 +42,7 @@ build.artifact
 
 ## Informação mínima por release
 
-O `release-report.json` gerado pelo `release-gate.ps1` deve conter:
+O `release-report.json` gerado pelo `release-gate` deve conter:
 
 | Campo | Descrição |
 |-------|-----------|

@@ -19,7 +19,7 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
-$root = (Resolve-Path (Join-Path $PSScriptRoot "..\..")).Path
+$root = (Resolve-Path (Join-Path $PSScriptRoot "..\..\..")).Path
 $manifestFullPath = if ([System.IO.Path]::IsPathRooted($ManifestPath)) {
     $ManifestPath
 } else {

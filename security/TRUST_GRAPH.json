@@ -46,7 +46,7 @@
     {
       "id": "release.report",
       "type": "evidence",
-      "description": "Relatório final JSON do release-gate.ps1 com git SHA, timestamps e resultado de cada passo."
+      "description": "Relatório final JSON do release-gate com git SHA, timestamps e resultado de cada passo."
     },
     {
       "id": "release.artifact",
