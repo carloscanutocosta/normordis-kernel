@@ -63,9 +63,9 @@ fn parse_args() -> Result<Args, String> {
     let source = source.ok_or("--source é obrigatório")?;
     let data_dir = data_dir.ok_or("--data-dir é obrigatório")?;
     let key = key
-        .or_else(|| std::env::var("NORMAXIS_DB_KEY").ok())
+        .or_else(|| std::env::var("NORMORDIS_DB_KEY").ok())
         .filter(|k| !k.is_empty())
-        .ok_or("chave de encriptação em falta: usa --key ou NORMAXIS_DB_KEY")?;
+        .ok_or("chave de encriptação em falta: usa --key ou NORMORDIS_DB_KEY")?;
 
     Ok(Args {
         source,

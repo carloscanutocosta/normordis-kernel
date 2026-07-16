@@ -1,0 +1,11 @@
+{
+  "event_id": "550e8400-e29b-41d4-a716-446655440002",
+  "event_type": "user.logout",
+  "actor": {
+    "actor_id": "user:staff@normordis.local"
+  },
+  "target": {
+    "target_type": "session",
+    "target_id": "sess-20260115-003"
+  }
+}

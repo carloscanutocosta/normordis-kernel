@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "algorithm": "XCHACHA20-POLY1305",
+  "nonce_b64": "YWFhYWFhYWFhYWFhYWFhYWFhYWFhYQ==",
+  "ciphertext_b64": "Y2lwaGVydGV4dA==",
+  "kdf": {
+    "algorithm": "argon2id",
+    "memory_kib": 32,
+    "iterations": 1,
+    "parallelism": 1,
+    "salt_b64": "c2FsdA=="
+  }
+}

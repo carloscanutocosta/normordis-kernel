@@ -1,6 +1,6 @@
 # ============================================================
 #  Full Repo Backup — normordis-kernel
-#  Destino: D:\Backup\normordis-kernel
+#  Destino: E:\Backup\normordis-kernel
 #  Objectivo: Snapshot completo (código + git) para
 #             reinstalação noutro PC. Exclui artefactos
 #             reconstruíveis (target).
@@ -13,7 +13,7 @@
 
 param(
     # Pasta de destino
-    [string]$DestDir = "D:\Backup\normordis-kernel",
+    [string]$DestDir = "E:\Backup\normordis-kernel",
 
     # Número de backups a manter (0 = manter todos)
     [int]$KeepLast = 7

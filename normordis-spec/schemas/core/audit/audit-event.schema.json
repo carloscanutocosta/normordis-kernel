@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://normordis.local/spec/schemas/core/audit/audit-event.schema.json",
+  "title": "AuditEvent",
+  "description": "Registo imutável de um acto auditável. Mapeado de core_audit::AuditEvent.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["event_id", "event_type", "actor", "target", "occurred_at_utc"],
+  "properties": {
+    "event_id": {
+      "type": "string",
+      "minLength": 1,
+      "format": "uuid",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+      "description": "UUID v4 do evento (único, imutável após criação)."
+    },
+    "event_type": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$",
+      "description": "Código do tipo de evento: user.login, document.sign, org_unit.create, …"
+    },
+    "actor": {
+      "$ref": "audit-actor.schema.json",
+      "description": "Entidade que executou o acto."
+    },
+    "target": {
+      "$ref": "audit-target.schema.json",
+      "description": "Recurso sobre o qual o acto incidiu."
+    },
+    "occurred_at_utc": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d+)?Z$",
+      "description": "Timestamp UTC do momento do acto. Deve terminar em 'Z'."
+    },
+    "outcome": {
+      "$ref": "audit-outcome.schema.json",
+      "description": "Resultado do acto. Omitido quando not_applicable (serde skip_serializing_if)."
+    },
+    "control_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64,
+      "pattern": "^CTRL-(AUTH|VAL|TRACE|DOC|INT|PRIV|SEC|ING|EXP|CONT)-[0-9]{3}$",
+      "description": "Identificador do controlo COSO associado (opcional)."
+    },
+    "details_json": {
+      "description": "Payload livre de detalhes adicionais (qualquer valor JSON válido)."
+    }
+  }
+}

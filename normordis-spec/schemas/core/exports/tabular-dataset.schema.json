@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://normordis.local/spec/schemas/core/exports/tabular-dataset.schema.json",
+  "title": "TabularDataset",
+  "description": "Conjunto de dados tabular para materialização (CSV, XML, SQLite, XLSX). columns e rows não vazios é invariante de TabularDataset::validate() (camada 3). Mapeado de core_exports::TabularDataset.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["columns", "rows"],
+  "properties": {
+    "columns": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "description": "Nomes das colunas. Cada coluna não pode ser vazia (camada 3)."
+    },
+    "rows": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "description": "Linha como mapa coluna→valor (TabularRow = BTreeMap<String, Value>). Valores podem ser de qualquer tipo JSON.",
+        "additionalProperties": true
+      },
+      "description": "Linhas de dados."
+    }
+  }
+}

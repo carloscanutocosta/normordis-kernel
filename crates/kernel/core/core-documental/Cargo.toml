@@ -11,8 +11,10 @@ serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true
 chrono.workspace = true
+rand.workspace = true
+jsonschema = "0.28"
 
-core-rh  = { path = "../core-rh" }
-core-org = { path = "../core-org" }
+core-doc-types = { path = "../../shared/doc-types" }
+
 [lints]
 workspace = true

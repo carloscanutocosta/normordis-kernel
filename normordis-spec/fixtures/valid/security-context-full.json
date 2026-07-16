@@ -1,0 +1,8 @@
+{
+  "subject_id": "user:director@normordis.local",
+  "session_id": "sess-20260606-001",
+  "auth_level": "strong",
+  "policy_id": "POL-BASELINE-001",
+  "decision_id": "dec-20260606-0001",
+  "org_scope": "unit-dgae"
+}

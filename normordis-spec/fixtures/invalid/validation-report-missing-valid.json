@@ -1,0 +1,9 @@
+{
+  "issues": [
+    {
+      "rule_id": "validation.string.required",
+      "severity": "Error",
+      "message": "field is required"
+    }
+  ]
+}

@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://normordis.local/spec/schemas/core/audit/control-category.schema.json",
+  "title": "ControlCategory e ControlSeverity",
+  "description": "Enumerações auxiliares de classificação de controlos COSO. Mapeado de core_audit::ControlCategory e ControlSeverity.",
+  "$defs": {
+    "ControlCategory": {
+      "type": "string",
+      "enum": [
+        "auth",
+        "validation",
+        "traceability",
+        "documentary",
+        "integrity",
+        "privacy",
+        "security",
+        "ingestion",
+        "export",
+        "continuity"
+      ]
+    },
+    "ControlSeverity": {
+      "type": "string",
+      "enum": ["low", "medium", "high"],
+      "default": "low"
+    }
+  }
+}

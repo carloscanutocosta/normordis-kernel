@@ -1,0 +1,6 @@
+{
+  "archive_id": "backup-20260606-123000",
+  "algorithm": "tar+gzip",
+  "sha256": "not-a-hash",
+  "created_at_utc": "2026-06-06T12:30:00Z"
+}

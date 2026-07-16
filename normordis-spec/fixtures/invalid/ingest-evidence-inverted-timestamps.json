@@ -1,0 +1,32 @@
+{
+  "bundle_id": "bnd:test:inverted-ts",
+  "correlation_id": "corr:test:inverted",
+  "decision": "rejected",
+  "received_at": "2026-06-12T10:10:00Z",
+  "processed_at": "2026-06-12T10:09:00Z",
+  "source": {
+    "kind": "pdf-official",
+    "subject_id": "doc-inverted",
+    "version": "1.0"
+  },
+  "content_type": "application/pdf",
+  "hash": {
+    "algorithm": "SHA-256",
+    "declared_hash": "",
+    "actual_hash": "",
+    "verified": false
+  },
+  "scan": {
+    "adapter": "not_run",
+    "verdict": "not_run"
+  },
+  "validation": {
+    "content_type": "application/pdf",
+    "valid": false
+  },
+  "audit": {
+    "required": true,
+    "emitted": false,
+    "action": "ingest.rejected"
+  }
+}

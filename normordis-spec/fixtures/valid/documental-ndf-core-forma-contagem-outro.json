@@ -1,0 +1,17 @@
+{
+  "ndf_version": "1.0.0",
+  "documento": { "tipo": "despacho_especial" },
+  "metadados": { "entidade": "IGAC" },
+  "ndt_version_ref": "despacho@v1.0.0",
+  "avaliacao": {
+    "tipo_classificacao_ref": "100.20.005",
+    "prazo_conservacao_administrativa": {
+      "valor": 3,
+      "unidade": "anos",
+      "forma_contagem": "outro",
+      "forma_contagem_detalhe": "A partir da data de publicação em Diário da República"
+    },
+    "destino_final": "conservacao_parcial_por_amostragem",
+    "lista_consolidada_versao_ref": "lista-consolidada-dglab-v2024"
+  }
+}

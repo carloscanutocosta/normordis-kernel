@@ -1,4 +1,4 @@
-# NCRTF — NORMAXIS Canonical Rich Text Format
+# NCRTF — NORMORDIS Canonical Rich Text Format
 ### Manual do Developer · v1.3.0
 
 > **Versão actual:** NCRTF 1.3.0 · normaxis-pdf 2.0.0  
@@ -9,7 +9,7 @@
 
 ## O que é o NCRTF
 
-O NCRTF é o formato intermédio entre o editor React (Lexical) e o backend Rust do NORMAXIS. Quando o utilizador edita texto rico numa mini-app, o Lexical serializa o estado do editor para NCRTF JSON. O backend deserializa e renderiza para PDF.
+O NCRTF é o formato intermédio entre o editor React (Lexical) e o backend Rust do NORMORDIS. Quando o utilizador edita texto rico numa mini-app, o Lexical serializa o estado do editor para NCRTF JSON. O backend deserializa e renderiza para PDF.
 
 **Escopo e limites.** O NCRTF é conteúdo rico embebível — não define documento completo, metadados jurídicos, numeração, integridade nem cadeia de custódia. Esses pertencem ao NDT (template) e ao NDF (documento gerado). O NCRTF é conteúdo *dentro* de um documento, não o documento em si.
 
@@ -259,7 +259,7 @@ Renderizado como parágrafo com indentação e cor cinza.
 {
   "type":     "code_block",
   "language": "rust",
-  "code":     "fn main() {\n    println!(\"Olá NORMAXIS!\");\n}"
+  "code":     "fn main() {\n    println!(\"Olá NORMORDIS!\");\n}"
 }
 ```
 

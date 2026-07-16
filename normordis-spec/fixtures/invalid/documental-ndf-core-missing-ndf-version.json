@@ -1,0 +1,15 @@
+{
+  "documento": {},
+  "metadados": {},
+  "ndt_version_ref": "oficio@v1.0.0",
+  "avaliacao": {
+    "tipo_classificacao_ref": "PROC.01",
+    "prazo_conservacao_administrativa": {
+      "valor": 5,
+      "unidade": "anos",
+      "forma_contagem": "encerramento_processo"
+    },
+    "destino_final": "eliminacao",
+    "lista_consolidada_versao_ref": "lista-consolidada-v2024"
+  }
+}

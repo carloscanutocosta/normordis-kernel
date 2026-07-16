@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://normordis.local/spec/schemas/core/security/security-context.schema.json",
+  "title": "SecurityContext",
+  "description": "Contexto de uma decisão de autorização. Campos opcionais usam skip_serializing_if — quando ausentes, não aparecem no JSON (não serializam como null). Mapeado de core_security::SecurityContext.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["subject_id", "auth_level"],
+  "properties": {
+    "subject_id": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^\\S(?:.*\\S)?$",
+      "description": "Identificador do sujeito autenticado."
+    },
+    "session_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Referência à sessão activa (SessionRef transparente). Ausente quando não há sessão."
+    },
+    "auth_level": {
+      "$ref": "auth-level.schema.json"
+    },
+    "policy_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "ID da política que gerou a decisão (opcional).",
+      "$comment": "Referencia Policy.policy_id em schemas/core/security/policy.schema.json"
+    },
+    "decision_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "ID único da decisão de autorização (opcional)."
+    },
+    "org_scope": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Âmbito orgânico da operação (OrgScope transparente). Ausente quando não aplicável."
+    }
+  }
+}

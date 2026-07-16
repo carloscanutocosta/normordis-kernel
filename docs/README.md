@@ -43,8 +43,8 @@ docs/
 
 - [Pipeline PDF](pdf/README.md) — ADRs e modelos de execução do pipeline Typst
 - [NCRTF](pdf/NCRTF.md) — Canonical Rich Text Format
-- [NDF](pdf/NDF.md) — NORMAXIS Document Format
-- [NDT](pdf/NDT.md) — NORMAXIS Document Template
+- [NDF](pdf/NDF.md) — NORMORDIS Document Format
+- [NDT](pdf/NDT.md) — NORMORDIS Document Template
 
 ## Conformidade (compliance by design)
 

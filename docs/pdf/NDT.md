@@ -1,4 +1,4 @@
-# NDT — NORMAXIS Document Template
+# NDT — NORMORDIS Document Template
 ### Manual do Developer · v2.0.0
 
 > **Versão actual:** NDT 2.0.0 · normaxis-pdf 2.0.0  
@@ -9,7 +9,7 @@
 
 ## O que é o NDT
 
-O NDT é o formato nativo de templates de documentos do NORMAXIS. Define num único ficheiro:
+O NDT é o formato nativo de templates de documentos do NORMORDIS. Define num único ficheiro:
 
 - A **estrutura** do documento (elementos, secções, tabelas)
 - Os **estilos** tipográficos (fontes, tamanhos, espaçamentos)
@@ -19,7 +19,7 @@ O NDT é o formato nativo de templates de documentos do NORMAXIS. Define num ún
 
 Um ficheiro NDT é um **template** — não um documento acabado. O mesmo template pode ser usado para gerar centenas de documentos com dados diferentes.
 
-**Relação com o NDF:** o NDT é o artefacto de autoria; o NDF (NORMAXIS Document Format) é o artefacto documental gerado. O ciclo canónico é:
+**Relação com o NDF:** o NDT é o artefacto de autoria; o NDF (NORMORDIS Document Format) é o artefacto documental gerado. O ciclo canónico é:
 
 ```
 NDT + NdtData  →  compile_ndt()  →  NDF  →  render_ndf()  →  PDF
@@ -222,7 +222,7 @@ O engine inclui estes estilos sem necessidade de os declarar no NDT:
 
 ### Fontes embebidas e aliases Word
 
-| Nome NORMAXIS | Aliases Word resolvidos |
+| Nome NORMORDIS | Aliases Word resolvidos |
 |---|---|
 | `LiberationSans` | Arial, Calibri, Helvetica |
 | `LiberationSerif` | Times New Roman, Cambria, Georgia |
