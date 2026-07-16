@@ -1,13 +1,13 @@
-# normaxis-pdf
+# normordis-pdf
 
-Pure-Rust institutional PDF generation for the NORMAXIS mini-app framework.
+Pure-Rust institutional PDF generation for the NORMORDIS mini-app framework.
 
-[![Crate](https://img.shields.io/badge/crate-normaxis--pdf-blue)](https://crates.io/crates/normaxis-pdf)
+[![Crate](https://img.shields.io/badge/crate-normaxis--pdf-blue)](https://crates.io/crates/normordis-pdf)
 [![License: EUPL-1.2](https://img.shields.io/badge/license-EUPL--1.2-blue.svg)](https://joinup.ec.europa.eu/collection/eupl/eupl-text-eupl-12)
 
 ## Overview
 
-`normaxis-pdf` generates formal documents — reports, letters, certificates, forms — directly from Rust, with no external binary dependency (no LaTeX, no Typst, no Chromium). It targets Portuguese public administration document standards and embeds [Liberation Sans](https://github.com/liberationfonts/liberation-fonts) for out-of-the-box rendering with real glyph metrics.
+`normordis-pdf` generates formal documents — reports, letters, certificates, forms — directly from Rust, with no external binary dependency (no LaTeX, no Typst, no Chromium). It targets Portuguese public administration document standards and embeds [Liberation Sans](https://github.com/liberationfonts/liberation-fonts) for out-of-the-box rendering with real glyph metrics.
 
 Three composition models, all mixable in a single document:
 
@@ -22,7 +22,7 @@ Three composition models, all mixable in a single document:
 ```toml
 # Cargo.toml
 [dependencies]
-normaxis-pdf = "1.0.0"
+normordis-pdf = "1.0.0"
 ```
 
 ### Flow document
@@ -109,7 +109,7 @@ let pdf = DocumentBuilder::new("Ofício")
 
 ### NCRTF v1.0 — rich text format
 
-NCRTF (NORMAXIS Canonical Rich Text Format) is a JSON schema for inline-styled paragraphs. It is the interchange format between editors (such as `@normaxis/nx-doc`) and this renderer.
+NCRTF (NORMORDIS Canonical Rich Text Format) is a JSON schema for inline-styled paragraphs. It is the interchange format between editors (such as `@normaxis/nx-doc`) and this renderer.
 
 ```json
 {
@@ -140,7 +140,7 @@ Supported inline marks: `bold`, `italic`, `underline`, `strikethrough`, `code`.
 
 ### NDT v1.0.0 — document templates
 
-NDT (NORMAXIS Document Template) is a JSON-driven template format for institutional documents. Templates define a layout schema; runtime data is injected at render time.
+NDT (NORMORDIS Document Template) is a JSON-driven template format for institutional documents. Templates define a layout schema; runtime data is injected at render time.
 
 **Template file** (`*.ndt.json`):
 
@@ -198,7 +198,7 @@ Ready-to-use NDT templates are provided under `examples/templates/`:
 Run any example with:
 
 ```bash
-cargo run --example <name> -p normaxis-pdf
+cargo run --example <name> -p normordis-pdf
 ```
 
 | Example | Description |

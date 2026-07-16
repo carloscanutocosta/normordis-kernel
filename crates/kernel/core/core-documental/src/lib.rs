@@ -8,6 +8,7 @@
 mod tests;
 
 pub mod archive;
+pub mod ndf_core;
 pub mod attachment;
 pub mod authority;
 pub mod custody;
@@ -59,3 +60,10 @@ pub use service::DocumentCustodyService;
 
 // ── template ──────────────────────────────────────────────────────────────────
 pub use template::{DocumentTemplate, TemplateId, TemplateStatus};
+
+// ── ndf_core ──────────────────────────────────────────────────────────────────
+pub use ndf_core::{
+    validate_ndf_core, Avaliacao, DestinoFinal, FormaContagem, ListaConsolidadaEntry,
+    ListaConsolidadaLookup, NdfCore, NdfValidationError, PrazoConservacao, UnidadePrazo,
+    MAX_SUPPORTED_NDF_VERSION_MAJOR,
+};

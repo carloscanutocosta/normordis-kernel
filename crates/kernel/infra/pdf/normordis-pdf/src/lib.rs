@@ -1,12 +1,12 @@
 //! # normordis-pdf
 //!
-//! Institutional PDF generation library for NORMAXIS mini-apps.
+//! Institutional PDF generation library for NORMORDIS mini-apps.
 //!
 //! Generates professional PDF documents for Portuguese public administration,
 //! with support for:
 //! - Flow and Fixed Box layout modes
-//! - NORMAXIS Canonical Rich Text Format (NCRTF v1.1)
-//! - NORMAXIS Document Template format (NDT v1.3.0)
+//! - NORMORDIS Canonical Rich Text Format (NCRTF v1.1)
+//! - NORMORDIS Document Template format (NDT v1.3.0)
 //! - Named paragraph/table styles with inheritance (equivalent to Word Styles)
 //! - Tab stops (left, right, center, decimal) with leader characters
 //! - TTF/OTF font loading with real glyph metrics (rustybuzz + ttf-parser)

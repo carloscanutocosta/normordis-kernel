@@ -798,6 +798,7 @@ version = "0.3.0"
 dependencies = [
  "chrono",
  "core-doc-types",
+ "jsonschema",
  "rand 0.8.6",
  "serde",
  "serde_json",

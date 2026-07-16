@@ -1,6 +1,6 @@
 # ============================================================
 #  Full Repo Restore — normordis-kernel
-#  Origem:  D:\Backup\normordis-kernel  (ou -BackupFile)
+#  Origem:  E:\Backup\normordis-kernel  (ou -BackupFile)
 #  Destino: pasta à escolha             (ou -RestoreDir)
 #
 #  Uso:
@@ -8,7 +8,7 @@
 #    .\full-repo-restore.ps1 -RestoreDir "C:\Projetos\normordis-kernel"
 #
 #    # Restaurar um backup específico
-#    .\full-repo-restore.ps1 -BackupFile "D:\Backup\normordis-kernel\normordis-kernel-20260523-120000.zip" `
+#    .\full-repo-restore.ps1 -BackupFile "E:\Backup\normordis-kernel\normordis-kernel-20260523-120000.zip" `
 #                             -RestoreDir "C:\Projetos\normordis-kernel"
 #
 #    # Restaurar e reconstruir dependências automaticamente
@@ -21,7 +21,7 @@
 param(
     [string]$BackupFile  = "",
     [string]$RestoreDir  = "",
-    [string]$BackupDir   = "D:\Backup\normordis-kernel",
+    [string]$BackupDir   = "E:\Backup\normordis-kernel",
     [switch]$Rebuild     = $false,
     [switch]$List        = $false
 )

@@ -12,6 +12,7 @@ serde_json.workspace = true
 thiserror.workspace = true
 chrono.workspace = true
 rand.workspace = true
+jsonschema = "0.28"
 
 core-doc-types = { path = "../../shared/doc-types" }
 

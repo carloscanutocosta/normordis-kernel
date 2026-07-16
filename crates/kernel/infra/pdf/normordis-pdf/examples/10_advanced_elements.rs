@@ -41,7 +41,7 @@ fn main() -> normordis_pdf::Result<()> {
 
     let pdf = builder
         .style(style)
-        .header(InstitutionalHeader::new("NORMAXIS", "Demonstração v1.5.0"))
+        .header(InstitutionalHeader::new("NORMORDIS", "Demonstração v1.5.0"))
         .footer(PageFooter::new().right("{{page}} / {{total_pages}}"))
         // ── TOC ───────────────────────────────────────────────────────
         .push(

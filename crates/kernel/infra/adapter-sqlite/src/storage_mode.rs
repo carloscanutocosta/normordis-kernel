@@ -19,7 +19,7 @@ pub enum DbError {
     #[error("Base de dados plain não disponível neste modo de armazenamento")]
     PlainDbNotAvailable,
 
-    #[error("Chave de encriptação em falta. Define a variável de ambiente NORMAXIS_DB_KEY")]
+    #[error("Chave de encriptação em falta. Define a variável de ambiente NORMORDIS_DB_KEY")]
     MissingEncryptionKey,
 
     #[error("Chave de encriptação inválida ou base de dados corrompida")]
