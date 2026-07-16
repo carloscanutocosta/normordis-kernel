@@ -4873,6 +4873,7 @@ version = "0.3.0"
 dependencies = [
  "core-audit",
  "core-config",
+ "core-documental",
  "core-exports",
  "core-ingest",
  "core-org",

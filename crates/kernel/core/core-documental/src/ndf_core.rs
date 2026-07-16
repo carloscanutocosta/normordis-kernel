@@ -51,6 +51,7 @@ pub struct PrazoConservacao {
     pub valor: u32,
     pub unidade: UnidadePrazo,
     pub forma_contagem: FormaContagem,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub forma_contagem_detalhe: Option<String>,
 }
 

@@ -183,6 +183,19 @@ const VALID_FIXTURES: &[(&str, ContractSchema)] = &[
         "fixtures/valid/ingest-evidence-rejected.json",
         ContractSchema::IngestEvidence,
     ),
+    // ── core-documental ──────────────────────────────────────────────────────
+    (
+        "fixtures/valid/documental-ndf-core-minimal.json",
+        ContractSchema::NdfCore,
+    ),
+    (
+        "fixtures/valid/documental-ndf-core-full.json",
+        ContractSchema::NdfCore,
+    ),
+    (
+        "fixtures/valid/documental-ndf-core-forma-contagem-outro.json",
+        ContractSchema::NdfCore,
+    ),
     // ── core-exports ──────────────────────────────────────────────────────────
     (
         "fixtures/valid/exports-source-ref-config-profile.json",
@@ -400,6 +413,27 @@ const INVALID_FIXTURES: &[(&str, ContractSchema)] = &[
     (
         "fixtures/invalid/ingest-evidence-missing-bundle-id.json",
         ContractSchema::IngestEvidence,
+    ),
+    // ── core-documental ──────────────────────────────────────────────────────
+    (
+        "fixtures/invalid/documental-ndf-core-destino-final-invalido.json",
+        ContractSchema::NdfCore,
+    ),
+    (
+        "fixtures/invalid/documental-ndf-core-extra-field.json",
+        ContractSchema::NdfCore,
+    ),
+    (
+        "fixtures/invalid/documental-ndf-core-missing-ndf-version.json",
+        ContractSchema::NdfCore,
+    ),
+    (
+        "fixtures/invalid/documental-ndf-core-unidade-invalida.json",
+        ContractSchema::NdfCore,
+    ),
+    (
+        "fixtures/invalid/documental-ndf-core-valor-negativo.json",
+        ContractSchema::NdfCore,
     ),
     // ── core-exports ──────────────────────────────────────────────────────────
     (

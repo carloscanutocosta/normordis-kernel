@@ -5,6 +5,10 @@ use core_audit::{
     ControlExecution, SignedAuditExportManifest,
 };
 use core_config::{validate_app_config, AppConfig};
+use core_documental::{
+    validate_ndf_core, DestinoFinal, FormaContagem, ListaConsolidadaEntry, ListaConsolidadaLookup,
+    NdfCore, UnidadePrazo,
+};
 use core_exports::{ExportMaterializationRequest, SourceRef, TabularDataset};
 use core_ingest::{
     validate_ingest_bundle, validate_ingest_evidence, IngestBundle, IngestDecision, IngestEvidence,
@@ -77,6 +81,7 @@ pub enum ContractSchema {
     IngestBundle,
     IngestDecision,
     IngestEvidence,
+    NdfCore,
 }
 
 // ── ScenarioKind ──────────────────────────────────────────────────────────────
@@ -178,6 +183,7 @@ pub fn schema_path_for(schema: ContractSchema) -> &'static str {
         ContractSchema::IngestBundle => "schemas/core/ingest/ingest-bundle.schema.json",
         ContractSchema::IngestDecision => "schemas/core/ingest/ingest-decision.schema.json",
         ContractSchema::IngestEvidence => "schemas/core/ingest/ingest-evidence.schema.json",
+        ContractSchema::NdfCore => "schemas/core/documental/ndf-core.schema.json",
     }
 }
 
@@ -447,6 +453,10 @@ pub fn assert_native_valid(path: &str, schema: ContractSchema) {
                 .unwrap_or_else(|e| panic!("{path}: {e}"));
             validate_ingest_evidence(&v).unwrap_or_else(|e| panic!("{path}: {e}"));
         }
+        ContractSchema::NdfCore => {
+            validate_ndf_core(&instance, &ConformanceListaConsolidada)
+                .unwrap_or_else(|errors| panic!("{path}: {errors:?}"));
+        }
     }
 }
 
@@ -505,7 +515,40 @@ pub fn roundtrip_json(path: &str, schema: ContractSchema) -> Value {
         ContractSchema::IngestBundle => rt!(instance, IngestBundle),
         ContractSchema::IngestDecision => rt!(instance, IngestDecision),
         ContractSchema::IngestEvidence => rt!(instance, IngestEvidence),
+        ContractSchema::NdfCore => rt!(instance, NdfCore),
         _ => instance,
+    }
+}
+
+struct ConformanceListaConsolidada;
+
+impl ListaConsolidadaLookup for ConformanceListaConsolidada {
+    fn lookup(
+        &self,
+        tipo_classificacao_ref: &str,
+        _lista_versao_ref: &str,
+    ) -> Option<ListaConsolidadaEntry> {
+        match tipo_classificacao_ref {
+            "PROC.01" => Some(ListaConsolidadaEntry {
+                pca_valor: 5,
+                pca_unidade: UnidadePrazo::Anos,
+                pca_forma_contagem: FormaContagem::EncerramentoProcesso,
+                destino_final: DestinoFinal::Eliminacao,
+            }),
+            "850.10.303" => Some(ListaConsolidadaEntry {
+                pca_valor: 10,
+                pca_unidade: UnidadePrazo::Anos,
+                pca_forma_contagem: FormaContagem::FimVigencia,
+                destino_final: DestinoFinal::ConservacaoPermanente,
+            }),
+            "100.20.005" => Some(ListaConsolidadaEntry {
+                pca_valor: 3,
+                pca_unidade: UnidadePrazo::Anos,
+                pca_forma_contagem: FormaContagem::Outro,
+                destino_final: DestinoFinal::ConservacaoParcialPorAmostragem,
+            }),
+            _ => None,
+        }
     }
 }
 
