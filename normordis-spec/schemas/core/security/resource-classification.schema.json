@@ -1,0 +1,8 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://normordis.local/spec/schemas/core/security/resource-classification.schema.json",
+  "title": "ResourceClassification",
+  "description": "Classificação de sensibilidade de um recurso, ordenada: public < internal < restricted < secret. serde rename_all=lowercase. Mapeado de core_security::ResourceClassification.",
+  "type": "string",
+  "enum": ["public", "internal", "restricted", "secret"]
+}

@@ -1,0 +1,93 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://normordis.local/spec/schemas/core/documental/ndf-core.schema.json",
+  "title": "NdfCore",
+  "description": "Estrutura do NDF-core v1.x — conteúdo canónico de um documento NORMORDIS antes de canonicalização JCS e assinatura CAdES-B-LTA. NaN/Infinity não são representáveis em JSON estrito e são excluídos pelo parser, não por este schema. A regra forma_contagem_detalhe obrigatório-quando-outro é aplicada pelo validador Rust (defesa em profundidade), não via if/then, para manter a separação schema-estrutura/Rust-negócio.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["ndf_version", "documento", "metadados", "ndt_version_ref", "avaliacao"],
+  "properties": {
+    "ndf_version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$",
+      "description": "Versão da especificação NDF (semver). O schema valida apenas o formato; o validador Rust verifica se o major é suportado (§7.2 — max_supported_major=1)."
+    },
+    "documento": {
+      "type": "object",
+      "description": "Conteúdo lógico do documento — estrutura interna definida pelo tipo documental, fora de âmbito deste schema base."
+    },
+    "metadados": {
+      "type": "object",
+      "description": "Metadados descritivos e classificação MEF/MIP/DGLAB — estrutura interna definida pelo tipo documental."
+    },
+    "ndt_version_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Referência à versão do NDT (template/layout) para reprodução visual determinística. Imutável pós-finalização."
+    },
+    "avaliacao": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "tipo_classificacao_ref",
+        "prazo_conservacao_administrativa",
+        "destino_final",
+        "lista_consolidada_versao_ref"
+      ],
+      "properties": {
+        "tipo_classificacao_ref": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Código MEF/MIP que associa o tipo de documento à classificação DGLAB (Lista Consolidada). Validado semanticamente pelo validador Rust contra a Lista Consolidada carregada."
+        },
+        "prazo_conservacao_administrativa": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["valor", "unidade", "forma_contagem"],
+          "properties": {
+            "valor": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Quantidade do prazo de conservação administrativa (inteiro >= 0)."
+            },
+            "unidade": {
+              "type": "string",
+              "enum": ["dias", "meses", "anos"],
+              "description": "Unidade temporal do prazo."
+            },
+            "forma_contagem": {
+              "type": "string",
+              "enum": [
+                "data_documento",
+                "encerramento_processo",
+                "fim_ano_civil",
+                "fim_vigencia",
+                "outro"
+              ],
+              "description": "Forma de contagem do prazo conforme Lista Consolidada/MEG."
+            },
+            "forma_contagem_detalhe": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Descrição específica da forma de contagem. Obrigatório quando forma_contagem='outro' — regra aplicada pelo validador Rust, não por este schema."
+            }
+          }
+        },
+        "destino_final": {
+          "type": "string",
+          "enum": [
+            "conservacao_permanente",
+            "eliminacao",
+            "conservacao_parcial_por_amostragem"
+          ],
+          "description": "Destino final após decurso do PCA conforme Lista Consolidada/MEG."
+        },
+        "lista_consolidada_versao_ref": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Versão da Lista Consolidada DGLAB consultada no momento da finalização para resolver PCA/DF."
+        }
+      }
+    }
+  }
+}

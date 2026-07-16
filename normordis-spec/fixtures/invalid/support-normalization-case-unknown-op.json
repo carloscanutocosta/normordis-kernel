@@ -1,0 +1,5 @@
+{
+  "operation": "strip_unknown",
+  "input": "texto",
+  "expected": "texto"
+}

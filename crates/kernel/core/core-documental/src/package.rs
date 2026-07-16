@@ -1,67 +1,12 @@
-//! Envelope documental canónico (`DocumentPackage`) — tipo de fronteira para
-//! custódia definitiva e exportação (Gate F).
+//! Validação do envelope documental canónico (`DocumentPackage`).
+//!
+//! Os tipos de dados (`DocumentPackage`, `Artefact`, etc.) vivem em `core-doc-types`
+//! (crate neutro partilhado com `core-exports`). Este módulo re-exporta-os e
+//! adiciona `validate_document_package` que usa `DocumentalError`.
 
-use chrono::{DateTime, Utc};
-use serde::{Deserialize, Serialize};
-use serde_json::Value;
+pub use core_doc_types::{Artefact, DocumentPackage, EngineRef, HashResult, TemplateRef};
 
 use crate::DocumentalError;
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct TemplateRef {
-    pub template_id: String,
-    pub template_version: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub valid_at: Option<DateTime<Utc>>,
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct EngineRef {
-    pub engine_id: String,
-    pub engine_version: String,
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct HashResult {
-    pub algorithm: String,
-    pub hash: String,
-    pub timestamp: DateTime<Utc>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub input_kind: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub input_ref: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub meta: Option<Value>,
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct Artefact {
-    pub kind: String,
-    #[serde(rename = "ref")]
-    pub artefact_ref: String,
-    pub hash_result: HashResult,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub mime: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub size_bytes: Option<usize>,
-}
-
-/// Envelope documental canónico mínimo aceite pelo core para custódia definitiva.
-///
-/// Identifica a instância, a definição documental, o motor de produção e os
-/// artefactos associados. Espelha o tipo `DocumentPackage` do Go kernel.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct DocumentPackage {
-    pub document_id: String,
-    pub created_at: DateTime<Utc>,
-    pub template: TemplateRef,
-    pub engine: EngineRef,
-    pub artefacts: Vec<Artefact>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub subject: Option<Value>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub meta: Option<Value>,
-}
 
 pub fn validate_document_package(pkg: &DocumentPackage) -> Result<(), DocumentalError> {
     if pkg.document_id.trim().is_empty() {

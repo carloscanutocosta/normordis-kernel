@@ -1,0 +1,13 @@
+{
+  "definition": {
+    "control_id": "CTRL-AUTH-001",
+    "name": "Autenticação obrigatória",
+    "active": true
+  },
+  "execution": {
+    "execution_id": "550e8400-e29b-41d4-a716-446655440001",
+    "control_id": "CTRL-AUTH-001",
+    "event_id": "550e8400-e29b-41d4-a716-446655440000",
+    "result": "passed"
+  }
+}

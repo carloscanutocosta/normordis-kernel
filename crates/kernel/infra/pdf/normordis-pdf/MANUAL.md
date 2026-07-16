@@ -1,4 +1,4 @@
-# normaxis-pdf — Guia do Programador
+# normordis-pdf — Guia do Programador
 
 ## Índice
 
@@ -127,7 +127,7 @@ RgbColor::from_hex("003399")           // sem o '#' também funciona
 
 ### `TextAlignment`
 
-NORMAXIS suporta exactamente três alinhamentos:
+NORMORDIS suporta exactamente três alinhamentos:
 
 ```rust
 TextAlignment::Left     // padrão para corpo, listas, células de tabela

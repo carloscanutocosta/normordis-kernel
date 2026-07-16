@@ -1,0 +1,4 @@
+{
+  "code": "MINI.AUTH.TOKEN_EXPIRED",
+  "message": "authentication token has expired"
+}

@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://normordis.local/spec/schemas/support/public-error.schema.json",
+  "title": "PublicError",
+  "description": "Representação pública de um erro — sem details internos, sem component. É o tipo de resposta de erro que cruza fronteiras de serviço (API, IPC, UI).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["code", "message"],
+  "properties": {
+    "code": {
+      "$ref": "mini-error.schema.json#/$defs/ErrorCode",
+      "description": "Código canónico do erro. Sempre começa com MINI."
+    },
+    "message": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Mensagem legível. Não deve conter paths, queries, segredos ou dados pessoais."
+    }
+  }
+}

@@ -15,7 +15,7 @@ use crate::NormaxisPdfError;
 /// NDF format version produced by this engine.
 pub const NDF_VERSION: &str = "1.1.0";
 
-/// A fully resolved NORMAXIS Document Format (NDF) archive.
+/// A fully resolved NORMORDIS Document Format (NDF) archive.
 ///
 /// Immutable fields after creation: `origin`, `revision`, `meta`, `output`,
 /// `styles`, `content`, `integrity`.

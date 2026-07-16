@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://normordis.local/spec/schemas/support/release-notes.schema.json",
+  "title": "ReleaseNotes",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "novidades", "problemas_conhecidos", "updated_at_utc"],
+  "properties": {
+    "version": { "type": "string", "minLength": 1, "pattern": "^\\S(?:.*\\S)?$" },
+    "novidades": { "type": "array", "items": { "type": "string", "minLength": 1, "pattern": "^\\S(?:.*\\S)?$" } },
+    "problemas_conhecidos": { "type": "array", "items": { "type": "string", "minLength": 1, "pattern": "^\\S(?:.*\\S)?$" } },
+    "updated_at_utc": { "$ref": "utc-timestamp.schema.json" }
+  }
+}

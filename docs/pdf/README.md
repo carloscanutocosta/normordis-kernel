@@ -25,9 +25,9 @@ Actualizado: 2026-05-23
 
 | Doc | Título | Versão |
 |-----|--------|--------|
-| [NCRTF.md](NCRTF.md) | NORMAXIS Canonical Rich Text Format | 1.3.0 |
-| [NDF.md](NDF.md) | NORMAXIS Document Format | 1.1.0 |
-| [NDT.md](NDT.md) | NORMAXIS Document Template | 2.0.0 |
+| [NCRTF.md](NCRTF.md) | NORMORDIS Canonical Rich Text Format | 1.3.0 |
+| [NDF.md](NDF.md) | NORMORDIS Document Format | 1.1.0 |
+| [NDT.md](NDT.md) | NORMORDIS Document Template | 2.0.0 |
 
 ---
 

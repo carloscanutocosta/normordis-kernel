@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://normordis.local/spec/schemas/core/rh/person-assignment.schema.json",
+  "title": "PersonAssignment",
+  "description": "Afectação temporal de uma pessoa a uma posição orgânica. valid_until > valid_from é invariante de negócio verificado por native validate(), não pelo schema. Mapeado de core_rh::PersonAssignment.",
+  "$defs": {
+    "NaiveDate": {
+      "type": "string",
+      "format": "date",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+    }
+  },
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "person_id", "position_id", "unit_id", "basis", "valid_from", "version"],
+  "properties": {
+    "id": { "type": "string", "minLength": 1, "pattern": "^\\S+$" },
+    "person_id": { "type": "string", "minLength": 1, "pattern": "^\\S+$" },
+    "position_id": {
+      "type": "string", "minLength": 1, "pattern": "^\\S+$",
+      "$comment": "Referencia OrgPosition.id em schemas/core/org/org-position.schema.json"
+    },
+    "unit_id": {
+      "type": "string", "minLength": 1, "pattern": "^\\S+$",
+      "$comment": "Referencia OrgUnit.id em schemas/core/org/org-unit.schema.json"
+    },
+    "basis": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^\\S(?:.*\\S)?$",
+      "description": "Instrumento jurídico ou despacho que fundamenta a afectação."
+    },
+    "valid_from": { "$ref": "#/$defs/NaiveDate" },
+    "valid_until": {
+      "anyOf": [{ "$ref": "#/$defs/NaiveDate" }, { "type": "null" }]
+    },
+    "version": { "type": "integer", "minimum": 0 }
+  }
+}

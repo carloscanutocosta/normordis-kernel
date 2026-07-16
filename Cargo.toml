@@ -1,6 +1,9 @@
 [workspace]
 resolver = "2"
 members = [
+  # ── Shared Kernel ────────────────────────────────────────────────────────────
+  "crates/kernel/shared/doc-types",
+
   # ── Core ────────────────────────────────────────────────────────────────────
   "crates/kernel/core/core-audit",
   "crates/kernel/core/core-config",
@@ -73,6 +76,9 @@ members = [
   # ── Runtime ─────────────────────────────────────────────────────────────────
   "crates/runtime/miniapp-runtime",
   "crates/runtime/interoperability",
+
+  # ── Conformance (testes de contrato normordis-spec) ───────────────────────────
+  "crates/spec-conformance",
 ]
 
 [workspace.lints.rust]

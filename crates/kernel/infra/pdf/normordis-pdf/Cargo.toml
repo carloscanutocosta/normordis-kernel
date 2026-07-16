@@ -12,7 +12,7 @@ exclude = ["examples/templates/*.pdf"]
 
 [dependencies]
 chrono.workspace = true
-pdf-writer = "0.14"
+pdf-writer = "0.12"
 subsetter = "0.2"
 flate2 = "1"
 image = { version = "0.25", features = ["png", "jpeg"] }
@@ -24,7 +24,7 @@ serde = { workspace = true }
 serde_json = { version = "1", features = ["preserve_order"] }
 uuid.workspace = true
 hex.workspace = true
-toml = "1.1"
+toml = "0.8"
 fontdb = { version = "0.23", optional = true }
 hyphenation = { version = "0.8", features = ["embed_all"], optional = true }
 sha2 = "0.10"
@@ -38,6 +38,6 @@ hyphenation = ["dep:hyphenation"]
 
 [dev-dependencies]
 tempfile.workspace = true
-lopdf = "0.39"
+lopdf = "0.42"
 [lints]
 workspace = true

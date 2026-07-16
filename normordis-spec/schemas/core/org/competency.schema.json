@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://normordis.local/spec/schemas/core/org/competency.schema.json",
+  "title": "Competency",
+  "description": "Competência atribuída a um cargo por instrumento jurídico. Mapeado de core_org::Competency.",
+  "$defs": {
+    "NaiveDate": {
+      "type": "string",
+      "format": "date",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+    }
+  },
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "code", "description", "scope", "assigned_to", "granted_by", "valid_from", "version"],
+  "properties": {
+    "id": { "type": "string", "minLength": 1, "pattern": "^\\S+$" },
+    "code": { "type": "string", "minLength": 1, "pattern": "^\\S(?:.*\\S)?$" },
+    "description": { "type": "string", "minLength": 1 },
+    "scope": { "type": "string", "minLength": 1 },
+    "assigned_to": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^\\S+$",
+      "description": "ID da posição orgânica à qual esta competência está atribuída.",
+      "$comment": "Referencia OrgPosition.id em schemas/core/org/org-position.schema.json"
+    },
+    "granted_by": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^\\S+$",
+      "description": "ID do instrumento jurídico que concedeu a competência.",
+      "$comment": "Referencia LegalInstrument.id em schemas/core/org/legal-instrument.schema.json"
+    },
+    "valid_from": { "$ref": "#/$defs/NaiveDate" },
+    "valid_until": {
+      "anyOf": [{ "$ref": "#/$defs/NaiveDate" }, { "type": "null" }]
+    },
+    "version": { "type": "integer", "minimum": 0 }
+  }
+}

@@ -14,22 +14,16 @@ pub enum DocumentalError {
     AttachmentNotFound(String),
     #[error("transição de estado inválida: {0} → {1}")]
     InvalidStatusTransition(String, String),
-    #[error("documento já finalizado — não pode ser modificado")]
-    DocumentFinalized,
+    #[error("documento imutável após entrada em custódia")]
+    DocumentImmutable,
     #[error("número já atribuído")]
     NumberAlreadyAssigned,
     #[error("número inválido: campo vazio")]
     EmptyDocumentNumber,
-    #[error("número de documento obrigatório para finalização")]
-    MissingDocumentNumber,
-    #[error("contexto de autoridade em falta para finalização")]
-    MissingAuthorityContext,
     #[error("template activo já existe para este tipo: {0}")]
     ActiveTemplateExists(String),
     #[error("template imutável após activação")]
     TemplateImmutable,
-    #[error("template não pode ser activado: estado actual não é 'draft'")]
-    TemplateNotActivatable,
     #[error("registo NDF write-once: já existe registo com id {0}")]
     NdfRecordAlreadyExists(String),
     #[error("hash do NDF não coincide com o registado")]
@@ -46,4 +40,8 @@ pub enum DocumentalError {
     OperationFailed(String),
     #[error("pacote documental inválido: {0}")]
     InvalidPackage(String),
+    #[error("anexo demasiado grande: {size_bytes} bytes (máximo: {max_bytes})")]
+    AttachmentTooLarge { size_bytes: usize, max_bytes: usize },
+    #[error("conteúdo JSON inválido: {0}")]
+    InvalidContent(String),
 }

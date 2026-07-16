@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://normordis.local/spec/schemas/core/org/delegation.schema.json",
+  "title": "Delegation",
+  "description": "Delegação temporal de competência entre posições. from_position != to_position é invariante de negócio — não verificável em JSON Schema; validado por Delegation::validate(). Mapeado de core_org::Delegation.",
+  "$defs": {
+    "NaiveDate": {
+      "type": "string",
+      "format": "date",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+    }
+  },
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "competency_id", "from_position", "to_position", "instrument_id", "valid_from", "version"],
+  "properties": {
+    "id": { "type": "string", "minLength": 1, "pattern": "^\\S+$" },
+    "competency_id": {
+      "type": "string", "minLength": 1, "pattern": "^\\S+$",
+      "$comment": "Referencia Competency.id em schemas/core/org/competency.schema.json"
+    },
+    "from_position": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^\\S+$",
+      "description": "Posição que delega a competência.",
+      "$comment": "Referencia OrgPosition.id em schemas/core/org/org-position.schema.json"
+    },
+    "to_position": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^\\S+$",
+      "description": "Posição que recebe a delegação. Deve ser diferente de from_position (camada 3).",
+      "$comment": "Referencia OrgPosition.id em schemas/core/org/org-position.schema.json"
+    },
+    "instrument_id": {
+      "type": "string", "minLength": 1, "pattern": "^\\S+$",
+      "$comment": "Referencia LegalInstrument.id em schemas/core/org/legal-instrument.schema.json"
+    },
+    "valid_from": { "$ref": "#/$defs/NaiveDate" },
+    "valid_until": {
+      "anyOf": [{ "$ref": "#/$defs/NaiveDate" }, { "type": "null" }]
+    },
+    "version": { "type": "integer", "minimum": 0 }
+  }
+}

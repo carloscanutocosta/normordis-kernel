@@ -1,6 +1,7 @@
 use tempfile::tempdir;
 
 use core_config::AppConfig;
+use core_documental::{DocumentTypeCode, TemplateRepository};
 use support_app_bootstrap::{
     bootstrap_local_app, load_from_json_file, save_to_json_file, BootstrapOptions,
 };
@@ -42,9 +43,10 @@ fn bootstrap_creates_directories_and_database() {
     assert!(runtime.release_notes_path.exists());
 
     // Verifica que o documental_store está funcional e vazio.
+    let doc_type = DocumentTypeCode::new("any-type").unwrap();
     let tpl = runtime
         .documental_store
-        .get_active_for_type("any-type")
+        .get_active_for_type(&doc_type)
         .unwrap();
     assert!(tpl.is_none());
 

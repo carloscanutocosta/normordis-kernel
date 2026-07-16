@@ -1,0 +1,11 @@
+{
+  "id": "pos-dgae-001",
+  "code": "DIR-DGAE",
+  "title": "Director(a) da Direcção-Geral de Administração e Emprego Público",
+  "kind": "Direcao",
+  "status": "active",
+  "unit_id": "unit-dgae",
+  "created_by": "instr-portaria-2026-001",
+  "valid_from": "2026-01-01",
+  "version": 1
+}
