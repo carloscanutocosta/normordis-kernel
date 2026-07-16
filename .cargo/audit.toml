@@ -12,4 +12,12 @@ ignore = [
   # yaml-rust chega por syntect na cadeia Typst/PDF.
   # O advisory e de manutencao, sem upgrade seguro direto neste grafo.
   "RUSTSEC-2024-0320",
+  # quick-xml vulneravel chega por citationberg/plist na cadeia Typst/PDF.
+  # O kernel nao usa NsReader diretamente nestes caminhos; acompanhar upgrade Typst.
+  "RUSTSEC-2026-0194",
+  "RUSTSEC-2026-0195",
+  # rustybuzz e ttf-parser chegam pela cadeia Typst/PDF/fontes.
+  # Sem substituicao segura direta no grafo atual; acompanhar migracao para fontations.
+  "RUSTSEC-2026-0206",
+  "RUSTSEC-2026-0192",
 ]

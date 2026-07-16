@@ -8,12 +8,12 @@
 mod tests;
 
 pub mod archive;
-pub mod ndf_core;
 pub mod attachment;
 pub mod authority;
 pub mod custody;
 pub mod error;
 pub mod events;
+pub mod ndf_core;
 pub mod package;
 pub mod ports;
 pub mod service;

@@ -216,15 +216,10 @@ impl RetentionPolicy {
     pub fn temporary(years: u32, custodied_at: DateTime<Utc>) -> Self {
         use chrono::{Datelike, Duration, NaiveDate};
         let base = custodied_at.date_naive();
-        let expires_date = NaiveDate::from_ymd_opt(
-            base.year() + years as i32,
-            base.month(),
-            base.day(),
-        )
-        .unwrap_or_else(|| base + Duration::days(years as i64 * 366));
-        let expires_at = expires_date
-            .and_time(custodied_at.time())
-            .and_utc();
+        let expires_date =
+            NaiveDate::from_ymd_opt(base.year() + years as i32, base.month(), base.day())
+                .unwrap_or_else(|| base + Duration::days(years as i64 * 366));
+        let expires_at = expires_date.and_time(custodied_at.time()).and_utc();
         Self {
             class: RetentionClass::Temporary { years },
             expires_at: Some(expires_at),
@@ -586,12 +581,18 @@ impl DocumentCustody {
     /// Usar sempre este método para novos documentos. Struct literal directo só deve
     /// ser usado por adapters ao reconstituir documentos a partir da base de dados.
     pub fn accept(spec: IntakeSpec) -> Result<Self, DocumentalError> {
-        if let AuthoritySource::System { system_id, justification } = &spec.authority {
+        if let AuthoritySource::System {
+            system_id,
+            justification,
+        } = &spec.authority
+        {
             if system_id.trim().is_empty() {
                 return Err(DocumentalError::EmptyField("authority.system_id".into()));
             }
             if justification.trim().is_empty() {
-                return Err(DocumentalError::EmptyField("authority.justification".into()));
+                return Err(DocumentalError::EmptyField(
+                    "authority.justification".into(),
+                ));
             }
         }
         let doc = Self {
@@ -623,12 +624,18 @@ impl DocumentCustody {
         if self.entry_channel.0.trim().is_empty() {
             return Err(DocumentalError::EmptyField("entry_channel".into()));
         }
-        if let AuthoritySource::System { system_id, justification } = &self.authority {
+        if let AuthoritySource::System {
+            system_id,
+            justification,
+        } = &self.authority
+        {
             if system_id.trim().is_empty() {
                 return Err(DocumentalError::EmptyField("authority.system_id".into()));
             }
             if justification.trim().is_empty() {
-                return Err(DocumentalError::EmptyField("authority.justification".into()));
+                return Err(DocumentalError::EmptyField(
+                    "authority.justification".into(),
+                ));
             }
         }
         Ok(())

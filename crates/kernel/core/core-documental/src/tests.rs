@@ -11,8 +11,8 @@ use crate::{
     authority::AuthoritySnapshot,
     custody::{
         AuthoritySource, DocumentContent, DocumentCustody, DocumentId, DocumentOrigin,
-        DocumentStatus, DocumentTypeCode, EntryChannel, IntakeSpec, RetentionClass, RetentionPolicy,
-        ValidationCode,
+        DocumentStatus, DocumentTypeCode, EntryChannel, IntakeSpec, RetentionClass,
+        RetentionPolicy, ValidationCode,
     },
     error::DocumentalError,
     events::{
@@ -904,7 +904,11 @@ fn event_actor_system_usa_strings() {
         system_id: "ingest-batch".into(),
         justification: "migração lote 2026-01".into(),
     };
-    if let EventActor::System { system_id, justification } = actor {
+    if let EventActor::System {
+        system_id,
+        justification,
+    } = actor
+    {
         assert_eq!(system_id, "ingest-batch");
         assert_eq!(justification, "migração lote 2026-01");
     } else {
@@ -931,7 +935,10 @@ fn custody_validate_system_authority_rejeita_system_id_vazio() {
         system_id: "  ".into(),
         justification: "importação automática".into(),
     };
-    assert!(matches!(doc.validate(), Err(DocumentalError::EmptyField(_))));
+    assert!(matches!(
+        doc.validate(),
+        Err(DocumentalError::EmptyField(_))
+    ));
 }
 
 #[test]
@@ -941,7 +948,10 @@ fn custody_validate_system_authority_rejeita_justification_vazia() {
         system_id: "ingest-svc".into(),
         justification: String::new(),
     };
-    assert!(matches!(doc.validate(), Err(DocumentalError::EmptyField(_))));
+    assert!(matches!(
+        doc.validate(),
+        Err(DocumentalError::EmptyField(_))
+    ));
 }
 
 // ── AuthoritySource em stored_by / rendered_by ────────────────────────────────

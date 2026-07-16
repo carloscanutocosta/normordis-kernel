@@ -35,12 +35,11 @@ use thiserror::Error;
 
 use core_documental::{
     AttachmentId, AttachmentKind, AttachmentStore, AuthoritySnapshot, AuthoritySource,
-    DocumentAttachment,
-    DocumentCustody, DocumentCustodyRepository, DocumentEvent, DocumentEventId, DocumentEventLog,
-    DocumentEventType, DocumentId, DocumentOrigin, DocumentRelation, DocumentStatus,
-    DocumentTemplate, DocumentTypeCode, DocumentalError, EntryChannel, EventActor, EventFilter,
-    NdfArchive, NdfRecord, NdfRecordId, RelationType, RetentionClass, RetentionPolicy, TemplateId,
-    TemplateRepository, TemplateStatus, ValidationCode,
+    DocumentAttachment, DocumentCustody, DocumentCustodyRepository, DocumentEvent, DocumentEventId,
+    DocumentEventLog, DocumentEventType, DocumentId, DocumentOrigin, DocumentRelation,
+    DocumentStatus, DocumentTemplate, DocumentTypeCode, DocumentalError, EntryChannel, EventActor,
+    EventFilter, NdfArchive, NdfRecord, NdfRecordId, RelationType, RetentionClass, RetentionPolicy,
+    TemplateId, TemplateRepository, TemplateStatus, ValidationCode,
 };
 
 // ── Migrations ────────────────────────────────────────────────────────────────
@@ -1149,8 +1148,7 @@ impl NdfArchive for DocumentalSqliteStore {
         for row in rows {
             let (id, doc_id, ndf_json, ndf_hash, tpl_hash, rendered_at, by_json) =
                 row.map_err(db_err)?;
-            let rendered_by: AuthoritySource =
-                serde_json::from_str(&by_json).map_err(json_err)?;
+            let rendered_by: AuthoritySource = serde_json::from_str(&by_json).map_err(json_err)?;
             records.push(NdfRecord {
                 id: NdfRecordId::new(id)?,
                 document_id: DocumentId::new(doc_id)?,

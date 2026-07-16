@@ -202,9 +202,8 @@ pub trait AttachmentStore {
             DocumentalError::OperationFailed(format!("erro ao abrir ficheiro: {e}"))
         })?;
         let mut content = Vec::with_capacity(size);
-        file.read_to_end(&mut content).map_err(|e| {
-            DocumentalError::OperationFailed(format!("erro ao ler ficheiro: {e}"))
-        })?;
+        file.read_to_end(&mut content)
+            .map_err(|e| DocumentalError::OperationFailed(format!("erro ao ler ficheiro: {e}")))?;
         self.store(attachment, &content)
     }
 }

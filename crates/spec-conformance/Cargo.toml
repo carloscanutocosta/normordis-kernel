@@ -2,6 +2,8 @@
 name = "spec-conformance"
 version.workspace = true
 edition.workspace = true
+license.workspace = true
+authors.workspace = true
 publish = false
 description = "Testes de conformance dos crates core contra normordis-spec (schemas + fixtures)."
 

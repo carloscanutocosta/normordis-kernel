@@ -13,9 +13,8 @@ pub const MAX_SUPPORTED_NDF_VERSION_MAJOR: u64 = 1;
 
 // ── Schema embutido ───────────────────────────────────────────────────────────
 
-const NDF_CORE_SCHEMA_STR: &str = include_str!(
-    "../../../../../normordis-spec/schemas/core/documental/ndf-core.schema.json"
-);
+const NDF_CORE_SCHEMA_STR: &str =
+    include_str!("../../../../../normordis-spec/schemas/core/documental/ndf-core.schema.json");
 
 // ── Enums ─────────────────────────────────────────────────────────────────────
 
@@ -158,10 +157,7 @@ pub fn validate_ndf_core(
         .build(&schema_value)
         .expect("schema NDF-core inválido — erro de build");
 
-    let schema_errors: Vec<String> = validator
-        .iter_errors(raw)
-        .map(|e| e.to_string())
-        .collect();
+    let schema_errors: Vec<String> = validator.iter_errors(raw).map(|e| e.to_string()).collect();
 
     if !schema_errors.is_empty() {
         return Err(schema_errors
@@ -297,8 +293,7 @@ mod tests {
     // ── Testes do JSON Schema ─────────────────────────────────────────────────
 
     fn schema_validator() -> jsonschema::Validator {
-        let schema: Value =
-            serde_json::from_str(NDF_CORE_SCHEMA_STR).expect("schema inválido");
+        let schema: Value = serde_json::from_str(NDF_CORE_SCHEMA_STR).expect("schema inválido");
         jsonschema::options()
             .build(&schema)
             .expect("falha ao compilar schema")
@@ -388,8 +383,7 @@ mod tests {
     #[test]
     fn schema_rejeita_unidade_fora_do_enum() {
         let mut raw = valid_raw();
-        raw["avaliacao"]["prazo_conservacao_administrativa"]["unidade"] =
-            json!("semanas");
+        raw["avaliacao"]["prazo_conservacao_administrativa"]["unidade"] = json!("semanas");
         assert!(!schema_validator().is_valid(&raw));
     }
 
@@ -439,8 +433,7 @@ mod tests {
     #[test]
     fn schema_aceita_forma_contagem_outro_com_detalhe() {
         let mut raw = valid_raw();
-        raw["avaliacao"]["prazo_conservacao_administrativa"]["forma_contagem"] =
-            json!("outro");
+        raw["avaliacao"]["prazo_conservacao_administrativa"]["forma_contagem"] = json!("outro");
         raw["avaliacao"]["prazo_conservacao_administrativa"]["forma_contagem_detalhe"] =
             json!("A partir da publicação em DR");
         assert!(schema_validator().is_valid(&raw));
@@ -450,8 +443,7 @@ mod tests {
     fn schema_aceita_forma_contagem_outro_sem_detalhe() {
         // O schema não impõe a regra — é da responsabilidade do validador Rust.
         let mut raw = valid_raw();
-        raw["avaliacao"]["prazo_conservacao_administrativa"]["forma_contagem"] =
-            json!("outro");
+        raw["avaliacao"]["prazo_conservacao_administrativa"]["forma_contagem"] = json!("outro");
         assert!(schema_validator().is_valid(&raw));
     }
 
@@ -477,8 +469,7 @@ mod tests {
     #[test]
     fn validador_aceita_forma_contagem_outro_com_detalhe() {
         let mut raw = valid_raw();
-        raw["avaliacao"]["prazo_conservacao_administrativa"]["forma_contagem"] =
-            json!("outro");
+        raw["avaliacao"]["prazo_conservacao_administrativa"]["forma_contagem"] = json!("outro");
         raw["avaliacao"]["prazo_conservacao_administrativa"]["forma_contagem_detalhe"] =
             json!("A partir da publicação em DR");
         // Mock não tem "PROC.01" com forma_contagem=Outro — ajustar pca para evitar PcaDfInconsistente
@@ -547,8 +538,7 @@ mod tests {
     #[test]
     fn validador_rejeita_forma_contagem_detalhe_ausente_quando_outro() {
         let mut raw = valid_raw();
-        raw["avaliacao"]["prazo_conservacao_administrativa"]["forma_contagem"] =
-            json!("outro");
+        raw["avaliacao"]["prazo_conservacao_administrativa"]["forma_contagem"] = json!("outro");
         // sem forma_contagem_detalhe
         let errs = validate_ndf_core(&raw, &MockLista).unwrap_err();
         assert!(errs
