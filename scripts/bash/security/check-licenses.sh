@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/usr/bin/env bash
 # ============================================================
 #  Check License Compliance — normordis-kernel
 #  Verifica se todas as dependências têm licenças compatíveis
@@ -9,10 +9,10 @@
 #    ./check-licenses.sh artifacts/trust
 #    CHECK_ALL=1 ./check-licenses.sh    # inclui advisories e bans
 # ============================================================
-set -eu
+set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 OUT_DIR="${1:-${TRUST_OUT_DIR:-artifacts/trust}}"
 CHECK_ALL="${CHECK_ALL:-0}"
 
@@ -61,7 +61,7 @@ else
 fi
 
 cargo deny check "$CHECKS" 2>&1 | tee "$REPORT"
-DENY_EXIT=${PIPESTATUS:-$?}
+DENY_EXIT=${PIPESTATUS[0]}
 
 printf '\n'
 

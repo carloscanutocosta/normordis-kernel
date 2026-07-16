@@ -30,7 +30,7 @@ responder a:
 Introduzir uma Trust Baseline transversal, incremental e não intrusiva:
 
 - `security/` com políticas, grafo de confiança e modelo de ameaças;
-- `scripts/security/` com scripts operacionais de release;
+- `scripts/bash/security/` e `scripts/powershell/security/` com scripts operacionais de release;
 - `deny.toml` com política formal de licenças;
 - CI com `cargo audit` e `cargo deny` em cada PR;
 - SBOM CycloneDX gerado em CI;
@@ -57,12 +57,9 @@ security/
   schemas/trust-graph.schema.json
   audits/.gitkeep
 
-scripts/security/
-  release-gate.ps1    — orquestrador do portão de release
-  generate-manifest.* — manifesto SHA-256
-  verify-manifest.*   — verificação de integridade
-  audit-deps.*        — cargo audit (RustSec)
-  check-licenses.*    — cargo deny
+scripts/
+  bash/               — scripts operacionais Linux
+  powershell/         — equivalentes Windows
 
 deny.toml             — política de licenças EUPL-1.2
 

@@ -69,7 +69,7 @@ normordis-kernel = { git = "https://github.com/carloscanutocosta/normordis-kerne
 
 ## Desenvolvimento
 
-```powershell
+```bash
 # Verificar ambiente e compilar
 cargo check --workspace
 
@@ -77,10 +77,10 @@ cargo check --workspace
 cargo test --workspace
 
 # Pipeline completo antes de PR
-.\scripts\build-release.ps1
+bash scripts/bash/build-release.sh
 
 # Portão de segurança antes de release
-.\scripts\security\release-gate.ps1
+bash scripts/bash/security/release-gate.sh
 ```
 
 Ver [CONTRIBUTING.md](CONTRIBUTING.md) para o processo completo.
@@ -101,8 +101,8 @@ Ver [SECURITY.md](SECURITY.md) para reportar vulnerabilidades e [security/](secu
 | Componente | Versão mínima |
 |-----------|--------------|
 | Rust | stable (edition 2021) |
-| Windows | 11 (plataforma primária) |
-| Linux | Ubuntu 22.04+ (CI validado) |
+| Linux | Ubuntu 22.04+ (plataforma operacional primária) |
+| Windows | 11 (compatibilidade via PowerShell) |
 
 ## Licença
 

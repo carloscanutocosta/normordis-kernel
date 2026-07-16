@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/usr/bin/env bash
 # ============================================================
 #  Audit Dependencies — normordis-kernel
 #  Verifica vulnerabilidades conhecidas (RustSec Advisory DB)
@@ -10,10 +10,10 @@
 #    UPDATE_DB=1 ./audit-deps.sh      # actualiza advisory-db
 #    ALLOW_WARNINGS=1 ./audit-deps.sh # não falha em unmaintained
 # ============================================================
-set -eu
+set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 OUT_DIR="${1:-${TRUST_OUT_DIR:-artifacts/trust}}"
 UPDATE_DB="${UPDATE_DB:-0}"
 ALLOW_WARNINGS="${ALLOW_WARNINGS:-0}"

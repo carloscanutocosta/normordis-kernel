@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/usr/bin/env bash
 # ============================================================
 #  Generate Integrity Manifest — normordis-kernel
 #  Gera MANIFEST.sha256 e MANIFEST.json com hashes SHA-256.
@@ -9,10 +9,10 @@
 #
 #  Variável de ambiente alternativa: TRUST_OUT_DIR
 # ============================================================
-set -eu
+set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 OUT_DIR="${1:-${TRUST_OUT_DIR:-artifacts/trust}}"
 
 # Resolver caminho relativo à raiz do repositório
