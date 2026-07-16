@@ -115,7 +115,7 @@ sudo apt install build-essential
 ### Variável de ambiente
 
 ```
-NORMAXIS_DB_KEY=<chave-segura>   # obrigatória nos modos Encrypted e Mixed
+NORMORDIS_DB_KEY=<chave-segura>   # obrigatória nos modos Encrypted e Mixed
 ```
 
 A chave nunca deve ser hardcoded. Usa `db_key_from_env()` para lê-la.
@@ -147,7 +147,7 @@ let secure_pool = manager.secure()?; // → app.secure.db
 ### Execução da migração
 
 ```bash
-NORMAXIS_DB_KEY=<chave> cargo run --features encrypted --bin migrate_to_mixed -- \
+NORMORDIS_DB_KEY=<chave> cargo run --features encrypted --bin migrate_to_mixed -- \
   --source ./data/app.db \
   --data-dir ./data/migrated \
   --sensitive-tables "utilizadores,audit_log,dados_pessoais"

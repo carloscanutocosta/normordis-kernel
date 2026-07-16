@@ -1,0 +1,19 @@
+{
+  "id": "org-root",
+  "short_name": "DG",
+  "full_name": "Direcção-Geral",
+  "level": 1,
+  "contacts": {
+    "email": "geral@normordis.local",
+    "phone": "211234567",
+    "address": {
+      "cp4": "1000",
+      "cp3": "001",
+      "localidade": "Lisboa"
+    }
+  },
+  "legal_reference": "Portaria n.º 1/2026",
+  "valid_from": "2026-01-01",
+  "status": "active",
+  "version": 0
+}

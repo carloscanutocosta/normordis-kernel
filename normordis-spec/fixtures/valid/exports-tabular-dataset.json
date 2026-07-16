@@ -1,0 +1,7 @@
+{
+  "columns": ["nif", "nome", "valor"],
+  "rows": [
+    { "nif": "501964843", "nome": "Empresa A", "valor": 1250.5 },
+    { "nif": "509876543", "nome": "Empresa B", "valor": 980 }
+  ]
+}

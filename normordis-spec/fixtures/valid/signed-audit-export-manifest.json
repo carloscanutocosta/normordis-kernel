@@ -1,0 +1,16 @@
+{
+  "manifest": {
+    "schema_version": 1,
+    "generated_at_utc": "2026-06-06T14:00:00Z",
+    "events_count": 42,
+    "head_record_hash": "b4e2d3c5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c3",
+    "manifest_hash": "c5f3e4d6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c3d4"
+  },
+  "signature": {
+    "algorithm": "Ed25519",
+    "key_id": "audit-signing-key-2026",
+    "public_key_b64": "MCowBQYDK2VwAyEAXpSV6M0RkBjlGpVBrX9v2vDf8k3mNqPwZL1TcUeY3hA=",
+    "signature_b64": "MEUCIQDfakeSignatureForSpecPurposesOnlyNotAValidSignatureAtAllAA==",
+    "signed_at_utc": "2026-06-06T14:00:01Z"
+  }
+}

@@ -1,0 +1,81 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://normordis.local/spec/schemas/core/ingest/ingest-evidence.schema.json",
+  "title": "IngestEvidence",
+  "description": "Evidência imutável de uma decisão de ingestão. Produzida sempre, independentemente de aceite ou rejeição (INGEST-R05). document_ref obrigatório quando decision=accepted (INGEST-R13, camada 3).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "bundle_id",
+    "correlation_id",
+    "decision",
+    "received_at",
+    "processed_at",
+    "source",
+    "content_type",
+    "hash",
+    "scan",
+    "validation",
+    "audit"
+  ],
+  "properties": {
+    "bundle_id": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^\\S(?:.*\\S)?$",
+      "description": "Identificador do bundle que originou esta evidência."
+    },
+    "correlation_id": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^\\S(?:.*\\S)?$",
+      "description": "Identificador de correlação da operação de ingestão."
+    },
+    "decision": {
+      "$ref": "https://normordis.local/spec/schemas/core/ingest/ingest-decision.schema.json",
+      "description": "Decisão tomada pelo pipeline."
+    },
+    "received_at": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d+)?Z$",
+      "description": "Timestamp UTC de recepção do bundle."
+    },
+    "processed_at": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d+)?Z$",
+      "description": "Timestamp UTC de conclusão do pipeline."
+    },
+    "source": {
+      "$ref": "https://normordis.local/spec/schemas/core/ingest/source.schema.json",
+      "description": "Origem declarada do bundle."
+    },
+    "content_type": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[a-zA-Z0-9][a-zA-Z0-9!#$&\\-^_]*\\/[a-zA-Z0-9][a-zA-Z0-9!#$&\\-^_.+]*$",
+      "description": "MIME type do bundle ingerido. Mesmo formato de IngestBundle.content_type."
+    },
+    "hash": {
+      "$ref": "https://normordis.local/spec/schemas/core/ingest/hash-evidence.schema.json"
+    },
+    "scan": {
+      "$ref": "https://normordis.local/spec/schemas/core/ingest/scan-evidence.schema.json"
+    },
+    "validation": {
+      "$ref": "https://normordis.local/spec/schemas/core/ingest/validation-evidence.schema.json"
+    },
+    "document_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Referência ao documento armazenado em core-documental. Presente apenas quando decision=accepted (INGEST-R13)."
+    },
+    "audit": {
+      "$ref": "https://normordis.local/spec/schemas/core/ingest/audit-evidence.schema.json"
+    },
+    "meta": {
+      "description": "Metadados livres (qualquer valor JSON válido)."
+    }
+  }
+}

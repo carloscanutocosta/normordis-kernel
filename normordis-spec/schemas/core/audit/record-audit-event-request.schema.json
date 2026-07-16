@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://normordis.local/spec/schemas/core/audit/record-audit-event-request.schema.json",
+  "title": "RecordAuditEventRequest",
+  "description": "Pedido de registo de um acto auditável. Tipo de entrada do AuditService::record_event(). Mapeado de core_audit::RecordAuditEventRequest.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["event_type", "actor", "target"],
+  "properties": {
+    "event_type": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$",
+      "description": "Classificação semântica do acto: domínio.acção em snake_case (ex: document.sign)."
+    },
+    "actor": {
+      "$ref": "audit-actor.schema.json",
+      "description": "Entidade que executa o acto."
+    },
+    "target": {
+      "$ref": "audit-target.schema.json",
+      "description": "Recurso sobre o qual o acto incide."
+    },
+    "outcome": {
+      "$ref": "audit-outcome.schema.json",
+      "description": "Resultado do acto. Omitido quando not_applicable."
+    },
+    "control_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64,
+      "pattern": "^CTRL-(AUTH|VAL|TRACE|DOC|INT|PRIV|SEC|ING|EXP|CONT)-[0-9]{3}$",
+      "description": "Controlo COSO exercido neste acto (opcional)."
+    },
+    "details_json": {
+      "description": "Contexto adicional em JSON livre (opcional). Não deve conter dados pessoais."
+    }
+  }
+}

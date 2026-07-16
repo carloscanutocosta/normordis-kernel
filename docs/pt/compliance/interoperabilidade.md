@@ -12,6 +12,7 @@ related:
   - docs/pt/compliance/overview.md
   - docs/pt/compliance/rgpd.md
   - docs/pt/legal/requirements.md
+  - docs/pt/compliance/interop-ap-tecnico.md
 ---
 
 # Normordis Kernel — Conformidade de Interoperabilidade

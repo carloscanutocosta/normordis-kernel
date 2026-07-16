@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://normordis.local/spec/schemas/core/rh/org-unit-ref.schema.json",
+  "title": "OrgUnitRef",
+  "description": "Referência leve a uma OrgUnit, usada no contexto de RH para associar um utilizador a uma unidade orgânica. Mapeado de core_rh::OrgUnitRef (definido em core_rh::org).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["org_unit_id"],
+  "properties": {
+    "org_unit_id": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^\\S+$",
+      "$comment": "Referencia OrgUnit.id em schemas/core/org/org-unit.schema.json"
+    },
+    "display_name": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Nome abreviado da unidade (opcional, para apresentação)."
+    }
+  }
+}

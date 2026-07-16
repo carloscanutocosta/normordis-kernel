@@ -1,4 +1,4 @@
-# NDF — NORMAXIS Document Format
+# NDF — NORMORDIS Document Format
 ### Especificação Técnica e Manual do Developer · v1.1.0
 
 > **Versão actual:** NDF 1.1.0 · normaxis-pdf 2.0.0  
@@ -9,7 +9,7 @@
 
 ## O que é o NDF
 
-O **NORMAXIS Document Format** (NDF) é o formato de documento acabado do NORMAXIS. Representa um documento específico, com conteúdo real — não um template reutilizável.
+O **NORMORDIS Document Format** (NDF) é o formato de documento acabado do NORMORDIS. Representa um documento específico, com conteúdo real — não um template reutilizável.
 
 Enquanto o NDT é um template parametrizado (contém `{{placeholders}}`), o NDF é o documento concreto resultante da aplicação de dados a um template, pronto para ser arquivado, auditado, verificado e re-renderizado.
 
@@ -61,7 +61,7 @@ O **JSON canónico** segue o perfil RFC 8785 (JSON Canonicalization Scheme — J
 - Serialização de strings, números e literais conforme regras JCS / ECMAScript
 - O JCS preserva os dados *as is* — não normaliza Unicode em NFC automaticamente
 
-> **Nota NORMAXIS:** se a política institucional exigir strings em NFC, a normalização deve ser aplicada *antes* de passar os dados ao engine, não dentro do `jcs_canonicalise()`. Misturar normalização NFC com JCS puro quebraria a compatibilidade com verificadores externos que implementem RFC 8785 sem esse passo adicional.
+> **Nota NORMORDIS:** se a política institucional exigir strings em NFC, a normalização deve ser aplicada *antes* de passar os dados ao engine, não dentro do `jcs_canonicalise()`. Misturar normalização NFC com JCS puro quebraria a compatibilidade com verificadores externos que implementem RFC 8785 sem esse passo adicional.
 
 > O NDF nunca deve ser editado manualmente. Usar `ndt-tools ndf-inspect` para inspecção e `ndt-tools ndf-verify` para verificação de integridade.
 

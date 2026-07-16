@@ -1,0 +1,10 @@
+{
+  "id": "pos-dgae-002",
+  "code": "DIR-DGAE-2",
+  "kind": "Chefia",
+  "status": "active",
+  "unit_id": "unit-dgae",
+  "created_by": "instr-portaria-2026-001",
+  "valid_from": "2026-01-01",
+  "version": 1
+}

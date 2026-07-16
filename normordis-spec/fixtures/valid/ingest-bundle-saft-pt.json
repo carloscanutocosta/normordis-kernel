@@ -1,0 +1,15 @@
+{
+  "bundle_id": "bnd:xml:saft-pt:2026-004",
+  "received_at": "2026-06-12T10:15:00Z",
+  "source": {
+    "kind": "saft-pt",
+    "subject_id": "nipc-500000001-2026-q1",
+    "version": "1.04_01"
+  },
+  "raw": "PHJvb3QvPg==",
+  "content_type": "application/xml",
+  "meta": {
+    "fiscal_year": 2026,
+    "quarter": 1
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "user_id": "ana.silva",
+  "username": "ana.silva",
+  "display_name": "Ana Silva",
+  "email": "ana.silva@normordis.local",
+  "user_role": "Utilizador",
+  "roles": [
+    {
+      "id": "gestor-documental",
+      "name": "Gestor Documental",
+      "description": "Gestão do arquivo documental da unidade",
+      "is_active": true
+    }
+  ],
+  "org_unit": {
+    "org_unit_id": "unit-dgae",
+    "display_name": "DGAE"
+  }
+}

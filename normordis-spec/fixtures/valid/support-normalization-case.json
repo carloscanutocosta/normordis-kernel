@@ -1,0 +1,5 @@
+{
+  "operation": "normalize_for_lookup",
+  "input": "  João   da   Silva  ",
+  "expected": "joao da silva"
+}

@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://normordis.local/spec/schemas/core/org/org-unit.schema.json",
+  "title": "OrgUnit",
+  "description": "Unidade orgânica hierárquica. Campos Option<T> sem skip_serializing_if serializam como null — o schema aceita string | null para esses campos. A invariante level=1→sem pai é verificada por OrgUnit::validate() (camada 3).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "short_name", "full_name", "level", "contacts", "valid_from", "status", "version"],
+  "allOf": [
+    {
+      "if": {
+        "properties": { "level": { "minimum": 2 } },
+        "required": ["level"]
+      },
+      "then": {
+        "required": ["parent_id"],
+        "properties": { "parent_id": { "type": "string", "minLength": 1 } }
+      }
+    }
+  ],
+  "properties": {
+    "id": { "type": "string", "minLength": 1, "pattern": "^\\S(?:.*\\S)?$" },
+    "short_name": { "type": "string", "minLength": 1, "pattern": "^\\S(?:.*\\S)?$" },
+    "full_name": { "type": "string", "minLength": 1, "pattern": "^\\S(?:.*\\S)?$" },
+    "service_code": { "type": ["string", "null"], "minLength": 1 },
+    "level": { "type": "integer", "minimum": 1 },
+    "parent_id": {
+      "type": ["string", "null"],
+      "minLength": 1,
+      "pattern": "^\\S(?:.*\\S)?$",
+      "$comment": "Referencia OrgUnit.id do nó pai. Null quando level=1 (raiz)."
+    },
+    "contacts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["address"],
+      "properties": {
+        "email": { "type": ["string", "null"], "pattern": "^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$" },
+        "phone": { "type": ["string", "null"], "minLength": 7 },
+        "fax": { "type": ["string", "null"], "minLength": 7 },
+        "address": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "rua": { "type": ["string", "null"] },
+            "numero": { "type": ["string", "null"] },
+            "porta": { "type": ["string", "null"] },
+            "local": { "type": ["string", "null"] },
+            "cp4": { "type": ["string", "null"], "pattern": "^[0-9]{4}$" },
+            "cp3": { "type": ["string", "null"], "pattern": "^[0-9]{3}$" },
+            "localidade": { "type": ["string", "null"] }
+          }
+        }
+      }
+    },
+    "created_by": { "type": ["string", "null"], "minLength": 1 },
+    "legal_reference": { "type": ["string", "null"], "minLength": 1 },
+    "valid_from": { "type": "string", "format": "date", "pattern": "^\\d{4}-\\d{2}-\\d{2}$" },
+    "valid_until": { "type": ["string", "null"], "format": "date", "pattern": "^\\d{4}-\\d{2}-\\d{2}$" },
+    "status": { "type": "string", "enum": ["active", "suspended", "extinct"] },
+    "version": { "type": "integer", "minimum": 0 }
+  }
+}

@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://normordis.local/spec/schemas/core/security/sod-rule.schema.json",
+  "title": "SodRule",
+  "description": "Regra de segregação de funções (Separation of Duties): bloqueia uma acção quando conflitua com uma acção anterior. Mapeado de core_security::SodRule.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["rule_id", "description", "blocked_action", "conflicts_with", "override_allowed"],
+  "properties": {
+    "rule_id": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^\\S(?:.*\\S)?$",
+      "description": "Identificador único da regra (ex: sod.no_self_approval)."
+    },
+    "description": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Descrição legível da regra."
+    },
+    "blocked_action": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^\\S(?:.*\\S)?$",
+      "description": "Acção que esta regra bloqueia."
+    },
+    "conflicts_with": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^\\S(?:.*\\S)?$",
+      "description": "Acção anterior que cria o conflito."
+    },
+    "override_allowed": {
+      "type": "boolean",
+      "description": "Se a regra pode ser ultrapassada com justificação registada."
+    }
+  }
+}

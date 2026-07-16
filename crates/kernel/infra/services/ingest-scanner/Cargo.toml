@@ -7,15 +7,11 @@ authors.workspace = true
 description = "Bridge eSCL/AirScan → IngestOutcome auditável via core-ingest"
 
 [dependencies]
-thiserror   = { workspace = true }
 serde_json  = { workspace = true }
 chrono      = { workspace = true }
 
 adapter-scanner = { path = "../../adapter-scanner" }
 core-ingest     = { path = "../../../core/core-ingest" }
-core-exports    = { path = "../../../core/core-exports" }
-core-documental = { path = "../../../core/core-documental" }
-core-validation = { path = "../../../core/core-validation" }
 
 [dev-dependencies]
 core-ingest = { path = "../../../core/core-ingest", features = ["test-helpers"] }

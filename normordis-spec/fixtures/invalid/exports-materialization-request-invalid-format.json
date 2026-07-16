@@ -1,0 +1,10 @@
+{
+  "snapshot_id": "exp:rh:unit-dgae:v1:a3f1c2d4e5b6a7f8",
+  "format": "json",
+  "profile": "exchange",
+  "dataset": {
+    "columns": ["nif"],
+    "rows": [{ "nif": "501964843" }]
+  },
+  "output_ref": "exports/x.json"
+}

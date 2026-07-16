@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://normordis.local/spec/schemas/support/log-event.schema.json",
+  "title": "LogEvent",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["ts", "level", "component", "message"],
+  "properties": {
+    "ts": { "$ref": "utc-timestamp.schema.json" },
+    "level": { "type": "string", "enum": ["TRACE", "DEBUG", "INFO", "WARN", "ERROR"] },
+    "component": { "type": "string", "minLength": 1, "pattern": "^\\S+$" },
+    "code": { "$ref": "mini-error.schema.json#/$defs/ErrorCode" },
+    "message": { "type": "string", "minLength": 1 },
+    "details": {}
+  }
+}

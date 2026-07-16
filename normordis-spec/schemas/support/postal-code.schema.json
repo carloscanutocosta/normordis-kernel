@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://normordis.local/spec/schemas/support/postal-code.schema.json",
+  "title": "PostalCode",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["cp4", "cp3"],
+  "properties": {
+    "cp4": { "type": "string", "pattern": "^[0-9]{4}$" },
+    "cp3": { "type": "string", "pattern": "^[0-9]{3}$" }
+  }
+}

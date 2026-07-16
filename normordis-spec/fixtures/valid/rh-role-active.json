@@ -1,0 +1,6 @@
+{
+  "id": "gestor_rh",
+  "name": "Gestor de recursos humanos",
+  "description": "Role funcional para gestão de perfis RH.",
+  "is_active": true
+}

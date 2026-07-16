@@ -1,0 +1,32 @@
+{
+  "ndf_version": "1.0.0",
+  "documento": {
+    "assunto": "Licença de utilização — obra ref. 2026/LU/042",
+    "corpo": "Nos termos do artigo 74.º do RJUE, a Câmara Municipal de...",
+    "destinatario": {
+      "nome": "João Manuel Costa",
+      "nif": "123456789",
+      "morada": "Rua das Flores, 42, 1200-100 Lisboa"
+    }
+  },
+  "metadados": {
+    "entidade": "Câmara Municipal de Lisboa",
+    "entidade_id": "ORG-CML-001",
+    "lingua": "pt",
+    "tipo_documental": "licenca_utilizacao",
+    "referencia_documental": "2026/LU/042",
+    "palavras_chave": ["licença", "utilização", "obra", "RJUE"],
+    "valido_ate": "2031-06-15"
+  },
+  "ndt_version_ref": "licenca-utilizacao@v2.3.1",
+  "avaliacao": {
+    "tipo_classificacao_ref": "850.10.303",
+    "prazo_conservacao_administrativa": {
+      "valor": 10,
+      "unidade": "anos",
+      "forma_contagem": "fim_vigencia"
+    },
+    "destino_final": "conservacao_permanente",
+    "lista_consolidada_versao_ref": "lista-consolidada-dglab-v2024"
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "id": "pos-gtc-001",
+  "code": "GTC-001",
+  "title": "Responsável de Área de Tecnologias e Comunicação",
+  "kind": { "Outro": "Responsável de Área" },
+  "status": "active",
+  "unit_id": "unit-gtc",
+  "created_by": "instr-despacho-2026-042",
+  "valid_from": "2026-03-01",
+  "version": 1
+}

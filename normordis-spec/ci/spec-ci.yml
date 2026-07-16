@@ -1,0 +1,165 @@
+# normordis-spec — CI leve (independente de qualquer implementação)
+#
+# Este ficheiro é o template do workflow a colocar em .github/workflows/spec-ci.yml
+# quando normordis-spec for extraído para repo próprio.
+#
+# Valida apenas o que a spec consegue validar autonomamente:
+#   1. Sintaxe JSON de todos os ficheiros
+#   2. Compilação dos schemas (JSON Schema Draft 2020-12)
+#   3. Consistência de $id com o caminho do ficheiro
+#   4. Consistência de versão entre version.json e VERSION.md
+#
+# NÃO executa testes de conformance de implementações específicas.
+# Cada implementação (Rust, Go) tem o seu próprio runner.
+
+name: spec-ci
+
+on:
+  push:
+    branches: [main, devel]
+  pull_request:
+    branches: [main]
+
+jobs:
+  validate:
+    name: Validate normordis-spec
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install check-jsonschema jsonschema
+
+      # ── 1. Sintaxe JSON ──────────────────────────────────────────────────────
+      - name: Validate JSON syntax (all files)
+        run: |
+          echo "Checking JSON syntax..."
+          find schemas fixtures -name "*.json" | while read f; do
+            python -m json.tool "$f" > /dev/null || { echo "INVALID JSON: $f"; exit 1; }
+          done
+          python -m json.tool version.json > /dev/null || { echo "INVALID JSON: version.json"; exit 1; }
+          echo "All JSON files are syntactically valid."
+
+      # ── 2. Compilação dos schemas ────────────────────────────────────────────
+      - name: Validate JSON Schema compilation
+        run: |
+          echo "Checking schema compilation..."
+          python - <<'EOF'
+          import json
+          import jsonschema
+          import pathlib
+          import sys
+
+          errors = []
+          for path in sorted(pathlib.Path("schemas").rglob("*.json")):
+              try:
+                  with open(path) as f:
+                      schema = json.load(f)
+                  jsonschema.Draft202012Validator.check_schema(schema)
+              except Exception as e:
+                  errors.append(f"{path}: {e}")
+
+          if errors:
+              print("Schema compilation errors:")
+              for e in errors:
+                  print(f"  - {e}")
+              sys.exit(1)
+          else:
+              print(f"All {len(list(pathlib.Path('schemas').rglob('*.json')))} schemas compile correctly.")
+          EOF
+
+      # ── 3. Consistência de $id com o caminho do ficheiro ─────────────────────
+      - name: Validate $id consistency
+        run: |
+          python - <<'EOF'
+          import json
+          import pathlib
+          import sys
+
+          BASE_URI = "https://normordis.local/spec/"
+          errors = []
+
+          for path in sorted(pathlib.Path("schemas").rglob("*.json")):
+              with open(path) as f:
+                  schema = json.load(f)
+              if "$id" not in schema:
+                  errors.append(f"{path}: missing $id")
+                  continue
+              expected_id = BASE_URI + str(path).replace("\\", "/")
+              actual_id = schema["$id"]
+              if actual_id != expected_id:
+                  errors.append(f"{path}: $id mismatch\n  expected: {expected_id}\n  actual:   {actual_id}")
+
+          if errors:
+              print("$id consistency errors:")
+              for e in errors:
+                  print(f"  - {e}")
+              sys.exit(1)
+          else:
+              print("All $id values are consistent with file paths.")
+          EOF
+
+      # ── 4. Consistência de versão ────────────────────────────────────────────
+      - name: Validate version consistency
+        run: |
+          python - <<'EOF'
+          import json
+          import re
+          import sys
+
+          with open("version.json") as f:
+              ver_json = json.load(f)["version"]
+
+          with open("VERSION.md") as f:
+              content = f.read()
+
+          match = re.search(r"Versão actual: `([^`]+)`", content)
+          if not match:
+              print("ERROR: cannot parse version from VERSION.md")
+              sys.exit(1)
+
+          ver_md = match.group(1)
+          if ver_json != ver_md:
+              print(f"Version mismatch: version.json={ver_json}, VERSION.md={ver_md}")
+              sys.exit(1)
+          else:
+              print(f"Version consistent: {ver_json}")
+          EOF
+
+      # ── 5. Fixtures são JSON válido e correspondem à estrutura esperada ───────
+      - name: Validate fixture structure
+        run: |
+          python - <<'EOF'
+          import json
+          import pathlib
+          import sys
+
+          errors = []
+
+          for subdir in ["fixtures/valid", "fixtures/invalid", "fixtures/scenarios"]:
+              p = pathlib.Path(subdir)
+              if not p.exists():
+                  continue
+              for fixture in sorted(p.glob("*.json")):
+                  try:
+                      with open(fixture) as f:
+                          json.load(f)
+                  except json.JSONDecodeError as e:
+                      errors.append(f"{fixture}: {e}")
+
+          if errors:
+              print("Fixture errors:")
+              for e in errors:
+                  print(f"  - {e}")
+              sys.exit(1)
+          else:
+              count = len(list(pathlib.Path("fixtures").rglob("*.json")))
+              print(f"All {count} fixtures are valid JSON.")
+          EOF

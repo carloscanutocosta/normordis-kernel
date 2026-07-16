@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://normordis.local/spec/schemas/core/audit/audit-manifest-signature.schema.json",
+  "title": "AuditManifestSignature",
+  "description": "Assinatura digital Ed25519 de um manifesto de exportação. Mapeado de core_audit::AuditManifestSignature.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["algorithm", "public_key_b64", "signature_b64", "signed_at_utc"],
+  "properties": {
+    "algorithm": {
+      "type": "string",
+      "enum": ["Ed25519"],
+      "description": "Algoritmo de assinatura. Actualmente exclusivo: Ed25519."
+    },
+    "key_id": {
+      "type": ["string", "null"],
+      "minLength": 1,
+      "pattern": "^\\S+$",
+      "description": "Identificador opcional da chave usada (para rotação de chaves). Null quando não especificado."
+    },
+    "public_key_b64": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Chave pública Ed25519 em base64 standard."
+    },
+    "signature_b64": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Assinatura Ed25519 em base64 standard."
+    },
+    "signed_at_utc": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d+)?Z$",
+      "description": "Momento da assinatura em UTC."
+    }
+  }
+}

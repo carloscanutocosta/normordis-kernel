@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://normordis.local/spec/schemas/support/normalization-case.schema.json",
+  "title": "NormalizationCase",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["operation", "input", "expected"],
+  "properties": {
+    "operation": { "type": "string", "enum": ["normalize_for_lookup"] },
+    "input": { "type": "string" },
+    "expected": { "type": "string" }
+  }
+}

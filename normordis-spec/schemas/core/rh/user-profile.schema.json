@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://normordis.local/spec/schemas/core/rh/user-profile.schema.json",
+  "title": "UserProfile",
+  "description": "Perfil completo de utilizador: identidade, papel de sistema, roles funcionais e posição orgânica. Mapeado de core_rh::UserProfile.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["user_id", "username", "display_name", "user_role", "roles"],
+  "properties": {
+    "user_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[a-zA-Z0-9_\\-.]+$",
+      "description": "Identificador único do utilizador (UserId transparente)."
+    },
+    "username": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^\\S+$"
+    },
+    "display_name": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^\\S(?:.*\\S)?$"
+    },
+    "email": {
+      "type": ["string", "null"],
+      "format": "email",
+      "pattern": "^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$"
+    },
+    "user_role": {
+      "type": "string",
+      "enum": ["Utilizador", "Auditor", "Administrator"],
+      "description": "Papel de sistema (coarse-grain). PascalCase — serde sem rename_all."
+    },
+    "roles": {
+      "type": "array",
+      "items": { "$ref": "role.schema.json" },
+      "description": "Roles funcionais atribuídos (fine-grain)."
+    },
+    "org_unit": {
+      "anyOf": [
+        { "$ref": "org-unit-ref.schema.json" },
+        { "type": "null" }
+      ],
+      "description": "Unidade orgânica de afectação. Null quando o utilizador não tem unidade atribuída."
+    }
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://normordis.local/spec/schemas/core/audit/audit-chain-report.schema.json",
+  "title": "AuditChainReport",
+  "description": "Resultado de verificação de integridade da cadeia de auditoria. Mapeado de core_audit::AuditChainReport.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["checked_events"],
+  "properties": {
+    "checked_events": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Número de eventos verificados na cadeia."
+    },
+    "head_record_hash": {
+      "type": ["string", "null"],
+      "pattern": "^[0-9a-f]{64}$",
+      "description": "SHA-256 hex lowercase do último elo verificado. Null se checked_events=0."
+    }
+  }
+}
