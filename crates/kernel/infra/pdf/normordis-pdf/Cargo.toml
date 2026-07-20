@@ -27,7 +27,7 @@ hex.workspace = true
 toml = "0.8"
 fontdb = { version = "0.23", optional = true }
 hyphenation = { version = "0.8", features = ["embed_all"], optional = true }
-sha2 = "0.10"
+sha2 = "0.11"
 base64 = { workspace = true }
 
 [features]
