@@ -29,6 +29,7 @@ docs/
 | [ADR-NK-004](adr/ADR-NK-004-encrypted-storage.md) | Escritas cifradas em storage SQLite | Aceite |
 | [ADR-NK-005](adr/ADR-NK-005-document-numbering.md) | Numeração alocada apenas na finalização do documento | Aceite |
 | [ADR-NK-006](adr/ADR-NK-006-trust-baseline.md) | Trust Baseline v0.1 — confiança verificável contínua | Aceite |
+| [ADR-NK-007](adr/ADR-NK-007-fronteiras-apos-extracoes.md) | Fronteiras do kernel após as extrações e congelamento do repositório | Aceite |
 
 ## Arquitectura
 
