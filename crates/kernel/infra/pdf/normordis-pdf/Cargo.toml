@@ -24,7 +24,7 @@ serde = { workspace = true }
 serde_json = { version = "1", features = ["preserve_order"] }
 uuid.workspace = true
 hex.workspace = true
-toml = "0.8"
+toml = "1.1"
 fontdb = { version = "0.23", optional = true }
 hyphenation = { version = "0.8", features = ["embed_all"], optional = true }
 sha2 = "0.10"
